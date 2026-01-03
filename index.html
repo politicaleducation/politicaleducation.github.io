@@ -380,7 +380,13 @@
       <div class="viewer" aria-label="PDF viewer">
         <iframe id="pdfFrame" title="PDF viewer"></iframe>
       </div>
-          </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="copyPdfLinkBtn" type="button">Copy link to this PDF</button>
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        Tip: upload PDFs into <span class="k">/slides</span>. This page can auto-list them from your repo (when repo is set in Settings).
+      </div>
+    </div>
     <div class="colStack">
 
 
@@ -396,7 +402,6 @@
     <div class="card">
       <h2>Slide deck list</h2>
       <div class="row" style="margin-bottom:10px;">
-        <button class="btn" id="refreshSlidesBtn" type="button">Refresh list</button>
         <button class="btn" id="useUrlBtn" type="button">Load from URL…</button>
       </div>
       <div id="slidesList" class="list" aria-label="Slides list"></div>
@@ -540,7 +545,11 @@
   </section>
 
   <div class="footer">
-
+    <div>
+      <span class="pill">Keyboard: <span class="k">←</span>/<span class="k">→</span> slide page</span>
+    </div>
+    <div class="muted">Single-file hub • Works well on GitHub Pages</div>
+  </div>
 
 </div>
 
@@ -1198,9 +1207,6 @@ function wireUI(){
   if (goBtn) goBtn.addEventListener("click", () => setPdf(currentPdf, $("#pageNum")?.value));
   const pageNumEl = $("#pageNum");
   if (pageNumEl) pageNumEl.addEventListener("keydown", (e) => { if (e.key === "Enter") setPdf(currentPdf, pageNumEl.value); });
-
-  $("#refreshSlidesBtn").addEventListener("click", refreshSlides);
-
   $("#useUrlBtn").addEventListener("click", () => {
     const url = prompt("Enter a PDF URL or a relative path (example: slides/week1.pdf):");
     if (!url) return;
