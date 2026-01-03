@@ -1223,13 +1223,15 @@ function wireUI(){
   if (goBtn) goBtn.addEventListener("click", () => setPdf(currentPdf, $("#pageNum")?.value));
   const pageNumEl = $("#pageNum");
   if (pageNumEl) pageNumEl.addEventListener("keydown", (e) => { if (e.key === "Enter") setPdf(currentPdf, pageNumEl.value); });
-  $("#useUrlBtn").addEventListener("click", () => {
+  const useUrlBtn = $("#useUrlBtn");
+  if (useUrlBtn) useUrlBtn.addEventListener("click", () => {
     const url = prompt("Enter a PDF URL or a relative path (example: slides/week1.pdf):");
     if (!url) return;
     setPdf(url, 1);
   });
 
-  $("#copyPdfLinkBtn").addEventListener("click", async () => {
+  const copyPdfLinkBtn = $("#copyPdfLinkBtn");
+  if (copyPdfLinkBtn) copyPdfLinkBtn.addEventListener("click", async () => {
     if (!currentPdf) return;
     const u = new URL(location.href);
     u.searchParams.set("pdf", currentPdf);
