@@ -134,6 +134,7 @@
       header{position:static;}
     }
 
+    .colStack{display:flex; flex-direction:column; gap:10px;}
     .card{
       background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, transparent), var(--panel2));
       border:1px solid var(--line);
@@ -357,6 +358,8 @@
         Tip: upload PDFs into <span class="k">/slides</span>. This page can auto-list them from your repo (when repo is set in Settings).
       </div>
     </div>
+    <div class="colStack">
+
 
     <div class="card">
       <h2>Slide deck list</h2>
@@ -371,6 +374,17 @@
         Add PDFs to the repo (or open a PR). The site updates when GitHub Pages rebuilds.
       </div>
     </div>
+
+    <div class="card">
+      <h2>Slides discussion</h2>
+      <div id="slidesUtterancesNotice" class="notice hidden">
+        To enable slides comments: set your <b>repo</b> in Settings, ensure the repo is <b>public</b> and has <b>Issues</b> enabled,
+        then install the <b>utterances</b> GitHub App on that repo.
+      </div>
+      <div id="slidesUtterancesContainer"></div>
+    </div>
+    </div>
+
   </section>
 
   <!-- DISCUSS -->
@@ -939,6 +953,34 @@ function loadUtterances(){
   container.appendChild(script);
 }
 
+
+function loadSlidesUtterances(){
+  const notice = $("#slidesUtterancesNotice");
+  const container = $("#slidesUtterancesContainer");
+  if (!notice || !container) return;
+
+  container.innerHTML = "";
+
+  // Always use a different thread key than the main Discuss tab
+  const threadKey = buildThreadKey() + ":slides";
+
+  if (!cfg.repo){
+    notice.classList.remove("hidden");
+    return;
+  }
+  notice.classList.add("hidden");
+
+  const script = document.createElement("script");
+  script.src = "https://utteranc.es/client.js";
+  script.setAttribute("repo", cfg.repo);
+  script.setAttribute("issue-term", threadKey);
+  script.setAttribute("theme", "preferred-color-scheme");
+  script.crossOrigin = "anonymous";
+  script.async = true;
+
+  container.appendChild(script);
+}
+
 function wireUI(){
   for (const tab of document.querySelectorAll(".tab")){
     tab.addEventListener("click", () => showPanel(tab.dataset.panel));
@@ -967,6 +1009,7 @@ function wireUI(){
     refreshSlides();
     refreshFiles();
     loadUtterances();
+    loadSlidesUtterances();
   });
 
   $("#resetCfgBtn").addEventListener("click", () => {
@@ -980,6 +1023,7 @@ function wireUI(){
     refreshFiles();
     toggleSettings(true);
     loadUtterances();
+    loadSlidesUtterances();
   });
 
   $("#copyLinkBtn").addEventListener("click", async () => {
@@ -1074,7 +1118,7 @@ function wireUI(){
   });
 
   $("#refreshFilesBtn").addEventListener("click", refreshFiles);
-  $("#reloadCommentsBtn").addEventListener("click", loadUtterances);
+  $("#reloadCommentsBtn").addEventListener("click", () => { loadUtterances(); loadSlidesUtterances(); });
 
   window.addEventListener("keydown", (e) => {
     if (e.target && ["INPUT","TEXTAREA","SELECT"].includes(e.target.tagName)) return;
@@ -1094,6 +1138,7 @@ function init(){
   refreshSlides();
   refreshFiles();
   loadUtterances();
+  loadSlidesUtterances();
 
   if (params.pdf) setPdf(params.pdf, params.page || 1);
 }
