@@ -380,7 +380,7 @@
       <div class="viewer" aria-label="PDF viewer">
         <iframe id="pdfFrame" title="PDF viewer"></iframe>
       </div>
-               </div>
+          </div>
     <div class="colStack">
 
 
@@ -541,6 +541,7 @@
 
   <div class="footer">
 
+
 </div>
 
 <script>
@@ -646,7 +647,33 @@ function showPanel(panelId){
 
   // Remember the active tab so a browser refresh stays on the same panel
   try { saveState({ activePanel: panelId }); } catch {}
+
+  // Utterances can misbehave if multiple widgets are mounted at once.
+  // Only mount the widget for the currently visible panel.
+  try { mountCommentsForPanel(panelId); } catch {}
 }
+
+function clearCommentsEl(el){
+  if (!el) return;
+  el.innerHTML = "";
+}
+
+function mountCommentsForPanel(panelId){
+  const shared = $("#utterancesContainer");
+  const slides = $("#slidesUtterancesContainer");
+
+  if (panelId === "slidesPanel") {
+    clearCommentsEl(shared);
+    loadSlidesUtterances();
+  } else if (panelId === "discussPanel") {
+    clearCommentsEl(slides);
+    loadUtterances();
+  } else {
+    clearCommentsEl(shared);
+    clearCommentsEl(slides);
+  }
+}
+
 
 function toggleSettings(open){
   const p = $("#settingsPanel");
@@ -1137,8 +1164,7 @@ function wireUI(){
     setCalendar();
     refreshSlides();
     refreshFiles();
-    loadUtterances();
-    loadSlidesUtterances();
+    mountCommentsForPanel(cfg.activePanel || "slidesPanel");
   });
 
   $("#resetCfgBtn").addEventListener("click", () => {
@@ -1152,8 +1178,7 @@ function wireUI(){
     refreshSlides();
     refreshFiles();
     toggleSettings(true);
-    loadUtterances();
-    loadSlidesUtterances();
+    mountCommentsForPanel(cfg.activePanel || "slidesPanel");
   });
 
   $("#copyLinkBtn").addEventListener("click", async () => {
@@ -1246,7 +1271,7 @@ function wireUI(){
   });
 
   $("#refreshFilesBtn").addEventListener("click", refreshFiles);
-  $("#reloadCommentsBtn").addEventListener("click", () => { loadUtterances(); loadSlidesUtterances(); });
+  $("#reloadCommentsBtn").addEventListener("click", () => mountCommentsForPanel("discussPanel"));
 
   window.addEventListener("keydown", (e) => {
     if (e.target && ["INPUT","TEXTAREA","SELECT"].includes(e.target.tagName)) return;
@@ -1270,8 +1295,6 @@ function init(){
   renderLinks();
   refreshSlides();
   refreshFiles();
-  loadUtterances();
-  loadSlidesUtterances();
 
   if (params.pdf) setPdf(params.pdf, params.page || 1);
 }
