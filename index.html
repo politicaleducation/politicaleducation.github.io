@@ -376,24 +376,11 @@
   <section id="slidesPanel" class="grid" aria-label="Slides">
     <div class="card">
       <h2>Slides (PDF)</h2>
-      <div class="row" style="margin-bottom:10px;">
-        <button class="btn" id="prevPageBtn" type="button">◀ Prev</button>
-        <button class="btn" id="nextPageBtn" type="button">Next ▶</button>
-        <span class="muted" style="font-size:12px;">Page</span>
-        <input id="pageNum" type="number" min="1" value="1" style="width:92px; padding:9px 10px; border-radius:12px;" />
-        <button class="btn" id="goPageBtn" type="button">Go</button>
-        <span class="pill" id="pdfStatus">No PDF selected</span>
-      </div>
+
       <div class="viewer" aria-label="PDF viewer">
         <iframe id="pdfFrame" title="PDF viewer"></iframe>
       </div>
-      <div class="row" style="margin-top:10px;">
-        <button class="btn" id="copyPdfLinkBtn" type="button">Copy link to this PDF</button>
-      </div>
-      <div class="hint" style="margin-top:10px;">
-        Tip: upload PDFs into <span class="k">/slides</span>. This page can auto-list them from your repo (when repo is set in Settings).
-      </div>
-    </div>
+               </div>
     <div class="colStack">
 
 
@@ -553,11 +540,6 @@
   </section>
 
   <div class="footer">
-    <div>
-      <span class="pill">Keyboard: <span class="k">←</span>/<span class="k">→</span> slide page</span>
-    </div>
-    <div class="muted">Single-file hub • Works well on GitHub Pages</div>
-  </div>
 
 </div>
 
@@ -812,19 +794,21 @@ function setPdf(url, page=1){
   const clean = sanitizePdfUrl(url);
   if (!clean) {
     $("#pdfFrame").removeAttribute("src");
-    $("#pdfStatus").textContent = "No PDF selected";
+    const st0 = $("#pdfStatus");
+    if (st0) st0.textContent = "No PDF selected";
     currentPdf = "";
     return;
   }
   currentPdf = clean;
   currentPage = Math.max(1, parseInt(page,10) || 1);
-  $("#pageNum").value = String(currentPage);
-
-  const srcNoHash = clean.includes("#") ? clean.replace(/#.*$/, "") : clean;
+    const pageNumEl2 = $("#pageNum");
+  if (pageNumEl2) pageNumEl2.value = String(currentPage);
+const srcNoHash = clean.includes("#") ? clean.replace(/#.*$/, "") : clean;
   $("#pdfFrame").src = `${srcNoHash}#page=${currentPage}`;
 
   const shown = clean.startsWith("http") || clean.startsWith("blob:") ? clean : toSiteUrl(clean);
-  $("#pdfStatus").textContent = "Loaded: " + shown.split("/").pop();
+  const st1 = $("#pdfStatus");
+  if (st1) st1.textContent = "Loaded: " + shown.split("/").pop();
 }
 
 function bumpPage(delta){ setPdf(currentPdf, Math.max(1, currentPage + delta)); }
@@ -1181,10 +1165,14 @@ function wireUI(){
     catch{ setCfgStatus("Could not copy", "bad"); }
   });
 
-  $("#prevPageBtn").addEventListener("click", () => bumpPage(-1));
-  $("#nextPageBtn").addEventListener("click", () => bumpPage(1));
-  $("#goPageBtn").addEventListener("click", () => setPdf(currentPdf, $("#pageNum").value));
-  $("#pageNum").addEventListener("keydown", (e) => { if (e.key === "Enter") setPdf(currentPdf, $("#pageNum").value); });
+  const prevBtn = $("#prevPageBtn");
+  if (prevBtn) prevBtn.addEventListener("click", () => bumpPage(-1));
+  const nextBtn = $("#nextPageBtn");
+  if (nextBtn) nextBtn.addEventListener("click", () => bumpPage(1));
+  const goBtn = $("#goPageBtn");
+  if (goBtn) goBtn.addEventListener("click", () => setPdf(currentPdf, $("#pageNum")?.value));
+  const pageNumEl = $("#pageNum");
+  if (pageNumEl) pageNumEl.addEventListener("keydown", (e) => { if (e.key === "Enter") setPdf(currentPdf, pageNumEl.value); });
 
   $("#refreshSlidesBtn").addEventListener("click", refreshSlides);
 
@@ -1199,8 +1187,8 @@ function wireUI(){
     const u = new URL(location.href);
     u.searchParams.set("pdf", currentPdf);
     u.searchParams.set("page", String(currentPage));
-    try{ await navigator.clipboard.writeText(u.toString()); $("#pdfStatus").textContent = "Copied PDF link"; }
-    catch{ $("#pdfStatus").textContent = "Could not copy"; }
+    try{ await navigator.clipboard.writeText(u.toString()); const st2 = $("#pdfStatus"); if (st2) st2.textContent = "Copied PDF link"; }
+    catch{ const st3 = $("#pdfStatus"); if (st3) st3.textContent = "Could not copy"; }
   });
 
   $("#addSessionBtn").addEventListener("click", () => {
