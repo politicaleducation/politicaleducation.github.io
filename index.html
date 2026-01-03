@@ -32,6 +32,7 @@
       --bad:#fb7185;
       --shadow: 0 10px 24px rgba(0,0,0,.28);
       --radius: 16px;
+      --rightColPx: 420;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
@@ -125,7 +126,8 @@
 
     .grid{
       display:grid;
-      grid-template-columns: 1.5fr 1fr;
+      position:relative;
+      grid-template-columns: minmax(0, 1fr) clamp(320px, calc(var(--rightColPx) * 1px), 720px);
       gap:14px;
       align-items:start;
     }
@@ -134,7 +136,41 @@
       header{position:static;}
     }
 
-    .colStack{display:flex; flex-direction:column; gap:10px;}
+    
+    /* Resize tabs (Slides split view) */
+    body.isResizing{ cursor: col-resize; }
+    .resizeTab{
+      position:absolute;
+      top:118px;
+      left:0;
+      width:10px;
+      height:66px;
+      border-radius:999px;
+      background: color-mix(in srgb, var(--panel) 70%, transparent);
+      border:1px solid color-mix(in srgb, var(--line) 85%, transparent);
+      box-shadow: var(--shadow);
+      cursor: col-resize;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:30;
+      user-select:none;
+      touch-action:none;
+    }
+    .resizeTab::before{
+      content:"";
+      width:2px;
+      height:26px;
+      border-radius:2px;
+      background: color-mix(in srgb, var(--muted) 60%, transparent);
+      box-shadow: 4px 0 0 color-mix(in srgb, var(--muted) 60%, transparent),
+                  -4px 0 0 color-mix(in srgb, var(--muted) 60%, transparent);
+      opacity:.9;
+    }
+    @media (max-width: 980px){
+      .resizeTab{ display:none; }
+    }
+.colStack{display:flex; flex-direction:column; gap:10px;}
     .card{
       background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, transparent), var(--panel2));
       border:1px solid var(--line);
@@ -157,6 +193,7 @@
       font-size:13px;
       outline:none;
     }
+    input[type="range"]{width:100%; flex:1 1 auto;}
     textarea{min-height:88px; resize:vertical;}
     input:focus, textarea:focus{border-color: color-mix(in srgb, var(--accent) 55%, var(--line));}
     .hint{font-size:12px; color:var(--muted); line-height:1.35;}
@@ -314,7 +351,7 @@
         <label for="cfgSharedDir">Shared files folder (in repo/site)</label>
         <input id="cfgSharedDir" type="text" placeholder="shared" />
       </div>
-      <div class="field">
+<div class="field">
         <label for="cfgCalendarSrc">Google Calendar embed URL (optional)</label>
         <input id="cfgCalendarSrc" type="url" placeholder="https://calendar.google.com/calendar/embed?..." />
         <div class="hint">If you don’t have one yet, you can still use the “Upcoming sessions” list below.</div>
@@ -351,7 +388,6 @@
         <iframe id="pdfFrame" title="PDF viewer"></iframe>
       </div>
       <div class="row" style="margin-top:10px;">
-        <button class="btn primary" id="openPdfNewTabBtn" type="button">Open PDF in new tab</button>
         <button class="btn" id="copyPdfLinkBtn" type="button">Copy link to this PDF</button>
       </div>
       <div class="hint" style="margin-top:10px;">
@@ -360,6 +396,15 @@
     </div>
     <div class="colStack">
 
+
+    <div class="card">
+      <h2>Slides discussion</h2>
+      <div id="slidesUtterancesNotice" class="notice hidden">
+        To enable slides comments: set your <b>repo</b> in Settings, ensure the repo is <b>public</b> and has <b>Issues</b> enabled,
+        then install the <b>utterances</b> GitHub App on that repo.
+      </div>
+      <div id="slidesUtterancesContainer"></div>
+    </div>
 
     <div class="card">
       <h2>Slide deck list</h2>
@@ -374,18 +419,12 @@
         Add PDFs to the repo (or open a PR). The site updates when GitHub Pages rebuilds.
       </div>
     </div>
-
-    <div class="card">
-      <h2>Slides discussion</h2>
-      <div id="slidesUtterancesNotice" class="notice hidden">
-        To enable slides comments: set your <b>repo</b> in Settings, ensure the repo is <b>public</b> and has <b>Issues</b> enabled,
-        then install the <b>utterances</b> GitHub App on that repo.
-      </div>
-      <div id="slidesUtterancesContainer"></div>
-    </div>
     </div>
 
-  </section>
+  
+    <div class="resizeTab resizeTabLeft" id="resizeTabSlides" title="Resize slides panel" aria-label="Resize slides panel" role="separator" aria-orientation="vertical" tabindex="0"></div>
+    <div class="resizeTab resizeTabRight" id="resizeTabColStack" title="Resize right stack" aria-label="Resize right stack" role="separator" aria-orientation="vertical" tabindex="0"></div>
+</section>
 
   <!-- DISCUSS -->
   <section id="discussPanel" class="hidden" aria-label="Discuss">
@@ -535,6 +574,7 @@ const DEFAULTS = {
   slidesDir: "slides",
   sharedDir: "shared",
   calendarSrc: "",
+  rightColPx: 420,
   activePanel: "slidesPanel"
 };
 
@@ -618,6 +658,10 @@ function showPanel(panelId){
     tab.setAttribute("aria-selected", tab.dataset.panel === panelId ? "true" : "false");
   }
 
+  if (panelId === "slidesPanel") {
+    try { positionSlidesResizeTabs(); } catch {}
+  }
+
   // Remember the active tab so a browser refresh stays on the same panel
   try { saveState({ activePanel: panelId }); } catch {}
 }
@@ -635,7 +679,107 @@ function toggleSettings(open){
     $("#cfgSlidesDir").value = cfg.slidesDir;
     $("#cfgSharedDir").value = cfg.sharedDir;
     $("#cfgCalendarSrc").value = cfg.calendarSrc;
+    const w = Number(cfg.rightColPx) || DEFAULTS.rightColPx;
+    applyRightColWidth(w);
   }
+}
+
+function applyRightColWidth(px){
+  const v = Math.max(320, Math.min(720, Number(px) || DEFAULTS.rightColPx));
+  document.documentElement.style.setProperty("--rightColPx", String(v));
+  const r = $("#cfgRightCol");
+  if (r) r.value = String(v);
+  const out = $("#cfgRightColVal");
+  if (out) out.textContent = `${v}px`;
+  return v;
+}
+
+
+const SLIDES_GRID_GAP = 14;
+
+function getRightColPx(){
+  const v = Number(getComputedStyle(document.documentElement).getPropertyValue("--rightColPx"));
+  return Number.isFinite(v) ? v : DEFAULTS.rightColPx;
+}
+
+function positionSlidesResizeTabs(){
+  const panel = $("#slidesPanel");
+  const tabA = $("#resizeTabSlides");
+  const tabB = $("#resizeTabColStack");
+  if (!panel || !tabA || !tabB) return;
+
+  const cs = getComputedStyle(panel);
+  const cols = cs.gridTemplateColumns.trim().split(/\s+/);
+  if (cols.length < 2){
+    tabA.style.display = "none";
+    tabB.style.display = "none";
+    return;
+  }
+  tabA.style.display = "";
+  tabB.style.display = "";
+
+  const w = panel.clientWidth;
+  const rightW = Math.max(320, Math.min(720, getRightColPx()));
+  const boundary = w - rightW - SLIDES_GRID_GAP;
+
+  // Place both tabs inside the existing grid gap so they don't steal width from either side.
+  tabA.style.left = Math.max(0, boundary + Math.floor(SLIDES_GRID_GAP * 0.25) - 5) + "px";
+  tabB.style.left = Math.max(0, boundary + Math.floor(SLIDES_GRID_GAP * 0.75) - 5) + "px";
+}
+
+function wireSlidesResizeTabs(){
+  const tabA = $("#resizeTabSlides");
+  const tabB = $("#resizeTabColStack");
+  if (!tabA || !tabB) return;
+
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  const start = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    dragging = true;
+    startX = e.clientX;
+    startW = getRightColPx();
+    document.body.classList.add("isResizing");
+    try { e.target.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault();
+  };
+
+  const move = (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const v = applyRightColWidth(startW - dx);
+    cfg = { ...cfg, rightColPx: v };
+    try { saveState({ rightColPx: v }); } catch {}
+    positionSlidesResizeTabs();
+  };
+
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove("isResizing");
+  };
+
+  for (const t of [tabA, tabB]){
+    t.addEventListener("pointerdown", start);
+    t.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const cur = getRightColPx();
+      const step = e.shiftKey ? 40 : 20;
+      // ArrowLeft widens the right stack (moves divider left). ArrowRight shrinks it.
+      const next = (e.key === "ArrowLeft") ? (cur + step) : (cur - step);
+      const v = applyRightColWidth(next);
+      cfg = { ...cfg, rightColPx: v };
+      try { saveState({ rightColPx: v }); } catch {}
+      positionSlidesResizeTabs();
+    });
+  }
+
+  window.addEventListener("pointermove", move, { passive:false });
+  window.addEventListener("pointerup", end, { passive:true });
+  window.addEventListener("resize", positionSlidesResizeTabs, { passive:true });
 }
 
 function setCfgStatus(text, kind="neutral"){
@@ -724,14 +868,6 @@ function renderSlidesList(items){
     openBtn.textContent = "Open";
     openBtn.addEventListener("click", () => setPdf(relPath, 1));
     right.appendChild(openBtn);
-
-    const open = document.createElement("a");
-    open.className = "btn";
-    open.textContent = "New tab";
-    open.href = toSiteUrl(relPath);
-    open.target = "_blank";
-    open.rel = "noopener noreferrer";
-    right.appendChild(open);
 
     row.appendChild(right);
     list.appendChild(row);
@@ -986,7 +1122,14 @@ function wireUI(){
     tab.addEventListener("click", () => showPanel(tab.dataset.panel));
   }
 
-  $("#openSettingsBtn").addEventListener("click", () => toggleSettings($("#settingsPanel").classList.contains("hidden")));
+  const openSettingsBtn = $("#openSettingsBtn");
+  if (openSettingsBtn) openSettingsBtn.addEventListener("click", () => toggleSettings($("#settingsPanel").classList.contains("hidden")));
+  const rightColRange = $("#cfgRightCol");
+  if (rightColRange) rightColRange.addEventListener("input", (e) => {
+    const v = applyRightColWidth(e.target.value);
+    cfg = { ...cfg, rightColPx: v };
+    try { saveState({ rightColPx: v }); } catch {}
+  });
 
   $("#saveCfgBtn").addEventListener("click", () => {
     cfg = {
@@ -999,9 +1142,11 @@ function wireUI(){
       threadId: $("#cfgLessonId").value.trim(),
       slidesDir: $("#cfgSlidesDir").value.trim() || DEFAULTS.slidesDir,
       sharedDir: $("#cfgSharedDir").value.trim() || DEFAULTS.sharedDir,
-      calendarSrc: $("#cfgCalendarSrc").value.trim()
+      calendarSrc: $("#cfgCalendarSrc").value.trim(),
+      rightColPx: Number(getComputedStyle(document.documentElement).getPropertyValue("--rightColPx")) || cfg.rightColPx || DEFAULTS.rightColPx
     };
     saveState(cfg);
+    applyRightColWidth(cfg.rightColPx);
     setCfgStatus("Saved", "good");
     setTopBrand();
     setEditOnGitHubLink();
@@ -1015,6 +1160,7 @@ function wireUI(){
   $("#resetCfgBtn").addEventListener("click", () => {
     resetState();
     cfg = { ...DEFAULTS };
+    applyRightColWidth(DEFAULTS.rightColPx);
     setCfgStatus("Reset", "warn");
     setTopBrand();
     setEditOnGitHubLink();
@@ -1046,12 +1192,6 @@ function wireUI(){
     const url = prompt("Enter a PDF URL or a relative path (example: slides/week1.pdf):");
     if (!url) return;
     setPdf(url, 1);
-  });
-
-  $("#openPdfNewTabBtn").addEventListener("click", () => {
-    if (!currentPdf) return;
-    const u = currentPdf.startsWith("http") || currentPdf.startsWith("blob:") ? currentPdf : toSiteUrl(currentPdf);
-    window.open(u, "_blank", "noopener");
   });
 
   $("#copyPdfLinkBtn").addEventListener("click", async () => {
@@ -1125,10 +1265,15 @@ function wireUI(){
     if (e.key === "ArrowLeft") bumpPage(-1);
     if (e.key === "ArrowRight") bumpPage(1);
   });
+
+
+  wireSlidesResizeTabs();
+  positionSlidesResizeTabs();
 }
 
 function init(){
   setTopBrand();
+  applyRightColWidth(cfg.rightColPx || DEFAULTS.rightColPx);
   setEditOnGitHubLink();
   setCalendar();
   showPanel(params.tab || cfg.activePanel || "slidesPanel");
