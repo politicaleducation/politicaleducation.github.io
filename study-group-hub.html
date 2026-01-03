@@ -1,0 +1,1090 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <!-- Basic (not perfect) security headers you can do in a single static HTML file -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    frame-src 'self' https://utteranc.es https://calendar.google.com blob:;
+    script-src 'self' 'unsafe-inline' https://utteranc.es;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https://avatars.githubusercontent.com;
+    connect-src 'self' https://api.github.com;
+    form-action 'self';
+    upgrade-insecure-requests;
+  " />
+  <title>Study Group Hub</title>
+  <style>
+    :root{
+      --bg: #0b0f14;
+      --panel: #111826;
+      --panel2:#0f1520;
+      --text:#e6edf3;
+      --muted:#9fb0c0;
+      --line:#243248;
+      --accent:#4ea1ff;
+      --good:#2dd4bf;
+      --warn:#fbbf24;
+      --bad:#fb7185;
+      --shadow: 0 10px 24px rgba(0,0,0,.28);
+      --radius: 16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f7f8fb;
+        --panel:#ffffff;
+        --panel2:#f3f5fb;
+        --text:#0b1220;
+        --muted:#556579;
+        --line:#d7deea;
+        --accent:#2563eb;
+        --shadow: 0 10px 24px rgba(15,23,42,.12);
+      }
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(78,161,255,.18), transparent 55%),
+                  radial-gradient(900px 500px at 90% 0%, rgba(45,212,191,.10), transparent 50%),
+                  var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit}
+    .wrap{max-width:1150px; margin:0 auto; padding:18px 16px 48px;}
+    header{
+      position:sticky; top:0; z-index:20;
+      background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,0));
+      backdrop-filter: blur(10px);
+    }
+    .topbar{max-width:1150px; margin:0 auto; padding:14px 16px 10px;}
+    .brand{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+    .brand-left{display:flex; align-items:center; gap:12px; min-width:0}
+    .logo{
+      width:42px; height:42px; border-radius:12px;
+      background: linear-gradient(135deg, rgba(78,161,255,.95), rgba(137,17,192,.85));
+      box-shadow: var(--shadow);
+      flex:0 0 auto;
+    }
+    h1{
+      font-size:18px; line-height:1.1; margin:0;
+      letter-spacing:.2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .subtitle{margin:2px 0 0; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
+    .btn{
+      border:1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+      color:var(--text);
+      padding:9px 12px;
+      border-radius:12px;
+      font-size:13px;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex; align-items:center; gap:8px;
+      transition: transform .06s ease, border-color .15s ease, background .15s ease;
+      user-select:none;
+    }
+    .btn:hover{border-color: color-mix(in srgb, var(--accent) 55%, var(--line));}
+    .btn:active{transform: translateY(1px);}
+    .btn.primary{
+      border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+      background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+    }
+    .pill{
+      font-size:12px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      color:var(--muted);
+    }
+    nav{max-width:1150px; margin:0 auto; padding:0 16px 14px;}
+    .tabs{display:flex; gap:10px; flex-wrap:wrap;}
+    .tab{
+      border:1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 80%, transparent);
+      padding:10px 12px;
+      border-radius:999px;
+      font-size:13px;
+      color:var(--muted);
+      cursor:pointer;
+      user-select:none;
+    }
+    .tab[aria-selected="true"]{
+      color:var(--text);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap:14px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr;}
+      header{position:static;}
+    }
+
+    .card{
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, transparent), var(--panel2));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      padding:14px;
+      box-shadow: var(--shadow);
+    }
+    .card h2{margin:0 0 10px; font-size:15px;}
+    .muted{color:var(--muted); font-size:13px;}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .field{display:flex; flex-direction:column; gap:6px; min-width:240px; flex:1 1 260px;}
+    label{font-size:12px; color:var(--muted);}
+    input[type="text"], input[type="url"], input[type="number"], textarea{
+      width:100%;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border:1px solid var(--line);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+    textarea{min-height:88px; resize:vertical;}
+    input:focus, textarea:focus{border-color: color-mix(in srgb, var(--accent) 55%, var(--line));}
+    .hint{font-size:12px; color:var(--muted); line-height:1.35;}
+    .split{display:grid; grid-template-columns: 1fr 1fr; gap:12px;}
+    @media (max-width: 700px){ .split{grid-template-columns:1fr;} }
+
+    .viewer{
+      width:100%;
+      height: 70vh;
+      min-height:420px;
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      overflow:hidden;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+    }
+    iframe#pdfFrame{width:100%; height:100%; border:0; background: transparent;}
+    .list{
+      display:flex; flex-direction:column; gap:8px;
+      max-height: 70vh; overflow:auto; padding-right:6px;
+    }
+    .item{
+      border:1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      border-radius:14px;
+      padding:10px 10px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+    }
+    .item-title{min-width:0}
+    .item-title b{display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .item-title span{display:block; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .k{
+      font-family:var(--mono);
+      font-size:12px;
+      padding:2px 6px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      color:var(--muted);
+    }
+    .notice{
+      border:1px dashed color-mix(in srgb, var(--line) 75%, transparent);
+      border-radius:14px;
+      padding:10px 12px;
+      background: color-mix(in srgb, var(--panel) 70%, transparent);
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+    }
+    .hr{height:1px; background:var(--line); margin:12px 0;}
+    .hidden{display:none !important;}
+
+    .tag{
+      font-size:11px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      color:var(--muted);
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+    }
+    .resource{
+      display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px;
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+    }
+    .resource .left{min-width:0}
+    .resource b{display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .resource .url{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .resource .meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+    .resource .right{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+    .footer{
+      margin-top:18px;
+      display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;
+      color:var(--muted);
+      font-size:12px;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-left">
+        <div class="logo" aria-hidden="true"></div>
+        <div style="min-width:0">
+          <h1 id="groupName">Study Group Hub</h1>
+          <div class="subtitle" id="groupTagline">Slides • discussion • calendar • sharing</div>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn" id="editOnGitHub" href="#" target="_blank" rel="noopener noreferrer">Edit on GitHub</a>
+        <button class="btn primary" id="openSettingsBtn" type="button">Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <nav>
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" aria-selected="true" data-panel="slidesPanel">Slides</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="discussPanel">Discuss</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="calendarPanel">Calendar</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="sharePanel">Links & Files</button>
+    </div>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- SETTINGS -->
+  <section id="settingsPanel" class="card hidden" aria-label="Settings">
+    <h2>Settings (saved in this browser)</h2>
+    <div class="split">
+      <div class="field">
+        <label for="cfgGroupName">Group name</label>
+        <input id="cfgGroupName" type="text" placeholder="Example: Tuesday Study Group" />
+      </div>
+      <div class="field">
+        <label for="cfgTagline">Tagline (short)</label>
+        <input id="cfgTagline" type="text" placeholder="Example: weekly reading + slides + discussion" />
+      </div>
+      <div class="field">
+        <label for="cfgRepo">GitHub repo for comments + file listings (owner/repo)</label>
+        <input id="cfgRepo" type="text" placeholder="Example: yourname/study-group-site" />
+        <div class="hint">
+          Needed for: (1) Discussion comments, (2) listing PDFs/files from repo folders, (3) “Edit on GitHub” button.
+          Repo should be public and have Issues enabled.
+        </div>
+      </div>
+      <div class="field">
+        <label for="cfgBranch">Repo default branch</label>
+        <input id="cfgBranch" type="text" placeholder="main" />
+      </div>
+      <div class="field">
+        <label for="cfgPagePath">This page path in repo</label>
+        <input id="cfgPagePath" type="text" placeholder="index.html" />
+      </div>
+      <div class="field">
+        <label for="cfgLessonId">Thread ID (optional)</label>
+        <input id="cfgLessonId" type="text" placeholder="Example: 2026-01-03" />
+        <div class="hint">
+          This becomes part of the discussion thread key. Use it if you want a fresh thread per meeting.
+          Leave blank to use one long-running thread for this page.
+        </div>
+      </div>
+      <div class="field">
+        <label for="cfgSlidesDir">Slides folder (in repo/site)</label>
+        <input id="cfgSlidesDir" type="text" placeholder="slides" />
+      </div>
+      <div class="field">
+        <label for="cfgSharedDir">Shared files folder (in repo/site)</label>
+        <input id="cfgSharedDir" type="text" placeholder="shared" />
+      </div>
+      <div class="field">
+        <label for="cfgCalendarSrc">Google Calendar embed URL (optional)</label>
+        <input id="cfgCalendarSrc" type="url" placeholder="https://calendar.google.com/calendar/embed?..." />
+        <div class="hint">If you don’t have one yet, you can still use the “Upcoming sessions” list below.</div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <button class="btn primary" id="saveCfgBtn" type="button">Save settings</button>
+      <button class="btn" id="resetCfgBtn" type="button">Reset to defaults</button>
+      <button class="btn" id="copyLinkBtn" type="button">Copy link with Thread ID</button>
+      <span class="pill" id="cfgStatus">Not saved</span>
+    </div>
+
+    <div class="hr"></div>
+    <div class="notice">
+      <b>GitHub Pages note:</b> save this file as <span class="k">index.html</span> in your repo, enable GitHub Pages in the repo settings,
+      and put PDFs in <span class="k">/slides</span> and shared files in <span class="k">/shared</span>.
+    </div>
+  </section>
+
+  <!-- SLIDES -->
+  <section id="slidesPanel" class="grid" aria-label="Slides">
+    <div class="card">
+      <h2>Slides (PDF)</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn" id="prevPageBtn" type="button">◀ Prev</button>
+        <button class="btn" id="nextPageBtn" type="button">Next ▶</button>
+        <span class="muted" style="font-size:12px;">Page</span>
+        <input id="pageNum" type="number" min="1" value="1" style="width:92px; padding:9px 10px; border-radius:12px;" />
+        <button class="btn" id="goPageBtn" type="button">Go</button>
+        <span class="pill" id="pdfStatus">No PDF selected</span>
+      </div>
+      <div class="viewer" aria-label="PDF viewer">
+        <iframe id="pdfFrame" title="PDF viewer"></iframe>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn primary" id="openPdfNewTabBtn" type="button">Open PDF in new tab</button>
+        <button class="btn" id="copyPdfLinkBtn" type="button">Copy link to this PDF</button>
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        Tip: upload PDFs into <span class="k">/slides</span>. This page can auto-list them from your repo (when repo is set in Settings).
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Slide deck list</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn" id="refreshSlidesBtn" type="button">Refresh list</button>
+        <button class="btn" id="useUrlBtn" type="button">Load from URL…</button>
+      </div>
+      <div id="slidesList" class="list" aria-label="Slides list"></div>
+
+      <div class="hr"></div>
+      <div class="notice">
+        Add PDFs to the repo (or open a PR). The site updates when GitHub Pages rebuilds.
+      </div>
+    </div>
+  </section>
+
+  <!-- DISCUSS -->
+  <section id="discussPanel" class="hidden" aria-label="Discuss">
+    <div class="card">
+      <h2>Discuss (shared)</h2>
+      <div class="notice">
+        Comments are stored as <b>GitHub Issue comments</b> in the repo you set in Settings.
+        People need a GitHub account to post. If someone else doesn’t see new comments yet, use <b>Reload comments</b>.
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="btn primary" id="reloadCommentsBtn" type="button">Reload comments</button>
+        <span class="pill" id="threadPill">Thread: —</span>
+      </div>
+
+      <div class="hr"></div>
+      <div id="utterancesNotice" class="notice">
+        To enable shared comments: set your <b>repo</b> in Settings (owner/repo), ensure the repo is <b>public</b> and has <b>Issues</b> enabled,
+        then install the <b>utterances</b> GitHub App on that repo.
+      </div>
+
+      <div id="utterancesContainer"></div>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section id="calendarPanel" class="hidden" aria-label="Calendar">
+    <div class="grid">
+      <div class="card">
+        <h2>Calendar (embed)</h2>
+        <div id="calendarEmpty" class="notice">
+          Add a Google Calendar embed URL in Settings to show it here.
+        </div>
+        <div id="calendarWrap" class="viewer hidden" style="height:72vh; min-height:420px;">
+          <iframe id="calendarFrame" title="Calendar"
+            style="width:100%; height:100%; border:0;"
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Upcoming sessions (local list)</h2>
+        <div class="hint">Saved in your browser. Use Export/Import to share the list.</div>
+
+        <div class="hr"></div>
+
+        <div class="field">
+          <label for="sessionTitle">Session title</label>
+          <input id="sessionTitle" type="text" placeholder="Example: Topic + chapters" />
+        </div>
+
+        <div class="split">
+          <div class="field">
+            <label for="sessionDate">Date</label>
+            <input id="sessionDate" type="text" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="field">
+            <label for="sessionTime">Time (optional)</label>
+            <input id="sessionTime" type="text" placeholder="Example: 7:00 PM ET" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="addSessionBtn" type="button">Add</button>
+          <button class="btn" id="exportSessionsBtn" type="button">Export</button>
+          <button class="btn" id="importSessionsBtn" type="button">Import</button>
+          <input id="sessionsFile" type="file" accept="application/json" class="hidden" />
+        </div>
+
+        <div class="hr"></div>
+        <div id="sessionsList" class="list" style="max-height:42vh;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHARE -->
+  <section id="sharePanel" class="hidden" aria-label="Links and files">
+    <div class="grid">
+      <div class="card">
+        <h2>Share links (local list)</h2>
+        <div class="hint">Saved in your browser. Export/Import to share.</div>
+
+        <div class="hr"></div>
+
+        <div class="field">
+          <label for="linkTitle">Title</label>
+          <input id="linkTitle" type="text" placeholder="Example: Reading / video / dataset" />
+        </div>
+        <div class="field">
+          <label for="linkUrl">URL</label>
+          <input id="linkUrl" type="url" placeholder="https://..." />
+        </div>
+        <div class="field">
+          <label for="linkTags">Tags (comma-separated)</label>
+          <input id="linkTags" type="text" placeholder="reading, video, background" />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="addLinkBtn" type="button">Add link</button>
+          <button class="btn" id="exportLinksBtn" type="button">Export</button>
+          <button class="btn" id="importLinksBtn" type="button">Import</button>
+          <input id="linksFile" type="file" accept="application/json" class="hidden" />
+        </div>
+
+        <div class="hr"></div>
+        <div id="linksList" class="list" style="max-height:52vh;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Shared files (repo folder listing)</h2>
+        <div class="hint">Put files in <span class="k">/shared</span>. This page can list them from the GitHub repo when repo is set.</div>
+
+        <div class="row" style="margin:10px 0;">
+          <button class="btn" id="refreshFilesBtn" type="button">Refresh list</button>
+          <a class="btn" id="openSharedFolderBtn" href="#" target="_blank" rel="noopener noreferrer">Open folder on GitHub</a>
+        </div>
+
+        <div id="filesList" class="list" aria-label="Shared files list"></div>
+
+        <div class="hr"></div>
+        <div class="notice">
+          For edits/uploads: add collaborators or accept PRs.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <div>
+      <span class="pill">Keyboard: <span class="k">←</span>/<span class="k">→</span> slide page</span>
+    </div>
+    <div class="muted">Single-file hub • Works well on GitHub Pages</div>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY = "study_group_hub_live_v1";
+
+const DEFAULTS = {
+  groupName: "Study Group Hub",
+  tagline: "Slides • discussion • calendar • sharing",
+  repo: "",
+  branch: "main",
+  pagePath: "index.html",
+  threadId: "",
+  slidesDir: "slides",
+  sharedDir: "shared",
+  calendarSrc: ""
+};
+
+function safeJsonParse(s){ try { return JSON.parse(s); } catch { return null; } }
+function loadState(){
+  const s = safeJsonParse(localStorage.getItem(STORAGE_KEY) || "null");
+  return (s && typeof s === "object") ? s : {};
+}
+function saveState(partial){
+  const existing = loadState();
+  const next = { ...existing, ...partial };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+function resetState(){ localStorage.removeItem(STORAGE_KEY); }
+
+function esc(str){
+  return String(str ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+function parseGithubPagesRepoGuess(){
+  const host = location.hostname || "";
+  if (!host.endsWith(".github.io")) return "";
+  const owner = host.split(".")[0] || "";
+  const parts = location.pathname.split("/").filter(Boolean);
+  if (parts.length === 0) return owner + "/" + owner + ".github.io";
+  return owner + "/" + parts[0];
+}
+
+function getUrlParams(){
+  const u = new URL(location.href);
+  return {
+    pdf: u.searchParams.get("pdf") || "",
+    page: parseInt(u.searchParams.get("page") || "1", 10) || 1,
+    thread: u.searchParams.get("thread") || ""
+  };
+}
+
+let cfg = { ...DEFAULTS, ...loadState() };
+if (!cfg.repo) {
+  const guess = parseGithubPagesRepoGuess();
+  if (guess) cfg.repo = guess;
+}
+const params = getUrlParams();
+if (params.thread) cfg.threadId = params.thread;
+
+let currentPdf = "";
+let currentPage = params.page || 1;
+
+const $ = (sel) => document.querySelector(sel);
+
+function setTopBrand(){
+  $("#groupName").textContent = cfg.groupName;
+  $("#groupTagline").textContent = cfg.tagline;
+}
+
+function setEditOnGitHubLink(){
+  const a = $("#editOnGitHub");
+  if (!cfg.repo) { a.href = "#"; a.classList.add("hidden"); return; }
+  a.classList.remove("hidden");
+  a.href = `https://github.com/${cfg.repo}/edit/${encodeURIComponent(cfg.branch)}/${cfg.pagePath}`;
+}
+
+function showPanel(panelId){
+  for (const panel of ["slidesPanel","discussPanel","calendarPanel","sharePanel"]) {
+    const el = document.getElementById(panel);
+    if (!el) continue;
+    el.classList.toggle("hidden", panel !== panelId);
+  }
+  for (const tab of document.querySelectorAll(".tab")) {
+    tab.setAttribute("aria-selected", tab.dataset.panel === panelId ? "true" : "false");
+  }
+}
+
+function toggleSettings(open){
+  const p = $("#settingsPanel");
+  p.classList.toggle("hidden", !open);
+  if (open) {
+    $("#cfgGroupName").value = cfg.groupName;
+    $("#cfgTagline").value = cfg.tagline;
+    $("#cfgRepo").value = cfg.repo;
+    $("#cfgBranch").value = cfg.branch;
+    $("#cfgPagePath").value = cfg.pagePath;
+    $("#cfgLessonId").value = cfg.threadId;
+    $("#cfgSlidesDir").value = cfg.slidesDir;
+    $("#cfgSharedDir").value = cfg.sharedDir;
+    $("#cfgCalendarSrc").value = cfg.calendarSrc;
+  }
+}
+
+function setCfgStatus(text, kind="neutral"){
+  const el = $("#cfgStatus");
+  el.textContent = text;
+  el.style.borderColor =
+    kind==="good" ? "color-mix(in srgb, var(--good) 60%, var(--line))" :
+    kind==="warn" ? "color-mix(in srgb, var(--warn) 65%, var(--line))" :
+    kind==="bad" ? "color-mix(in srgb, var(--bad) 65%, var(--line))" :
+    "var(--line)";
+}
+
+function toSiteUrl(path){
+  const base = new URL(location.href);
+  base.hash = "";
+  base.search = "";
+  base.pathname = base.pathname.replace(/[^/]*$/, "");
+  return new URL(path.replace(/^\//,""), base).toString();
+}
+
+function sanitizePdfUrl(input){
+  const s = String(input || "").trim();
+  if (!s) return "";
+  if (s.startsWith("blob:")) return s;
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  return s.replace(/^\.\//,"");
+}
+
+function setPdf(url, page=1){
+  const clean = sanitizePdfUrl(url);
+  if (!clean) {
+    $("#pdfFrame").removeAttribute("src");
+    $("#pdfStatus").textContent = "No PDF selected";
+    currentPdf = "";
+    return;
+  }
+  currentPdf = clean;
+  currentPage = Math.max(1, parseInt(page,10) || 1);
+  $("#pageNum").value = String(currentPage);
+
+  const srcNoHash = clean.includes("#") ? clean.replace(/#.*$/, "") : clean;
+  $("#pdfFrame").src = `${srcNoHash}#page=${currentPage}`;
+
+  const shown = clean.startsWith("http") || clean.startsWith("blob:") ? clean : toSiteUrl(clean);
+  $("#pdfStatus").textContent = "Loaded: " + shown.split("/").pop();
+}
+
+function bumpPage(delta){ setPdf(currentPdf, Math.max(1, currentPage + delta)); }
+
+async function ghListDir(repo, dir){
+  const url = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(dir).replaceAll("%2F","/")}`;
+  const res = await fetch(url, { headers: { "Accept": "application/vnd.github+json" } });
+  if (!res.ok) throw new Error(`GitHub API error ${res.status}`);
+  const json = await res.json();
+  return Array.isArray(json) ? json.filter(x => x && typeof x === "object") : [];
+}
+function ext(name){
+  const m = String(name||"").toLowerCase().match(/\.([a-z0-9]+)$/);
+  return m ? m[1] : "";
+}
+
+function renderSlidesList(items){
+  const list = $("#slidesList");
+  list.innerHTML = "";
+  if (!items.length){
+    list.innerHTML = `<div class="notice">No PDFs found. Add PDFs to <span class="k">/${esc(cfg.slidesDir)}</span>.</div>`;
+    return;
+  }
+  for (const it of items){
+    const title = it.name || it.path || "file";
+    const relPath = it.path || "";
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `
+      <div class="item-title">
+        <b>${esc(title)}</b>
+        <span>${esc(relPath)}</span>
+      </div>
+    `;
+    const right = document.createElement("div");
+    right.className = "row";
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "btn primary";
+    openBtn.textContent = "Open";
+    openBtn.addEventListener("click", () => setPdf(relPath, 1));
+    right.appendChild(openBtn);
+
+    const open = document.createElement("a");
+    open.className = "btn";
+    open.textContent = "New tab";
+    open.href = toSiteUrl(relPath);
+    open.target = "_blank";
+    open.rel = "noopener noreferrer";
+    right.appendChild(open);
+
+    row.appendChild(right);
+    list.appendChild(row);
+  }
+}
+
+async function refreshSlides(){
+  const list = $("#slidesList");
+  if (!cfg.repo){
+    list.innerHTML = `<div class="notice">Set <b>owner/repo</b> in Settings to auto-list PDFs. Or load a PDF URL manually.</div>`;
+    return;
+  }
+  list.innerHTML = `<div class="notice">Loading…</div>`;
+  try{
+    const items = await ghListDir(cfg.repo, cfg.slidesDir);
+    const pdfs = items
+      .filter(x => x.type === "file" && ext(x.name) === "pdf")
+      .map(x => ({ name: x.name, path: x.path }));
+    renderSlidesList(pdfs);
+  }catch(e){
+    list.innerHTML = `<div class="notice">Could not load from GitHub API. Check repo/path. (${esc(e.message)})</div>`;
+  }
+}
+
+function setCalendar(){
+  const empty = $("#calendarEmpty");
+  const wrap = $("#calendarWrap");
+  const frame = $("#calendarFrame");
+  if (!cfg.calendarSrc){
+    empty.classList.remove("hidden");
+    wrap.classList.add("hidden");
+    frame.removeAttribute("src");
+    return;
+  }
+  empty.classList.add("hidden");
+  wrap.classList.remove("hidden");
+  frame.src = cfg.calendarSrc;
+}
+
+function makeJsonDownload(filename, obj){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* Sessions (local) */
+const SESS_KEY = "study_group_sessions_v1";
+function loadSessions(){ return safeJsonParse(localStorage.getItem(SESS_KEY) || "[]") || []; }
+function saveSessions(arr){ localStorage.setItem(SESS_KEY, JSON.stringify(arr)); }
+function renderSessions(){
+  const list = $("#sessionsList");
+  const sessions = loadSessions();
+  list.innerHTML = "";
+  if (!sessions.length){
+    list.innerHTML = `<div class="notice">No sessions yet. Add one on the left.</div>`;
+    return;
+  }
+  sessions
+    .slice()
+    .sort((a,b)=> String(a.date||"").localeCompare(String(b.date||"")))
+    .forEach((s, idx) => {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div class="item-title">
+          <b>${esc(s.title || "Untitled")}</b>
+          <span>${esc((s.date||"") + (s.time ? (" • " + s.time) : ""))}</span>
+        </div>
+      `;
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "btn";
+      del.textContent = "Remove";
+      del.addEventListener("click", () => {
+        const next = loadSessions().filter((_,i)=> i !== idx);
+        saveSessions(next);
+        renderSessions();
+      });
+      const right = document.createElement("div");
+      right.className = "row";
+      right.appendChild(del);
+      row.appendChild(right);
+      list.appendChild(row);
+    });
+}
+
+/* Links (local) */
+const LINKS_KEY = "study_group_links_v1";
+function loadLinks(){ return safeJsonParse(localStorage.getItem(LINKS_KEY) || "[]") || []; }
+function saveLinks(arr){ localStorage.setItem(LINKS_KEY, JSON.stringify(arr)); }
+function renderLinks(){
+  const list = $("#linksList");
+  const links = loadLinks();
+  list.innerHTML = "";
+  if (!links.length){
+    list.innerHTML = `<div class="notice">No links yet. Add some readings/resources.</div>`;
+    return;
+  }
+  links.forEach((l, idx) => {
+    const row = document.createElement("div");
+    row.className = "resource";
+    const tags = (l.tags || []).slice(0, 8).map(t => `<span class="tag">${esc(t)}</span>`).join("");
+    row.innerHTML = `
+      <div class="left">
+        <b>${esc(l.title || "Untitled")}</b>
+        <div class="url">${esc(l.url || "")}</div>
+        <div class="meta">${tags}</div>
+      </div>
+      <div class="right"></div>
+    `;
+    const right = row.querySelector(".right");
+
+    const open = document.createElement("a");
+    open.className = "btn primary";
+    open.textContent = "Open";
+    open.href = l.url || "#";
+    open.target = "_blank";
+    open.rel = "noopener noreferrer";
+    right.appendChild(open);
+
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "btn";
+    rm.textContent = "Remove";
+    rm.addEventListener("click", () => {
+      const next = loadLinks().filter((_,i)=> i !== idx);
+      saveLinks(next);
+      renderLinks();
+    });
+    right.appendChild(rm);
+
+    list.appendChild(row);
+  });
+}
+
+/* Shared files listing (repo) */
+async function refreshFiles(){
+  const list = $("#filesList");
+  const btn = $("#openSharedFolderBtn");
+  if (!cfg.repo){
+    list.innerHTML = `<div class="notice">Set <b>owner/repo</b> in Settings to list shared files.</div>`;
+    btn.href = "#";
+    return;
+  }
+  btn.href = `https://github.com/${cfg.repo}/tree/${encodeURIComponent(cfg.branch)}/${cfg.sharedDir}`;
+  list.innerHTML = `<div class="notice">Loading…</div>`;
+  try{
+    const items = await ghListDir(cfg.repo, cfg.sharedDir);
+    const files = items.filter(x => x.type === "file").map(x => ({ name: x.name, path: x.path, size: x.size || 0 }));
+    list.innerHTML = "";
+    if (!files.length){
+      list.innerHTML = `<div class="notice">No files found in <span class="k">/${esc(cfg.sharedDir)}</span>.</div>`;
+      return;
+    }
+    for (const f of files){
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div class="item-title">
+          <b>${esc(f.name)}</b>
+          <span>${esc(f.path)} • ${esc((f.size/1024).toFixed(1))} KB</span>
+        </div>
+      `;
+      const right = document.createElement("div");
+      right.className = "row";
+
+      const dl = document.createElement("a");
+      dl.className = "btn primary";
+      dl.textContent = "Open";
+      dl.href = toSiteUrl(f.path);
+      dl.target = "_blank";
+      dl.rel = "noopener noreferrer";
+      right.appendChild(dl);
+
+      row.appendChild(right);
+      list.appendChild(row);
+    }
+  }catch(e){
+    list.innerHTML = `<div class="notice">Could not load from GitHub API. Check repo/path. (${esc(e.message)})</div>`;
+  }
+}
+
+/* Utterances (shared comments) */
+function buildThreadKey(){
+  const base = (cfg.groupName || "StudyGroup").trim().replace(/\s+/g,"-").replace(/[^a-zA-Z0-9_-]/g,"");
+  const path = location.pathname.replace(/\/+$/,"");
+  const suffix = (cfg.threadId || "").trim().replace(/\s+/g,"-");
+  return suffix ? `${base}:${path}:${suffix}` : `${base}:${path}`;
+}
+
+function loadUtterances(){
+  const notice = $("#utterancesNotice");
+  const container = $("#utterancesContainer");
+  const pill = $("#threadPill");
+
+  container.innerHTML = "";
+
+  const threadKey = buildThreadKey();
+  pill.textContent = "Thread: " + (cfg.threadId ? cfg.threadId : "default");
+  pill.title = threadKey;
+
+  if (!cfg.repo){
+    notice.classList.remove("hidden");
+    return;
+  }
+  notice.classList.add("hidden");
+
+  const script = document.createElement("script");
+  script.src = "https://utteranc.es/client.js";
+  script.setAttribute("repo", cfg.repo);
+  script.setAttribute("issue-term", threadKey);
+  script.setAttribute("theme", "preferred-color-scheme");
+  script.crossOrigin = "anonymous";
+  script.async = true;
+
+  container.appendChild(script);
+}
+
+function wireUI(){
+  for (const tab of document.querySelectorAll(".tab")){
+    tab.addEventListener("click", () => showPanel(tab.dataset.panel));
+  }
+
+  $("#openSettingsBtn").addEventListener("click", () => toggleSettings($("#settingsPanel").classList.contains("hidden")));
+
+  $("#saveCfgBtn").addEventListener("click", () => {
+    cfg = {
+      ...cfg,
+      groupName: $("#cfgGroupName").value.trim() || DEFAULTS.groupName,
+      tagline: $("#cfgTagline").value.trim() || DEFAULTS.tagline,
+      repo: $("#cfgRepo").value.trim(),
+      branch: $("#cfgBranch").value.trim() || DEFAULTS.branch,
+      pagePath: $("#cfgPagePath").value.trim() || DEFAULTS.pagePath,
+      threadId: $("#cfgLessonId").value.trim(),
+      slidesDir: $("#cfgSlidesDir").value.trim() || DEFAULTS.slidesDir,
+      sharedDir: $("#cfgSharedDir").value.trim() || DEFAULTS.sharedDir,
+      calendarSrc: $("#cfgCalendarSrc").value.trim()
+    };
+    saveState(cfg);
+    setCfgStatus("Saved", "good");
+    setTopBrand();
+    setEditOnGitHubLink();
+    setCalendar();
+    refreshSlides();
+    refreshFiles();
+    loadUtterances();
+  });
+
+  $("#resetCfgBtn").addEventListener("click", () => {
+    resetState();
+    cfg = { ...DEFAULTS };
+    setCfgStatus("Reset", "warn");
+    setTopBrand();
+    setEditOnGitHubLink();
+    setCalendar();
+    refreshSlides();
+    refreshFiles();
+    toggleSettings(true);
+    loadUtterances();
+  });
+
+  $("#copyLinkBtn").addEventListener("click", async () => {
+    const u = new URL(location.href);
+    const v = ($("#cfgLessonId").value.trim() || "");
+    if (v) u.searchParams.set("thread", v);
+    else u.searchParams.delete("thread");
+    try{ await navigator.clipboard.writeText(u.toString()); setCfgStatus("Copied link", "good"); }
+    catch{ setCfgStatus("Could not copy", "bad"); }
+  });
+
+  $("#prevPageBtn").addEventListener("click", () => bumpPage(-1));
+  $("#nextPageBtn").addEventListener("click", () => bumpPage(1));
+  $("#goPageBtn").addEventListener("click", () => setPdf(currentPdf, $("#pageNum").value));
+  $("#pageNum").addEventListener("keydown", (e) => { if (e.key === "Enter") setPdf(currentPdf, $("#pageNum").value); });
+
+  $("#refreshSlidesBtn").addEventListener("click", refreshSlides);
+
+  $("#useUrlBtn").addEventListener("click", () => {
+    const url = prompt("Enter a PDF URL or a relative path (example: slides/week1.pdf):");
+    if (!url) return;
+    setPdf(url, 1);
+  });
+
+  $("#openPdfNewTabBtn").addEventListener("click", () => {
+    if (!currentPdf) return;
+    const u = currentPdf.startsWith("http") || currentPdf.startsWith("blob:") ? currentPdf : toSiteUrl(currentPdf);
+    window.open(u, "_blank", "noopener");
+  });
+
+  $("#copyPdfLinkBtn").addEventListener("click", async () => {
+    if (!currentPdf) return;
+    const u = new URL(location.href);
+    u.searchParams.set("pdf", currentPdf);
+    u.searchParams.set("page", String(currentPage));
+    try{ await navigator.clipboard.writeText(u.toString()); $("#pdfStatus").textContent = "Copied PDF link"; }
+    catch{ $("#pdfStatus").textContent = "Could not copy"; }
+  });
+
+  $("#addSessionBtn").addEventListener("click", () => {
+    const title = $("#sessionTitle").value.trim();
+    const date = $("#sessionDate").value.trim();
+    const time = $("#sessionTime").value.trim();
+    if (!title && !date) return;
+    const next = loadSessions();
+    next.push({ title, date, time });
+    saveSessions(next);
+    $("#sessionTitle").value = "";
+    $("#sessionDate").value = "";
+    $("#sessionTime").value = "";
+    renderSessions();
+  });
+
+  $("#exportSessionsBtn").addEventListener("click", () => makeJsonDownload("sessions.json", loadSessions()));
+  $("#importSessionsBtn").addEventListener("click", () => $("#sessionsFile").click());
+  $("#sessionsFile").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const text = await f.text();
+    const parsed = safeJsonParse(text);
+    if (!Array.isArray(parsed)) return;
+    saveSessions(parsed);
+    renderSessions();
+    e.target.value = "";
+  });
+
+  $("#addLinkBtn").addEventListener("click", () => {
+    const title = $("#linkTitle").value.trim();
+    const url = $("#linkUrl").value.trim();
+    const tags = $("#linkTags").value.split(",").map(s=>s.trim()).filter(Boolean);
+    if (!url) return;
+    const next = loadLinks();
+    next.unshift({ title, url, tags, addedAt: new Date().toISOString() });
+    saveLinks(next);
+    $("#linkTitle").value = "";
+    $("#linkUrl").value = "";
+    $("#linkTags").value = "";
+    renderLinks();
+  });
+
+  $("#exportLinksBtn").addEventListener("click", () => makeJsonDownload("links.json", loadLinks()));
+  $("#importLinksBtn").addEventListener("click", () => $("#linksFile").click());
+  $("#linksFile").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const text = await f.text();
+    const parsed = safeJsonParse(text);
+    if (!Array.isArray(parsed)) return;
+    saveLinks(parsed);
+    renderLinks();
+    e.target.value = "";
+  });
+
+  $("#refreshFilesBtn").addEventListener("click", refreshFiles);
+  $("#reloadCommentsBtn").addEventListener("click", loadUtterances);
+
+  window.addEventListener("keydown", (e) => {
+    if (e.target && ["INPUT","TEXTAREA","SELECT"].includes(e.target.tagName)) return;
+    if (e.key === "ArrowLeft") bumpPage(-1);
+    if (e.key === "ArrowRight") bumpPage(1);
+  });
+}
+
+function init(){
+  setTopBrand();
+  setEditOnGitHubLink();
+  setCalendar();
+  wireUI();
+  renderSessions();
+  renderLinks();
+  refreshSlides();
+  refreshFiles();
+  loadUtterances();
+
+  if (params.pdf) setPdf(params.pdf, params.page || 1);
+}
+init();
+</script>
+</body>
+</html>
