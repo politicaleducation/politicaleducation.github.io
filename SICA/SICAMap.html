@@ -225,6 +225,17 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+
+/* Allow the tools drawer content to scroll (otherwise it can look "cut off") */
+#controlsPanel .window-drag-handle{ flex: 0 0 auto; }
+#controlsPanel .controls-panel-body{
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
   /* Disable window chrome that's annoying on touch */
   #controlsPanel .window-resizer,
   #mapPanel .window-resizer,
@@ -639,7 +650,7 @@
   <div class="window-resizer" data-window="analyticsPanel"></div>
 </aside>
 
-<script src="BrooklynMap.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
+<script src="Philadelphia.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
 <script>
 (function(){
   const svg = document.getElementById('mapSvg');
@@ -3803,14 +3814,3 @@ if (traceToggleBtn) {
     if (!mq.matches) {
       document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
       return;
-    }
-    ensureMobileButtons();
-  }
-
-  sync();
-  mq.addEventListener('change', sync);
-})();
-</script>
-
-</body>
-</html>
