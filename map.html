@@ -23,6 +23,8 @@
       overflow-y:auto;
       -webkit-overflow-scrolling: touch;
       width: 320px;
+      flex: 0 0 320px;
+      flex-shrink: 0;
       background:#111827;
       color:#e5e7eb;
       padding:12px 14px;
@@ -100,6 +102,7 @@
     /* Canvas */
     #canvasContainer{
       flex:1;
+      min-width:0;
       position:relative;
       background:#020617;
     }
@@ -112,14 +115,17 @@
     }
 
     #mapTopControls{
-      position:absolute;
+      position:fixed;
       top:10px;
-      left:10px;
-      z-index:10;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:1000;
       display:flex;
       flex-direction:column;
       gap:6px;
-      padding:8px;
+      padding:8px 10px;
+      width:min(620px, calc(100vw - 24px));
+      box-sizing:border-box;
       background:rgba(17,24,39,0.75);
       border:1px solid rgba(55,65,81,0.9);
       border-radius:12px;
@@ -128,6 +134,7 @@
     #mapTopControls .ctrlRow{
       display:flex;
       align-items:center;
+      justify-content:center;
       gap:8px;
       flex-wrap:wrap;
     }
@@ -282,6 +289,10 @@
     .scoreRow .time{ font-size:12px; }
     .scoreRow.selected{ font-weight:700; background:#111827; }
     .scoreRow.inSight .time{ font-weight:700; }
+
+
+    body.fullView #sidebarLeft,
+    body.fullView #sidebarRight{ display:none !important; }
 
 </style>
 </head>
@@ -456,16 +467,17 @@
       <div class="ctrlRow" id="mapTopRow1">
       <button id="toggleRangesBtn">Ranges: Selected</button>
       <button id="toggleConesBtn">Cones: Off</button>
-      <label class="simLbl" for="sightStepSelect" title="Line-of-sight sampling step along rays (ft). Larger is faster; smaller is more accurate.">Sight step</label>
+      <button id="toggleMovePathsBtn">Paths: Selected</button>
+      <label class="simLbl" for="sightStepSelect" title="Line-of-sight sampling step along rays (ft). Larger is faster; smaller is more accurate.">Sample Rate</label>
       <select id="sightStepSelect" title="Line-of-sight sampling step along rays (ft). Larger is faster; smaller is more accurate.">
         <option value="10">10ft</option>
         <option value="5">5ft</option>
         <option value="2">2ft</option>
         <option value="1">1ft</option>
       </select>
-      <span class="sep"></span>
-      <button id="toggleMovePathsBtn">Paths: Selected</button>
-      <span class="sep"></span>
+      </div>
+      <div class="ctrlRow" id="mapTopRow2">
+      <button id="toggleFullViewBtn" title="Hide the side panels (stays in browser window)">Full screen: Off</button>
       <button id="simPlayBtn">Play</button>
       <button id="simResetBtn" title="Reset sim time and restore starting positions">Reset</button>
       <label class="simLbl" for="simSpeed">Speed</label>
@@ -474,7 +486,7 @@
       <span class="sep"></span>
       <span id="simTimeReadout" class="mono">t=0.0s</span>
       </div>
-      <div class="ctrlRow" id="mapTopRow2">
+        <div class="ctrlRow" id="mapTopRow3">
         <div class="topScorecard" aria-label="Scoreboard">
           <div class="scorePill friendly">
             <div class="lbl" id="scoreTeamLabel">Friendly</div>
@@ -489,7 +501,7 @@
             <div id="scoreAllList" class="scoreList"></div>
           </details>
         </div>
-      </div>
+        </div>
     </div>
     <canvas id="mapCanvas"></canvas>
   </div>
@@ -2731,7 +2743,8 @@ const squadFormation = document.getElementById("squadFormation");
   const toggleConesBtn = document.getElementById("toggleConesBtn");
   const sightStepSelect = document.getElementById("sightStepSelect");
   const toggleMovePathsBtn = document.getElementById("toggleMovePathsBtn");
-  const simPlayBtn = document.getElementById("simPlayBtn");
+    const toggleFullViewBtn = document.getElementById("toggleFullViewBtn");
+const simPlayBtn = document.getElementById("simPlayBtn");
   const simResetBtn = document.getElementById("simResetBtn");
   const simSpeed = document.getElementById("simSpeed");
   const simSpeedReadout = document.getElementById("simSpeedReadout");
@@ -2764,7 +2777,9 @@ const squadFormation = document.getElementById("squadFormation");
     panY: 0,
     showGrid: false,
 
-    overlay: {
+    
+    fullView: false,
+overlay: {
       dataUrl: null,   // data: URL of the image
       visible: true,
       opacity: 0.6,
@@ -2863,19 +2878,22 @@ undo: [] // stack of actions
 
   // ---------- world/screen transforms ----------
   let dpr = window.devicePixelRatio || 1;
-  function resize(){
+  function resizeNoDraw(){
     dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
     const h = container.clientHeight;
     canvas.width  = Math.max(1, Math.floor(w * dpr));
     canvas.height = Math.max(1, Math.floor(h * dpr));
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     updateCursor();
+  }
+  function resize(){
+    resizeNoDraw();
     draw();
   }
 
-  function screenToWorld(sx, sy){
+function screenToWorld(sx, sy){
     // sx,sy are CSS pixels relative to canvas top-left
     return {
       x: (sx - state.panX) / state.zoom,
@@ -5310,6 +5328,7 @@ if(kind === "road"){
     lockCycleButtonWidth(toggleRangesBtn, ["Ranges: Off", "Ranges: Selected", "Ranges: All"]);
     lockCycleButtonWidth(toggleConesBtn, ["Cones: Off", "Cones: Selected", "Cones: All"]);
     lockCycleButtonWidth(toggleMovePathsBtn, ["Paths: Off", "Paths: Selected", "Paths: All"]);
+    lockCycleButtonWidth(toggleFullViewBtn, ["Full screen: Off", "Full screen: On"]);
     lockCycleButtonWidth(simPlayBtn, ["Play", "Pause"]);
   }
 
@@ -5333,6 +5352,45 @@ if(kind === "road"){
     updateCursor();
     draw();
   });
+
+  // --- Full view (hide side panels) ---
+  function updateFullViewButton(){
+    if(!toggleFullViewBtn) return;
+    toggleFullViewBtn.textContent = "Full screen: " + (state.fullView ? "On" : "Off");
+  }
+
+  function setFullView(on){
+    const next = !!on;
+    if(state.fullView === next) return;
+
+    // Preserve the world point currently at the visual center of the canvas so the map doesn't "jump"
+    const rect0 = canvas.getBoundingClientRect();
+    const centerWorld = screenToWorld(rect0.width/2, rect0.height/2);
+
+    state.fullView = next;
+    document.body.classList.toggle("fullView", state.fullView);
+    updateFullViewButton();
+
+    // Let layout settle, then resize canvas and re-center the same world point.
+    requestAnimationFrame(()=>{
+      resizeNoDraw();
+
+      const rect1 = canvas.getBoundingClientRect();
+      const cx = rect1.width/2, cy = rect1.height/2;
+      state.panX = cx - centerWorld.x * state.zoom;
+      state.panY = cy - centerWorld.y * state.zoom;
+
+      updateCursor();
+      draw();
+    });
+  }
+
+  if(toggleFullViewBtn){
+    toggleFullViewBtn.addEventListener("click", ()=>{
+      setFullView(!state.fullView);
+    });
+  }
+
 
   // --- Movement path + Sim controls ---
   function updateMovePathButton(){
