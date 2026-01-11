@@ -182,7 +182,92 @@
       display:none;
     }
 
-    @media (max-width:900px){.app{grid-template-columns:1fr;padding:12px}.sidebar{height:auto;order:2}.map-wrap{order:1}}
+    @media (max-width: 900px){
+  /* MOBILE LAYOUT: fullscreen map + bottom tools drawer + overlay panes */
+
+  /* Stop the page itself from scrolling while you pan/zoom the SVG */
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .app { padding: 0; min-height: 100vh; }
+
+  /* Fullscreen map */
+  #mapPanel{
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column;
+    border-radius: 0 !important;
+    z-index: 10 !important;
+  }
+  #mapPanel .map-wrap{ padding: 0; border-radius: 0; }
+  #mapPanel .map-wrap svg{
+    height: 100% !important;
+    border-radius: 0;
+  }
+
+  /* Bottom drawer: Map Tools */
+  #controlsPanel{
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    display: flex !important;
+    flex-direction: column;
+    max-height: 50vh;
+    border-radius: 16px 16px 0 0 !important;
+    z-index: 30 !important;
+
+    /* iPhone safe-area */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Disable window chrome that's annoying on touch */
+  #controlsPanel .window-resizer,
+  #mapPanel .window-resizer,
+  #mapPanel .window-drag-handle,
+  #infoPanel .window-resizer,
+  #analyticsPanel .window-resizer { display: none !important; }
+
+  /* Fullscreen overlays (hidden until opened) */
+  #infoPanel, #analyticsPanel{
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    z-index: 50 !important;
+    display: none !important;
+  }
+  body.mobile-pane-info #infoPanel{ display: flex !important; }
+  body.mobile-pane-analytics #analyticsPanel{ display: flex !important; }
+
+  /* Make touch targets usable */
+  #mapToolsGrid{
+    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+    gap: 6px !important;
+  }
+  .tool-btn{
+    min-height: 40px !important;
+    font-size: 13px !important;
+    padding: 10px 10px !important;
+  }
+
+  /* Prevent iOS “zoom on focus” in forms */
+  input, select, textarea { font-size: 16px; }
+
+  /* Tell the browser we're handling touch gestures on the SVG */
+  #mapSvg{
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Make analytics list easier to tap */
+  #analyticsPanel li{ padding: 10px 10px; }
+}
   
     .header-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
     .header-actions{display:flex;gap:8px}
@@ -554,7 +639,7 @@
   <div class="window-resizer" data-window="analyticsPanel"></div>
 </aside>
 
-<script src="BrooklynMap.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
+<script src="Philadelphia.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
 <script>
 (function(){
   const svg = document.getElementById('mapSvg');
@@ -3649,6 +3734,81 @@ if (traceToggleBtn) {
   if (loadBtn && fileInput) {
     loadBtn.addEventListener('click', () => fileInput.click());
   }
+})();
+</script>
+
+
+<script>
+/* MOBILE_LAYOUT_PATCH_v1 */
+(function(){
+  const mq = window.matchMedia('(max-width: 900px)');
+
+  function ensureMobileButtons(){
+    if (!mq.matches) return;
+
+    const host = document.querySelector('#controlsPanel .controls-panel-body');
+    if (!host) return;
+
+    if (!document.getElementById('mobilePaneButtons')) {
+      const row = document.createElement('div');
+      row.id = 'mobilePaneButtons';
+      row.style.display = 'flex';
+      row.style.gap = '8px';
+      row.style.flexWrap = 'wrap';
+      row.style.margin = '6px 0 2px';
+
+      row.innerHTML = `
+        <button class="tool-btn muted-btn" type="button" data-pane="info">Inspector</button>
+        <button class="tool-btn muted-btn" type="button" data-pane="analytics">Lines</button>
+      `;
+      host.insertBefore(row, host.firstChild);
+
+      row.addEventListener('click', (e) => {
+        const b = e.target && e.target.closest('button[data-pane]');
+        if (!b) return;
+        const pane = b.getAttribute('data-pane');
+
+        document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+        document.body.classList.add('mobile-pane-' + pane);
+      });
+    }
+
+    // Add a Close button into each overlay header
+    function addClose(panelId, titleText, bodyClass){
+      const handle = document.querySelector('#' + panelId + ' .window-drag-handle');
+      if (!handle) return;
+      if (!handle.querySelector('.mobile-close')) {
+        handle.style.justifyContent = 'space-between';
+        handle.style.cursor = 'default';
+
+        // Preserve any existing title text if present
+        const existingTitle = (handle.textContent || '').trim();
+        handle.innerHTML = `<span>${existingTitle || titleText}</span>`;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tool-btn muted-btn mobile-close';
+        btn.textContent = 'Close';
+        btn.style.marginTop = '0';
+        btn.addEventListener('click', () => document.body.classList.remove(bodyClass));
+        handle.appendChild(btn);
+      }
+    }
+
+    addClose('infoPanel', 'Inspector', 'mobile-pane-info');
+    addClose('analyticsPanel', 'Lines & Routes', 'mobile-pane-analytics');
+  }
+
+  function sync(){
+    if (!mq.matches) {
+      document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+      return;
+    }
+    ensureMobileButtons();
+  }
+
+  sync();
+  mq.addEventListener('change', sync);
 })();
 </script>
 
