@@ -183,7 +183,7 @@
     }
 
     @media (max-width: 900px){
-  /* MOBILE LAYOUT: fullscreen map + bottom tools drawer + overlay panes */
+  /* MOBILE LAYOUT: fullscreen map + TOP tools bar + BOTTOM quick-edit bar + overlay panes */
 
   /* Stop the page itself from scrolling while you pan/zoom the SVG */
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
@@ -201,43 +201,84 @@
     border-radius: 0 !important;
     z-index: 10 !important;
   }
-  #mapPanel .map-wrap{ padding: 0; border-radius: 0; }
+  #mapPanel .map-wrap{ padding: 0 !important; border-radius: 0 !important; }
   #mapPanel .map-wrap svg{
     height: 100% !important;
-    border-radius: 0;
+    border-radius: 0 !important;
   }
 
-  /* Bottom drawer: Map Tools */
+  /* TOP tools bar */
   #controlsPanel{
     position: fixed !important;
     left: 0 !important;
     right: 0 !important;
-    top: auto !important;
-    bottom: 0 !important;
+    top: 0 !important;
+    bottom: auto !important;
     width: 100vw !important;
     display: flex !important;
     flex-direction: column;
-    max-height: 50vh;
-    border-radius: 16px 16px 0 0 !important;
-    z-index: 30 !important;
+    border-radius: 0 0 16px 16px !important;
+    z-index: 40 !important;
 
-    /* iPhone safe-area */
-    padding-bottom: env(safe-area-inset-bottom);
+    /* safe-area */
+    padding-top: env(safe-area-inset-top);
+  }
+  /* Remove the "Map Tools" title bar + any resize chrome */
+  #controlsPanel .window-drag-handle,
+  #controlsPanel .window-resizer{ display: none !important; }
+
+  /* Make the tools panel non-scrollable */
+  #controlsPanel .controls-panel-body{
+    overflow: hidden !important;
+    padding: 8px 8px 10px !important;
+    touch-action: manipulation;
   }
 
+  /* Hide header bits you don't care about on mobile */
+  #controlsPanel .header-left,
+  #mapNameDisplay,
+  #autosaveRow,
+  #blockName{ display: none !important; }
 
-/* Allow the tools drawer content to scroll (otherwise it can look "cut off") */
-#controlsPanel .window-drag-handle{ flex: 0 0 auto; }
-#controlsPanel .controls-panel-body{
-  flex: 1 1 auto;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
+  /* Map tools: compact 4-column grid */
+  #mapToolsGrid{
+    grid-template-columns: repeat(4, minmax(0,1fr)) !important;
+    column-gap: 4px !important;
+    row-gap: 4px !important;
+    margin-top: 0 !important;
+  }
+  .tool-btn{
+    min-height: 30px !important;
+    font-size: 12px !important;
+    padding: 6px 6px !important;
+  }
 
-  /* Disable window chrome that's annoying on touch */
-  #controlsPanel .window-resizer,
+  /* BOTTOM quick-edit bar (selection name + label/info) */
+  #mobileInfoBar{
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    background: var(--panel);
+    border-top: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 -10px 24px rgba(0,0,0,0.35);
+    padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+  }
+  #mobileInfoBar #quickEditBar{
+    margin-top: 0 !important;
+  }
+  #mobileInfoBar #quickEditBar .quick-top{
+    gap: 10px !important;
+  }
+  #mobileInfoBar #quickSelMeta{
+    font-size: 12px !important;
+  }
+  #mobileInfoBar #quickNotesInput{
+    max-height: 60px;
+  }
+
+  /* Disable window chrome that's annoying on touch (keep overlay headers for Close buttons) */
   #mapPanel .window-resizer,
   #mapPanel .window-drag-handle,
   #infoPanel .window-resizer,
@@ -250,23 +291,11 @@
     width: 100vw !important;
     height: 100vh !important;
     border-radius: 0 !important;
-    z-index: 50 !important;
-    display: none !important;
+    z-index: 60 !important;
+    display: none;
   }
   body.mobile-pane-info #infoPanel{ display: flex !important; }
   body.mobile-pane-analytics #analyticsPanel{ display: flex !important; }
-
-  /* Map tools: compact 4-column grid (still touch-friendly) */
-  #mapToolsGrid{
-    grid-template-columns: repeat(4, minmax(0,1fr)) !important;
-    column-gap: 4px !important;
-    row-gap: 4px !important;
-  }
-  .tool-btn{
-    min-height: 32px !important;
-    font-size: 12px !important;
-    padding: 6px 6px !important;
-  }
 
   /* Prevent iOS “zoom on focus” in forms */
   input, select, textarea { font-size: 16px; }
@@ -280,6 +309,7 @@
   /* Make analytics list easier to tap */
   #analyticsPanel li{ padding: 10px 10px; }
 }
+
   
     .header-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
     .header-actions{display:flex;gap:8px}
@@ -365,8 +395,7 @@
     #mapNameDisplay,
     #autosaveRow,
     #blockName,
-    #loadBtn,
-    #downloadBtn,
+
     .rotate-btn{
       display:none !important;
     }
@@ -3522,6 +3551,7 @@ if (traceToggleBtn) {
     let winState = loadWindowState();
 
     function applyWindowState(id){
+      if (window.matchMedia('(max-width: 900px)').matches) return;
       const win = document.getElementById(id);
       if (!win || !winState[id]) return;
       const s = winState[id];
@@ -3931,68 +3961,116 @@ if (traceToggleBtn) {
 (function(){
   const mq = window.matchMedia('(max-width: 900px)');
 
-  function ensureMobileButtons(){
-    if (!mq.matches) return;
+  let quickOriginalParent = null;
+  let quickOriginalNext = null;
 
-    const host = document.querySelector('#controlsPanel .controls-panel-body');
-    if (!host) return;
+  function ensureMobileInfoBar(){
+    const quick = document.getElementById('quickEditBar');
+    if (!quick) return;
 
-    if (!document.getElementById('mobilePaneButtons')) {
-      const row = document.createElement('div');
-      row.id = 'mobilePaneButtons';
-      row.style.display = 'flex';
-      row.style.gap = '8px';
-      row.style.flexWrap = 'wrap';
-      row.style.margin = '6px 0 2px';
-
-      row.innerHTML = `
-        <button class="tool-btn muted-btn" type="button" data-pane="info">Inspector</button>
-        <button class="tool-btn muted-btn" type="button" data-pane="analytics">Lines</button>
-      `;
-      host.insertBefore(row, host.firstChild);
-
-      row.addEventListener('click', (e) => {
-        const b = e.target && e.target.closest('button[data-pane]');
-        if (!b) return;
-        const pane = b.getAttribute('data-pane');
-
-        document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
-        document.body.classList.add('mobile-pane-' + pane);
-      });
+    if (!quickOriginalParent){
+      quickOriginalParent = quick.parentElement;
+      quickOriginalNext = quick.nextElementSibling;
     }
 
-    // Add a Close button into each overlay header
-    function addClose(panelId, titleText, bodyClass){
-      const handle = document.querySelector('#' + panelId + ' .window-drag-handle');
-      if (!handle) return;
-      if (!handle.querySelector('.mobile-close')) {
-        handle.style.justifyContent = 'space-between';
-        handle.style.cursor = 'default';
+    let bar = document.getElementById('mobileInfoBar');
+    if (!bar){
+      bar = document.createElement('div');
+      bar.id = 'mobileInfoBar';
+      document.body.appendChild(bar);
+    }
 
-        // Preserve any existing title text if present
-        const existingTitle = (handle.textContent || '').trim();
-        handle.innerHTML = `<span>${existingTitle || titleText}</span>`;
+    if (mq.matches){
+      if (quick.parentElement !== bar){
+        bar.appendChild(quick);
+      }
+      bar.style.display = 'block';
+    } else {
+      // Restore to original location on desktop
+      if (quickOriginalParent && quick.parentElement !== quickOriginalParent){
+        if (quickOriginalNext && quickOriginalNext.parentElement === quickOriginalParent){
+          quickOriginalParent.insertBefore(quick, quickOriginalNext);
+        } else {
+          quickOriginalParent.appendChild(quick);
+        }
+      }
+      bar.style.display = 'none';
+      document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+    }
+  }
 
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'tool-btn muted-btn mobile-close';
-        btn.textContent = 'Close';
-        btn.style.marginTop = '0';
-        btn.addEventListener('click', () => document.body.classList.remove(bodyClass));
-        handle.appendChild(btn);
+  function addClose(panelId, titleText, bodyClass){
+    const handle = document.querySelector('#' + panelId + ' .window-drag-handle');
+    if (!handle) return;
+    if (!handle.querySelector('.mobile-close')) {
+      handle.style.justifyContent = 'space-between';
+      handle.style.cursor = 'default';
+      handle.innerHTML = '<span>' + titleText + '</span>';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tool-btn muted-btn mobile-close';
+      btn.textContent = 'Close';
+      btn.style.marginTop = '0';
+      btn.addEventListener('click', () => document.body.classList.remove(bodyClass));
+      handle.appendChild(btn);
+    }
+  }
+
+  function ensureOverlayButtons(){
+    if (!mq.matches) return;
+
+    const grid = document.getElementById('mapToolsGrid');
+    if (!grid) return;
+
+    // Inspector button
+    let insp = document.getElementById('mobileInspectorBtn');
+    if (!insp){
+      insp = document.createElement('button');
+      insp.id = 'mobileInspectorBtn';
+      insp.type = 'button';
+      insp.className = 'tool-btn muted-btn';
+      insp.textContent = 'Inspector';
+      insp.addEventListener('click', () => {
+        const wasOpen = document.body.classList.contains('mobile-pane-info');
+        document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+        if (!wasOpen) document.body.classList.add('mobile-pane-info');
+      });
+      grid.insertBefore(insp, grid.firstChild);
+    }
+
+    // Routes button
+    let routes = document.getElementById('mobileRoutesBtn');
+    if (!routes){
+      routes = document.createElement('button');
+      routes.id = 'mobileRoutesBtn';
+      routes.type = 'button';
+      routes.className = 'tool-btn muted-btn';
+      routes.textContent = 'Routes';
+      routes.addEventListener('click', () => {
+        const wasOpen = document.body.classList.contains('mobile-pane-analytics');
+        document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+        if (!wasOpen) document.body.classList.add('mobile-pane-analytics');
+      });
+
+      // Insert right after Inspector if possible
+      if (insp && insp.parentElement === grid){
+        grid.insertBefore(routes, insp.nextSibling);
+      } else {
+        grid.insertBefore(routes, grid.firstChild);
       }
     }
 
+    // Ensure overlay close buttons
     addClose('infoPanel', 'Inspector', 'mobile-pane-info');
     addClose('analyticsPanel', 'Lines & Routes', 'mobile-pane-analytics');
   }
 
   function sync(){
-    if (!mq.matches) {
-      document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
-      return;
+    ensureMobileInfoBar();
+    if (mq.matches){
+      ensureOverlayButtons();
     }
-    ensureMobileButtons();
   }
 
   sync();
