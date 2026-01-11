@@ -554,7 +554,7 @@
   <div class="window-resizer" data-window="analyticsPanel"></div>
 </aside>
 
-<script src="BrooklynMap.js" onerror="window.__AUTOLOAD_MAP_FAILED=true;"></script>
+<script src="Philadelphia.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
 <script>
 (function(){
   const svg = document.getElementById('mapSvg');
@@ -3226,11 +3226,13 @@ if (traceToggleBtn) {
 
     // Persist window positions & sizes in localStorage
     const WIN_STORAGE_KEY = 'sicaWindowState_v1';
+    const DEFAULT_WIN_STATE = {"mapPanel":{"left":258,"top":0,"width":744.96875,"height":628.9765625},"infoPanel":{"left":997.984375,"top":0,"width":277.9921875,"height":621.9609375},"analyticsPanel":{"left":0,"top":197,"width":262,"height":432.9765625},"controlsPanel":{"left":0,"top":2,"width":260.9921875,"height":198.9921875}};
+
 
     function loadWindowState(){
       try{
         const raw = window.localStorage.getItem(WIN_STORAGE_KEY);
-        if (!raw) return {};
+        if (!raw) return DEFAULT_WIN_STATE;
         const parsed = JSON.parse(raw);
         return (parsed && typeof parsed === 'object') ? parsed : {};
       } catch(e){
