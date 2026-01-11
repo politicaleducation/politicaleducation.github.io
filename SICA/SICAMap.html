@@ -256,15 +256,16 @@
   body.mobile-pane-info #infoPanel{ display: flex !important; }
   body.mobile-pane-analytics #analyticsPanel{ display: flex !important; }
 
-  /* Make touch targets usable */
+  /* Map tools: compact 4-column grid (still touch-friendly) */
   #mapToolsGrid{
-    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
-    gap: 6px !important;
+    grid-template-columns: repeat(4, minmax(0,1fr)) !important;
+    column-gap: 4px !important;
+    row-gap: 4px !important;
   }
   .tool-btn{
-    min-height: 40px !important;
-    font-size: 13px !important;
-    padding: 10px 10px !important;
+    min-height: 32px !important;
+    font-size: 12px !important;
+    padding: 6px 6px !important;
   }
 
   /* Prevent iOS “zoom on focus” in forms */
@@ -316,6 +317,58 @@
       display:flex;
       flex-direction:column;
       gap:10px;
+    }
+
+    /* Quick edit bar (always visible while scrolling Map Tools) */
+    #quickEditBar{
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(15,15,18,0.88);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 8px;
+      backdrop-filter: blur(8px);
+    }
+    #quickEditBar .quick-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:6px;
+    }
+    #quickSelMeta{
+      font-size:12px;
+      opacity:0.85;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #quickEditBar .quick-input{
+      padding: 8px;
+      border-radius: 10px;
+      font-size: 16px; /* avoid iOS zoom-on-focus */
+    }
+    #quickEditBar .quick-textarea{
+      padding: 8px;
+      border-radius: 10px;
+      font-size: 16px; /* avoid iOS zoom-on-focus */
+      resize: vertical;
+      min-height: 60px;
+    }
+    #quickEditBar .quick-input:disabled,
+    #quickEditBar .quick-textarea:disabled{
+      opacity:0.55;
+    }
+
+    /* Hide UI the user doesn’t want */
+    #mapNameDisplay,
+    #autosaveRow,
+    #blockName,
+    #loadBtn,
+    #downloadBtn,
+    .rotate-btn{
+      display:none !important;
     }
     #controlsPanel .header-left{
       margin-bottom:2px;
@@ -489,6 +542,14 @@
         <span id="autosaveIndicator" style="font-size:12px;opacity:0.85">Last saved: —</span>
         <button class="tool-btn tool-btn-file" id="restoreAutosaveBtn" style="display:none;padding:6px 10px">Restore autosave</button>
         <button class="tool-btn tool-btn-file" id="cancelAutosaveBtn" style="display:none;padding:6px 10px">Cancel</button>
+      </div>
+      <div id="quickEditBar">
+        <div class="quick-top">
+          <span id="quickSelMeta">No selection</span>
+          <button class="tool-btn muted-btn" id="quickApplyBtn" type="button" disabled>Apply</button>
+        </div>
+        <input id="quickNameInput" class="quick-input" type="text" placeholder="Object name" disabled />
+        <textarea id="quickNotesInput" class="quick-textarea" rows="2" placeholder="Info / notes" disabled></textarea>
       </div>
     </div>
     <div class="controls">
@@ -759,6 +820,115 @@
     }
   } catch(_) {}
 
+
+  // =========================
+  // Quick edit bar (name + notes) for the currently selected object
+  const quickSelMetaEl = document.getElementById('quickSelMeta');
+  const quickNameInputEl = document.getElementById('quickNameInput');
+  const quickNotesInputEl = document.getElementById('quickNotesInput');
+  const quickApplyBtnEl = document.getElementById('quickApplyBtn');
+
+  let quickLoaded = { type:null, id:null, name:'', notes:'' };
+
+  function getQuickSelection(){
+    try {
+      if (selectedType === 'building' && selectedId) {
+        const b = (state.buildings || []).find(x => x.id === selectedId);
+        if (!b) return null;
+        return { type: 'building', id: selectedId, obj: b };
+      }
+      if (selectedType === 'street' && selectedId) {
+        const s = (state.streets || []).find(x => x.id === selectedId);
+        if (!s) return null;
+        return { type: 'street', id: selectedId, obj: s };
+      }
+      return null;
+    } catch(_) { return null; }
+  }
+
+  function refreshQuickEditBar(){
+    if (!quickSelMetaEl || !quickNameInputEl || !quickNotesInputEl || !quickApplyBtnEl) return;
+    const sel = getQuickSelection();
+    if (!sel){
+      quickLoaded = { type:null, id:null, name:'', notes:'' };
+      const multi = (selectedType === 'multi' && selectedIds && selectedIds.size > 1);
+      quickSelMetaEl.textContent = multi ? (selectedIds.size + ' items selected') : 'No selection';
+      quickNameInputEl.value = '';
+      quickNotesInputEl.value = '';
+      quickNameInputEl.disabled = true;
+      quickNotesInputEl.disabled = true;
+      quickApplyBtnEl.disabled = true;
+      return;
+    }
+
+    const displayType = sel.type === 'building' ? 'Building' : 'Street';
+    quickSelMetaEl.textContent = displayType;
+
+    const nameVal = sel.type === 'building' ? (sel.obj.label || '') : (sel.obj.name || '');
+    const notesVal = (sel.obj.notes || '');
+
+    quickLoaded = { type: sel.type, id: sel.id, name: String(nameVal), notes: String(notesVal) };
+
+    quickNameInputEl.value = nameVal;
+    quickNotesInputEl.value = notesVal;
+    quickNameInputEl.disabled = false;
+    quickNotesInputEl.disabled = false;
+    quickApplyBtnEl.disabled = true;
+  }
+
+  function updateQuickApplyEnabled(){
+    if (!quickApplyBtnEl || !quickNameInputEl || !quickNotesInputEl) return;
+    if (!quickLoaded || !quickLoaded.type || !quickLoaded.id) { quickApplyBtnEl.disabled = true; return; }
+    const dirty = (String(quickNameInputEl.value) !== String(quickLoaded.name)) ||
+                  (String(quickNotesInputEl.value) !== String(quickLoaded.notes));
+    quickApplyBtnEl.disabled = !dirty;
+  }
+
+  if (quickNameInputEl) quickNameInputEl.addEventListener('input', updateQuickApplyEnabled);
+  if (quickNotesInputEl) quickNotesInputEl.addEventListener('input', updateQuickApplyEnabled);
+
+  if (quickApplyBtnEl) quickApplyBtnEl.addEventListener('click', (evt)=>{
+    evt.preventDefault(); evt.stopPropagation();
+    const sel = getQuickSelection();
+    if (!sel) return;
+
+    const newName = String(quickNameInputEl ? (quickNameInputEl.value || '') : '');
+    const newNotes = String(quickNotesInputEl ? (quickNotesInputEl.value || '') : '');
+
+    const oldName = sel.type === 'building' ? (sel.obj.label || '') : (sel.obj.name || '');
+    const oldNotes = (sel.obj.notes || '');
+
+    const changed = (newName !== String(oldName)) || (newNotes !== String(oldNotes));
+    if (!changed) { refreshQuickEditBar(); return; }
+
+    pushHistory('Quick edit');
+
+    if (sel.type === 'building') {
+      sel.obj.label = newName;
+      sel.obj.notes = newNotes;
+
+      // keep inspector fields in sync if it's open
+      const bLabelEl = document.getElementById('bLabel'); if (bLabelEl) bLabelEl.value = newName;
+      const bNotesEl = document.getElementById('bNotes'); if (bNotesEl) bNotesEl.value = newNotes;
+    } else if (sel.type === 'street') {
+      sel.obj.name = newName;
+      sel.obj.notes = newNotes;
+
+      const sNameEl = document.getElementById('streetName'); if (sNameEl) sNameEl.value = newName;
+      const sNotesEl = document.getElementById('streetNotes'); if (sNotesEl) sNotesEl.value = newNotes;
+      const st = document.getElementById('streetInspectorTitle');
+      if (st) st.textContent = (newName && String(newName).trim()) ? newName : 'Street';
+    }
+
+    if (typeof scheduleAutosave === 'function') scheduleAutosave('quick edit');
+    renderAll();
+    refreshQuickEditBar();
+  });
+
+  // initialize
+  refreshQuickEditBar();
+
+
   // =========================
   // Autosave (localStorage)
   const AUTOSAVE_VERSION = 1;
@@ -1003,6 +1173,7 @@
     noSelection.style.display = 'block';
     removeStreetInspector();
     renderAll();
+    refreshQuickEditBar();
   }
 
   function undo(){
@@ -1929,6 +2100,8 @@ function showMultiInspector(){
       const count = selectedIds.size || 0;
       tEl.textContent = count > 1 ? (count + ' items selected') : 'Item';
     }
+  
+    refreshQuickEditBar();
   }
 
   function selectBuilding(id){
@@ -1969,6 +2142,7 @@ function showMultiInspector(){
       });
     }
     renderAll();
+    refreshQuickEditBar();
   }
 
   function handleBuildingClick(evt, b){
@@ -1998,6 +2172,7 @@ function showMultiInspector(){
         showMultiInspector();
       }
       renderAll();
+      refreshQuickEditBar();
     } else {
       selectedIds.clear();
       selectBuilding(b.id);
@@ -2011,6 +2186,7 @@ function showMultiInspector(){
     injectStreetInspector((state.streets || []).find(s => s.id === id));
 
     renderAll();
+    refreshQuickEditBar();
   }
 
   function removeStreetInspector(){
@@ -2671,6 +2847,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
       if (selectedIds) selectedIds.clear();
       form.style.display = 'none'; noSelection.style.display = 'block';
       removeStreetInspector(); renderAll();
+      refreshQuickEditBar();
     }
   });
 
@@ -3814,3 +3991,14 @@ if (traceToggleBtn) {
     if (!mq.matches) {
       document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
       return;
+    }
+    ensureMobileButtons();
+  }
+
+  sync();
+  mq.addEventListener('change', sync);
+})();
+</script>
+
+</body>
+</html>
