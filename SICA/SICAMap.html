@@ -594,10 +594,22 @@
     }
     .street.highlighted{
       stroke:var(--accent) !important;
-      filter:drop-shadow(0 0 6px rgba(110,231,183,0.9));
+      stroke-opacity:0.55;
+      filter:drop-shadow(0 0 4px rgba(110,231,183,0.25));
     }
     text.highlighted{
       fill:var(--accent) !important;
+      opacity:0.85;
+    }
+    /* Selection (street) highlight: subtle, transparent glow */
+    .street.selected-street{
+      stroke:rgba(200,210,220,0.85) !important;
+      stroke-opacity:0.85;
+      filter:drop-shadow(0 0 3px rgba(255,255,255,0.18));
+    }
+    text.selected-street{
+      fill:rgba(220,230,240,0.9) !important;
+      opacity:0.9;
     }
 </style>
 </head>
@@ -873,7 +885,7 @@
   <div class="window-resizer" data-window="analyticsPanel"></div>
 </aside>
 
-<script src="BrooklynMap.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
+<script src="Philadelphia.js" onerror="window.__AUTOLOAD_PHILLY_FAILED=true;"></script>
 <script>
 (function(){
   const svg = document.getElementById('mapSvg');
@@ -1281,6 +1293,7 @@
 
     if (typeof scheduleAutosave === 'function') scheduleAutosave('quick edit');
     renderAll();
+    applySelectedStreetHighlight(id);
     refreshQuickEditBar();
   });
 
@@ -1539,6 +1552,8 @@
     form.style.display = 'none';
     noSelection.style.display = 'block';
     removeStreetInspector();
+    clearSelectedStreetHighlight();
+    clearRouteHighlight();
     renderAll();
     refreshQuickEditBar();
   }
@@ -2106,6 +2121,37 @@ function getViewCenter(){
     });
   }
 
+
+  // --- Street highlight helpers (selection + route) ---
+  function clearSelectedStreetHighlight(){
+    const streetPaths = svg.querySelectorAll('.street.selected-street');
+    streetPaths.forEach(p => p.classList.remove('selected-street'));
+    const labels = svg.querySelectorAll('text.selected-street');
+    labels.forEach(t => t.classList.remove('selected-street'));
+  }
+
+  function applySelectedStreetHighlight(id){
+    clearSelectedStreetHighlight();
+    if (!id) return;
+    const path = svg.querySelector('.street[data-id="' + id + '"]');
+    if (path) path.classList.add('selected-street');
+    const label = svg.querySelector('text[data-street-id="' + id + '"]');
+    if (label) label.classList.add('selected-street');
+  }
+
+  function clearRouteHighlight(){
+    // Safely clear any active line/route highlight (and any stop highlights).
+    try { if (typeof analyticsActiveKey !== 'undefined') analyticsActiveKey = null; } catch(_) {}
+    try { if (typeof highlightedStreetIdsForStops !== 'undefined') highlightedStreetIdsForStops = []; } catch(_) {}
+    try { if (typeof stopHighlightIds !== 'undefined') stopHighlightIds = new Set(); } catch(_) {}
+
+    const streetPaths = svg.querySelectorAll('.street.highlighted');
+    streetPaths.forEach(p => p.classList.remove('highlighted'));
+    const labelTexts = svg.querySelectorAll('text.highlighted');
+    labelTexts.forEach(t => t.classList.remove('highlighted'));
+    applyStopHighlightClasses();
+  }
+
 function renderAll(){
     // Keep ONLY tracing image transform settings in state so they are saved into data.js
     // We intentionally do NOT store the image data/url so data.js stays small.
@@ -2473,6 +2519,7 @@ function showMultiInspector(){
 
   function selectBuilding(id){
     selectedId = id; selectedType = 'building'; activeStreetId = null;
+    clearSelectedStreetHighlight();
     selectedIds.clear();
     selectedIds.add(id);
     const b = (state.buildings || []).find(x => x.id === id);
@@ -3209,11 +3256,14 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
 
   svg.addEventListener('click', (e) => {
     if (didPan) { didPan = false; e.preventDefault(); e.stopPropagation(); return; }
-    if (e.target === svg){
+    if (isBackgroundTarget(e.target)){
       selectedId = null; selectedType = null; activeStreetId = null;
       if (selectedIds) selectedIds.clear();
       form.style.display = 'none'; noSelection.style.display = 'block';
-      removeStreetInspector(); renderAll();
+      removeStreetInspector();
+      clearSelectedStreetHighlight();
+      clearRouteHighlight();
+      renderAll();
       refreshQuickEditBar();
     }
   });
