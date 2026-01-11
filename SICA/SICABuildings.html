@@ -202,6 +202,83 @@ tr:hover td{background:linear-gradient(90deg, rgba(255,255,255,0.01), transparen
 
   let suppressClick = false;
 
+
+  // Load a map from a string (JS data.js style or raw JSON)
+  function loadFromText(txt, filenameForDisplay){
+    const prevData = window.MAP_DATA;
+    const prevMeta = window.MAP_META;
+    try{
+      txt = String(txt || '').trim();
+      let loaded = null;
+      let meta = null;
+
+      // Support both JS (data.js) and raw JSON exports (same detection as SICAMap)
+      if (/window\.MAP_DATA/.test(txt) || /window\.MAP_META/.test(txt)) {
+        // Clear any previous globals so the evaluated script writes fresh values
+        try { delete window.MAP_DATA; } catch(_) { window.MAP_DATA = undefined; }
+        try { delete window.MAP_META; } catch(_) { window.MAP_META = undefined; }
+
+        // Evaluate in global scope (so window.MAP_DATA assignments work)
+        (0, eval)(txt);
+
+        loaded = window.MAP_DATA;
+        meta = (typeof window.MAP_META === 'object' && window.MAP_META) ? window.MAP_META : null;
+      } else {
+        loaded = JSON.parse(txt);
+      }
+
+      if(!loaded) throw new Error('Could not parse file');
+
+      originalRaw  = JSON.parse(JSON.stringify(loaded));
+      originalMeta = meta ? JSON.parse(JSON.stringify(meta)) : null;
+
+      originalState = normalizeLoaded(loaded);
+      state         = JSON.parse(JSON.stringify(originalState));
+
+      // Prefer MAP_META.name for display, otherwise use filename (no extension)
+      const displayName = (originalMeta && originalMeta.name) ? String(originalMeta.name) : (filenameForDisplay || 'data');
+      mapNameEl.textContent = stripExtension(displayName);
+      render();
+
+      return { ok: true };
+    }catch(error){
+      // Restore any previous globals to avoid leaving the page in a weird state
+      try { window.MAP_DATA = prevData; } catch(_) {}
+      try { window.MAP_META = prevMeta; } catch(_) {}
+      return { ok: false, error };
+    }
+  }
+
+  // Best-effort auto-load of a map file in the same folder (works when served over http(s))
+  async function tryAutoLoadDefaultMap(){
+    // If something is already loaded (embedded MAP_DATA or user-loaded), do nothing.
+    if (originalRaw || (window.MAP_DATA && state && Array.isArray(state.buildings) && state.buildings.length)) return;
+
+    const defaultFile = 'BrooklynMap.js';
+    const prevLabel = mapNameEl.textContent;
+
+    // Small status hint (silently reverts if the file isn't available)
+    if (!window.MAP_DATA && (!state || !state.buildings || !state.buildings.length)) {
+      mapNameEl.textContent = 'Loading ' + defaultFile + '…';
+    }
+
+    try{
+      const res = await fetch('./' + defaultFile, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      const out = loadFromText(txt, defaultFile);
+      if (!out.ok) throw out.error || new Error('Could not parse ' + defaultFile);
+    }catch(err){
+      // Quietly ignore missing file / fetch restrictions (common for file://)
+      if (!originalRaw && (!window.MAP_DATA) && (!state || !state.buildings || !state.buildings.length)) {
+        mapNameEl.textContent = prevLabel;
+      }
+      // Log at info level so it doesn't look like an error
+      console.info('Auto-load skipped:', (err && err.message) ? err.message : err);
+    }
+  }
+
+
   function normalizeBuilding(b){
     const clone = Object.assign({}, b || {});
     if (!clone.id) clone.id = 'b' + Date.now() + Math.floor(Math.random()*1000);
@@ -490,38 +567,15 @@ tr:hover td{background:linear-gradient(90deg, rgba(255,255,255,0.01), transparen
     const f = e.target.files[0]; if(!f) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try{
-        const txt = String(reader.result || '').trim();
-        let loaded = null;
-        let meta = null;
-
-        // Support both JS (data.js) and raw JSON exports (same detection as SICAMap)
-        if (/window\.MAP_DATA/.test(txt) || /window\.MAP_META/.test(txt)) {
-          (function(){ eval(txt); })();
-          loaded = window.MAP_DATA;
-          meta = (typeof window.MAP_META === 'object' && window.MAP_META) ? window.MAP_META : null;
-        } else {
-          loaded = JSON.parse(txt);
-        }
-
-        if(!loaded) throw new Error('Could not parse file');
-
-        originalRaw  = JSON.parse(JSON.stringify(loaded));
-        originalMeta = meta ? JSON.parse(JSON.stringify(meta)) : null;
-
-        originalState = normalizeLoaded(loaded);
-        state         = JSON.parse(JSON.stringify(originalState));
-
-        // Prefer MAP_META.name for display, otherwise use filename (no extension)
-        const displayName = (originalMeta && originalMeta.name) ? String(originalMeta.name) : (f.name || 'data');
-        mapNameEl.textContent = stripExtension(displayName);
-        render();
-      }catch(err){
-        console.error(err);
-        alert('Failed to load: '+(err&&err.message?err.message:err));
+      const out = loadFromText(reader.result, f.name || 'data');
+      if(!out.ok){
+        console.error(out.error);
+        alert('Failed to load: '+(out.error && out.error.message ? out.error.message : out.error));
       }
     };
     reader.readAsText(f);
+    // allow picking the same file again without having to pick a different one first
+    e.target.value = '';
   });
 
   // If embedded MAP present, show a sensible default name (no extension)
@@ -538,6 +592,10 @@ tr:hover td{background:linear-gradient(90deg, rgba(255,255,255,0.01), transparen
     }
   }catch(e){}
 })();
+
+  // Auto-load BrooklynMap.js if it is available in the same folder
+  tryAutoLoadDefaultMap();
+
 
   // Save uses the display text as base filename; ensures .js extension
   
