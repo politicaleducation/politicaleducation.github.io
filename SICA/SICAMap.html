@@ -268,7 +268,19 @@
     border-top: 1px solid rgba(255,255,255,0.09);
     box-shadow: 0 -10px 24px rgba(0,0,0,0.35);
     padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+
+    /* Keep this panel from growing into the map; scroll internally instead */
+    height: clamp(190px, 32vh, 420px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+
+    /* Hide scrollbars but keep scrolling */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  #mobileInfoBar::-webkit-scrollbar{ display:none; }
     /* Show quick edit bar on mobile */
   #quickEditBar{ display:block !important; }
 
@@ -4283,12 +4295,53 @@ if (traceToggleBtn) {
 
 
 <script>
-/* MOBILE_LAYOUT_PATCH_v1 */
+/* MOBILE_LAYOUT_PATCH_v2 */
 (function(){
   const mq = window.matchMedia('(max-width: 900px)');
 
   let quickOriginalParent = null;
   let quickOriginalNext = null;
+
+  function addClose(panelId, titleText, bodyClass){
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    let handle = null;
+    try { handle = panel.querySelector(':scope > .window-drag-handle'); } catch(_) {}
+    if (!handle) handle = panel.querySelector('.window-drag-handle');
+    if (!handle) return;
+
+    // Ensure there's a title on the left
+    let titleSpan = handle.querySelector('span');
+    if (!titleSpan){
+      titleSpan = document.createElement('span');
+      titleSpan.textContent = titleText;
+      handle.appendChild(titleSpan);
+    } else if (!String(titleSpan.textContent || '').trim()){
+      titleSpan.textContent = titleText;
+    }
+
+    // Mobile headers shouldn't be draggable
+    handle.style.justifyContent = 'space-between';
+    handle.style.cursor = 'default';
+
+    if (handle.querySelector('.mobile-close')) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tool-btn muted-btn mobile-close';
+    btn.textContent = 'Back';
+    btn.style.margin = '0';
+    btn.style.padding = '6px 10px';
+    btn.style.minHeight = '30px';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.body.classList.remove(bodyClass);
+    });
+
+    handle.appendChild(btn);
+  }
 
   function ensureMobileInfoBar(){
     const quick = document.getElementById('quickEditBar');
@@ -4330,23 +4383,23 @@ if (traceToggleBtn) {
   function ensureOverlayButtons(){
     if (!mq.matches) return;
 
-    // No Inspector button on mobile; Routes is in the bottom info/label panel.
-    // We only ensure the overlay close buttons exist.
-    addClose('infoPanel', 'Inspector', 'mobile-pane-info');
+    // Routes (Lines & Routes) overlay: add a Back button so you can return to the map
     addClose('analyticsPanel', 'Lines & Routes', 'mobile-pane-analytics');
+
+    // Safety: if anything ever opens the inspector overlay on mobile, make it closable too
+    addClose('infoPanel', 'Inspector', 'mobile-pane-info');
   }
 
   function sync(){
     ensureMobileInfoBar();
-    if (mq.matches){
-      ensureOverlayButtons();
-    }
+    ensureOverlayButtons();
   }
 
   sync();
   mq.addEventListener('change', sync);
 })();
 </script>
+
 
 </body>
 </html>
