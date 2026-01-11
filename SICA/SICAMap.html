@@ -1095,6 +1095,11 @@
       quickLoaded = { type:null, id:null, name:'', notes:'', color:'', length:'', width:'', angle:'', bType:'', usage:'', funding:'', occupants:'' };
       quickSelMetaEl.textContent = 'No selection';
 
+      // Ensure no lingering street/route highlights when nothing is selected
+      try { activeStreetId = null; } catch(_) {}
+      try { clearSelectedStreetHighlight(); } catch(_) {}
+      try { clearRouteHighlight(); } catch(_) {}
+
       // clear + disable
       [quickNameInputEl, quickNotesInputEl, quickTypeInputEl, quickUsageInputEl, quickFundingInputEl,
        quickOccupantsInputEl, quickColorInputEl, quickLengthInputEl, quickWidthInputEl, quickAngleInputEl]
@@ -1439,6 +1444,9 @@
       selectedId = null;
       selectedType = null;
       if (selectedIds) selectedIds.clear();
+      activeStreetId = null;
+      try { clearSelectedStreetHighlight(); } catch(_) {}
+      try { clearRouteHighlight(); } catch(_) {}
       activeStreetId = null;
       autosaveAppliedThisSession = true;
       renderAll();
@@ -2600,6 +2608,7 @@ function showMultiInspector(){
     injectStreetInspector((state.streets || []).find(s => s.id === id));
 
     renderAll();
+    applySelectedStreetHighlight(id);
     refreshQuickEditBar();
   }
 
@@ -3004,6 +3013,9 @@ function showMultiInspector(){
       selectedIds.clear();
       form.style.display = 'none';
       noSelection.style.display = 'block';
+      activeStreetId = null;
+      try { clearSelectedStreetHighlight(); } catch(_) {}
+      try { clearRouteHighlight(); } catch(_) {}
       renderAll();
     } else if (selectedType === 'multi' && selectedIds && selectedIds.size > 0) {
       if (!confirm('Delete ' + selectedIds.size + ' buildings?')) return;
@@ -3015,6 +3027,9 @@ function showMultiInspector(){
       selectedIds.clear();
       form.style.display = 'none';
       noSelection.style.display = 'block';
+      activeStreetId = null;
+      try { clearSelectedStreetHighlight(); } catch(_) {}
+      try { clearRouteHighlight(); } catch(_) {}
       renderAll();
     }
   });
