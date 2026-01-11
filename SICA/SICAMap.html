@@ -182,7 +182,11 @@
       display:none;
     }
 
-    @media (max-width: 900px){
+    
+    /* Mobile-only quick edit bar (selection label/info) is hidden on desktop */
+    #quickEditBar{ display:none; }
+
+@media (max-width: 900px){
   /* MOBILE LAYOUT: fullscreen map + TOP tools bar + BOTTOM quick-edit bar + overlay panes */
 
   /* Stop the page itself from scrolling while you pan/zoom the SVG */
@@ -265,7 +269,10 @@
     box-shadow: 0 -10px 24px rgba(0,0,0,0.35);
     padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
   }
-  #mobileInfoBar #quickEditBar{
+    /* Show quick edit bar on mobile */
+  #quickEditBar{ display:block !important; }
+
+#mobileInfoBar #quickEditBar{
     margin-top: 0 !important;
   }
   #mobileInfoBar #quickEditBar .quick-top{
@@ -292,7 +299,7 @@
     height: 100vh !important;
     border-radius: 0 !important;
     z-index: 60 !important;
-    display: none;
+    display: none !important;
   }
   body.mobile-pane-info #infoPanel{ display: flex !important; }
   body.mobile-pane-analytics #analyticsPanel{ display: flex !important; }
@@ -3973,20 +3980,8 @@ if (traceToggleBtn) {
       quickOriginalNext = quick.nextElementSibling;
     }
 
-    let bar = document.getElementById('mobileInfoBar');
-    if (!bar){
-      bar = document.createElement('div');
-      bar.id = 'mobileInfoBar';
-      document.body.appendChild(bar);
-    }
-
-    if (mq.matches){
-      if (quick.parentElement !== bar){
-        bar.appendChild(quick);
-      }
-      bar.style.display = 'block';
-    } else {
-      // Restore to original location on desktop
+    // Desktop: keep the quick edit UI out of the way.
+    if (!mq.matches){
       if (quickOriginalParent && quick.parentElement !== quickOriginalParent){
         if (quickOriginalNext && quickOriginalNext.parentElement === quickOriginalParent){
           quickOriginalParent.insertBefore(quick, quickOriginalNext);
@@ -3994,27 +3989,23 @@ if (traceToggleBtn) {
           quickOriginalParent.appendChild(quick);
         }
       }
-      bar.style.display = 'none';
+      const bar = document.getElementById('mobileInfoBar');
+      if (bar) bar.style.display = 'none';
       document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+      return;
     }
-  }
 
-  function addClose(panelId, titleText, bodyClass){
-    const handle = document.querySelector('#' + panelId + ' .window-drag-handle');
-    if (!handle) return;
-    if (!handle.querySelector('.mobile-close')) {
-      handle.style.justifyContent = 'space-between';
-      handle.style.cursor = 'default';
-      handle.innerHTML = '<span>' + titleText + '</span>';
-
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'tool-btn muted-btn mobile-close';
-      btn.textContent = 'Close';
-      btn.style.marginTop = '0';
-      btn.addEventListener('click', () => document.body.classList.remove(bodyClass));
-      handle.appendChild(btn);
+    // Mobile: dock quick edit bar at the bottom of the screen.
+    let bar = document.getElementById('mobileInfoBar');
+    if (!bar){
+      bar = document.createElement('div');
+      bar.id = 'mobileInfoBar';
+      document.body.appendChild(bar);
     }
+    if (quick.parentElement !== bar){
+      bar.appendChild(quick);
+    }
+    bar.style.display = 'block';
   }
 
   function ensureOverlayButtons(){
