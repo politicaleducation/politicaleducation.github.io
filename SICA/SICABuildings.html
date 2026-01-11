@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Buildings — List View (Home Select)</title>
+<style>
+  :root{
+    --bg:#0b0f13;--panel:#0f1418;--muted:#9aa3ad;--accent:#6ee7b7;--card:#111418;
+    --text:#e6eef3;--muted-2:#9aa3ad;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#051018 0%,var(--bg)100%);color:var(--text)}
+  .wrap{max-width:1200px;margin:28px auto;padding:20px;background:var(--card);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=text],select{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px;border-radius:8px;color:var(--text)}
+  button{background:var(--accent);color:#052018;border:0;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+  .muted{background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted-2);padding:8px;border-radius:8px;cursor:pointer}
+  .toggle-on{background:#3bd085;color:#022018}
+
+  /* non-editable title display */
+  .titleDisplay{
+    min-width:260px;
+    max-width:420px;
+    font-size:16px;
+    font-weight:700;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.06);
+    background:transparent;
+    color:var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  /* natural width table */
+  table{width:auto;border-collapse:separate;border-spacing:0;margin-top:12px;table-layout:auto;white-space:nowrap}
+  thead th{position:relative;padding:10px 8px;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:13px;vertical-align:middle;text-align:left;user-select:none;display:table-cell;min-width:40px}
+  thead th .headerInner{display:flex;align-items:center;gap:8px;min-width:0}
+  thead th .col-label{flex:1;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  tbody td{padding:10px 8px;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:13px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.wrap-col{
+  white-space:normal;
+  overflow-wrap:break-word;
+  word-break:break-word;
+  text-overflow:clip;
+}
+
+tr:hover td{background:linear-gradient(90deg, rgba(255,255,255,0.01), transparent)}
+  .small{font-size:12px;color:var(--muted-2)}
+  .color-swatch{width:28px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,0.4);display:inline-block;vertical-align:middle}
+  .center{display:flex;align-items:center;gap:8px}
+  .no-data{padding:18px;text-align:center;color:var(--muted-2)}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px; color:var(--muted-2)}
+  /* resizer handle — original look */
+  .col-resizer{
+    position:absolute;
+    right:0;
+    top:0;
+    width:8px;
+    height:100%;
+    cursor:col-resize;
+    touch-action:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .col-resizer:after{
+    content:'';
+    width:2px;height:38%;
+    background:rgba(255,255,255,0.06);
+    border-radius:2px;
+  }
+  th.dragging { opacity:0.7; background:linear-gradient(90deg, rgba(255,255,255,0.015), transparent) }
+  th.placeholder { outline: 2px dashed rgba(255,255,255,0.06); }
+  #tableWrap{overflow:auto}
+  /* editing visual hint */
+  td[contenteditable="true"]{outline:2px dashed rgba(110,231,183,0.12); border-radius:4px; padding:8px;}
+  @media (max-width:820px){
+    table,thead,tbody,tr,th,td{display:block}
+    thead{display:block}
+    th{display:flex;justify-content:space-between}
+    td{padding-left:50%}
+    td::before{content:attr(data-label);position:absolute;left:12px;top:10px;color:var(--muted-2);font-size:12px}
+    tr{position:relative;padding:8px 0}
+  }
+
+/* Make "View Map" (<a class="muted-btn" role="button">) match the primary button look */
+.controls a.muted-btn{
+  background: var(--accent);
+  color: #052018;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block; /* match button box model */
+}
+.controls a.muted-btn:visited{
+  color: #052018; /* prevent visited purple */
+}
+
+/* Home selection radio */
+.home-radio{
+  width:16px;height:16px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap" role="main" aria-labelledby="pageTitle">
+    <header>
+      <!-- Non-editable title display that hides file extension -->
+      <div id="mapName" class="titleDisplay" role="heading" aria-level="1">No map loaded</div>
+      <div class="controls" aria-hidden="false">
+        <input id="fileInput" type="file" accept=".js,.json" style="display:none" />
+        <button id="loadBtn" title="Load a SICAMap data.js or JSON file">Load Map</button>
+        <button id="saveBtn" title="Save the current map to SICAMap format">Save Map</button>
+       <a class="muted-btn"
+   id="listViewBtn"
+   href="./SICAMap.html"
+   target="_blank"
+   rel="noopener noreferrer"
+   title="Switch to Map">View Map</a>
+
+        <button id="editToggle" class="muted" title="Toggle edit mode">Edit</button>
+      </div>
+    </header>
+
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <input id="search" type="text" placeholder="Search label, occupants, type, usage, funding, notes..." style="min-width:320px" aria-label="Search buildings">
+      <select id="typeFilter" aria-label="Filter by type">
+        <option value="">All types</option>
+        <option value="residential">Residential</option>
+        <option value="commercial">Commercial</option>
+        <option value="civic">Civic</option>
+        <option value="public_transport">Public Transport</option>
+        <option value="vacant">Vacant</option>
+        <option value="school">School</option>
+        <option value="other">Other</option>
+      </select>
+      <div class="small" style="margin-left:auto;display:flex;gap:12px;align-items:center">
+        <span>Home: <strong id="homeStatus">None</strong></span>
+        <span>Rows: <span id="rowCount">0</span></span>
+      </div>
+    </div>
+
+    <div id="tableWrap" style="margin-top:12px">
+      <table id="buildingsTable" aria-live="polite" role="table">
+        <thead>
+          <tr id="headerRow">
+            <th data-key="color" draggable="true"><div class="headerInner"><span class="col-label">Color</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="label" draggable="true"><div class="headerInner"><span class="col-label">Label</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="type" draggable="true"><div class="headerInner"><span class="col-label">Type</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="distance" draggable="true"><div class="headerInner"><span class="col-label">Home</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="nearestDry" draggable="true"><div class="headerInner"><span class="col-label">Dry Groc</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="nearestFull" draggable="true"><div class="headerInner"><span class="col-label">Full Groc</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="nearestPark" draggable="true"><div class="headerInner"><span class="col-label">Park</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="nearestTransit" draggable="true"><div class="headerInner"><span class="col-label">Transit</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="occupants" draggable="true"><div class="headerInner"><span class="col-label">Occupants</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="notes" draggable="true"><div class="headerInner"><span class="col-label">Notes</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="usage" draggable="true"><div class="headerInner"><span class="col-label">Usage</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="funding" draggable="true"><div class="headerInner"><span class="col-label">Funding</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+            <th data-key="area" draggable="true"><div class="headerInner"><span class="col-label">Size</span><div class="col-resizer" aria-hidden="true"></div></div></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td class="no-data" colspan="10">No data loaded. Click "Load Map".</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <div class="small" style="margin-left:auto">Tip: choose a Home to compute distances. Drag a header to reorder; drag the edge to resize. Toggle Edit to modify text cells.</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // Removed hard-coded HOME_X/HOME_Y. We derive Home from a selected building.
+  let originalRaw = null;
+  let originalState = null;
+  let originalMeta = null;
+  let state = { buildings: [], homeBuildingId: null };
+  let sortKey = 'label', sortDir = 1;
+  let editMode = false;
+  const wrapColumns = new Set(['color','label','type','home','distance','nearestDry','nearestFull','nearestPark','nearestTransit','occupants','notes','usage','funding','area']);
+  const mapNameEl = document.getElementById('mapName');
+  const fileInput = document.getElementById('fileInput');
+  const loadBtn = document.getElementById('loadBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const tbody = document.getElementById('tbody');
+  const searchEl = document.getElementById('search');
+  const typeFilter = document.getElementById('typeFilter');
+  const rowCount = document.getElementById('rowCount');
+  const table = document.getElementById('buildingsTable');
+  const headerRow = document.getElementById('headerRow');
+  const editToggle = document.getElementById('editToggle');
+  const homeStatus = document.getElementById('homeStatus');
+
+  let suppressClick = false;
+
+  function normalizeBuilding(b){
+    const clone = Object.assign({}, b || {});
+    if (!clone.id) clone.id = 'b' + Date.now() + Math.floor(Math.random()*1000);
+    clone.x = Number(clone.x)||0;
+    clone.y = Number(clone.y)||0;
+    clone.w = Number(clone.w)||0;
+    clone.h = Number(clone.h)||0;
+    if (typeof clone.label   !== 'string') clone.label   = '';
+    if (typeof clone.type    !== 'string') clone.type    = 'other';
+    if (typeof clone.usage   !== 'string') clone.usage   = '';
+    if (typeof clone.funding !== 'string') clone.funding = '';
+    if (typeof clone.color   !== 'string') clone.color   = '';
+    if (typeof clone.occupants !== 'string') clone.occupants = '';
+    if (typeof clone.notes   !== 'string') clone.notes   = '';
+    clone.isHome = Boolean(clone.isHome);
+    return clone;
+  }
+  function normalizeLoaded(loaded){
+    const s = Object.assign({}, loaded || {});
+    s.buildings = Array.isArray(s.buildings) ? s.buildings.map(normalizeBuilding) : [];
+
+    const homeByLabel = s.buildings.find(b =>
+      (b.label || '').trim().toLowerCase() === 'home'
+    );
+
+    if (homeByLabel) {
+      s.homeBuildingId = homeByLabel.id;
+    } else if (s.homeBuildingId && s.buildings.some(b => b.id === s.homeBuildingId)) {
+      // keep existing homeBuildingId
+    } else {
+      const found = s.buildings.find(b => b.isHome);
+      s.homeBuildingId = found ? found.id : null;
+    }
+
+    s.buildings = s.buildings.map(b => ({
+      ...b,
+      isHome: s.homeBuildingId && b.id === s.homeBuildingId
+    }));
+    return s;
+  }
+
+  function recomputeHomeFromLabels(){
+    if (!state || !Array.isArray(state.buildings)) return;
+    let home = null;
+    state.buildings.forEach(b => {
+      if (!b) return;
+      if ((b.label || '').trim().toLowerCase() === 'home' && !home) {
+        home = b;
+      }
+    });
+    const homeId = home ? home.id : null;
+    state.homeBuildingId = homeId;
+    state.buildings = state.buildings.map(b => ({
+      ...b,
+      isHome: homeId && b.id === homeId
+    }));
+  }
+
+  function anchorPoint(b){
+    // Use building center for distance calculations (independent of label position / align).
+    const x = Number(b.x)||0, y = Number(b.y)||0, w = Number(b.w)||0, h = Number(b.h)||0;
+    return { ax: (x + w/2), ay: (y + h/2) };
+  }
+
+  function getHomeAnchor(){
+    if (!state.homeBuildingId) return null;
+    const home = state.buildings.find(b => b.id === state.homeBuildingId);
+    if (!home) return null;
+    return anchorPoint(home);
+  }
+
+  function calcDistance(b){
+    const home = getHomeAnchor();
+    if (!home) return Infinity;
+    const a = anchorPoint(b);
+    return Math.hypot(a.ax - home.ax, a.ay - home.ay);
+  }
+  function calcDistanceStr(b){
+    const d = calcDistance(b);
+    return minutesDisplayFromDistance(d);
+  }
+  function calcArea(b){ return Math.round((Number(b.w)||0)*(Number(b.h)||0)); }
+  function calcAreaDisplay(b){ return (calcArea(b) / 1000).toFixed(1); }
+
+  
+  const WALK_FEET_PER_MIN = 240;
+
+  function isDryGrocery(b){
+    const notes = (b.notes || '').toLowerCase();
+    if (!notes.includes('grocery')) return false;
+    if (notes.includes('warehouse') || notes.includes('full')) return false;
+    // Small, dry, and otherwise blank all count as dry
+    return true;
+  }
+
+  function isFullGrocery(b){
+    const notes = (b.notes || '').toLowerCase();
+    if (!notes.includes('grocery')) return false;
+    if (notes.includes('warehouse') || notes.includes('full')) return true;
+    return false;
+  }
+
+  function isParkSpace(b){
+    const notes = (b.notes || '').toLowerCase();
+    return notes.includes('park') || notes.includes('green space') || notes.includes('playground');
+  }
+
+  function isTransitNode(b){
+    const type = (b.type || '').toLowerCase();
+    if (type === 'public_transport') return true;
+    const text = ((b.label || '') + ' ' + (b.notes || '')).toLowerCase();
+    return text.includes('bus stop') || text.includes('subway') || text.includes('station') || text.includes('trolley');
+  }
+
+  function nearestDistanceTo(b, predicate){
+    if (!b || typeof predicate !== 'function') return Infinity;
+    const origin = anchorPoint(b);
+    let best = Infinity;
+    (state.buildings || []).forEach(other => {
+      if (!other || other.id === b.id) return;
+      if (!predicate(other)) return;
+      const pt = anchorPoint(other);
+      const d = Math.hypot(origin.ax - pt.ax, origin.ay - pt.ay);
+      if (d < best) best = d;
+    });
+    return best;
+  }
+
+  function minutesFromDistance(d){
+    if (!Number.isFinite(d) || d === Infinity) return null;
+    return d / WALK_FEET_PER_MIN;
+  }
+
+  function minutesDisplayFromDistance(d){
+    const mins = minutesFromDistance(d);
+    if (mins == null) return '—';
+    return mins.toFixed(1);
+  }
+
+
+  function getSortValue(item, key){
+    if (key === 'distance') return calcDistance(item);
+    if (key === 'area') return calcArea(item);
+    if (key === 'home') return item.id === state.homeBuildingId ? 0 : 1;
+    if (key === 'nearestDry') return nearestDistanceTo(item, isDryGrocery);
+    if (key === 'nearestFull') return nearestDistanceTo(item, isFullGrocery);
+    if (key === 'nearestPark') return nearestDistanceTo(item, isParkSpace);
+    if (key === 'nearestTransit') return nearestDistanceTo(item, isTransitNode);
+    return (item[key] ?? '').toString().toLowerCase();
+  }
+
+  function getVisibleColumns(){ return Array.from(headerRow.querySelectorAll('th')).map(th=>th.dataset.key); }
+
+  function updateHomeStatus(){
+    const id = state.homeBuildingId;
+    if (!id){ homeStatus.textContent = 'None'; return; }
+    const b = state.buildings.find(bb => bb.id === id);
+    homeStatus.textContent = b ? (b.label || id) : 'None';
+  }
+
+  function render(){
+    recomputeHomeFromLabels();
+    const q = (searchEl.value||'').trim().toLowerCase();
+    const tfilter = typeFilter.value;
+    let rows = (state.buildings||[]).slice();
+    if (tfilter) rows = rows.filter(r => (r.type||'').toLowerCase()===tfilter.toLowerCase());
+    if (q) rows = rows.filter(r =>
+      (r.label||'').toLowerCase().includes(q) ||
+      (r.occupants||'').toLowerCase().includes(q) ||
+      (r.type||'').toLowerCase().includes(q) ||
+      (r.usage||'').toLowerCase().includes(q) ||
+      (r.funding||'').toLowerCase().includes(q) ||
+      (r.notes||'').toLowerCase().includes(q)
+    );
+    rows.sort((a,b)=>{
+      let va = getSortValue(a, sortKey), vb = getSortValue(b, sortKey);
+      if (va<vb) return -1*sortDir;
+      if (va>vb) return 1*sortDir;
+      return 0;
+    });
+
+    const cols = getVisibleColumns();
+    tbody.innerHTML = '';
+    if (!rows.length){
+      const tr=document.createElement('tr'); const td=document.createElement('td');
+      td.colSpan = cols.length; td.className='no-data'; td.textContent='No buildings match the current search/filter.';
+      tr.appendChild(td); tbody.appendChild(tr); rowCount.textContent = 0; updateHomeStatus(); return;
+    }
+
+    rows.forEach(b=>{
+      const tr=document.createElement('tr');
+      tr.dataset.id = b.id;
+      cols.forEach(key=>{
+        const td=document.createElement('td'); td.setAttribute('data-label', key);
+        if (key==='home'){
+          const isHomeLabel = (b.label || '').trim().toLowerCase() === 'home';
+          td.className = 'mono';
+          td.textContent = isHomeLabel ? '🏠' : '';
+        } else if (key==='label'){
+          td.textContent = b.label || '';
+          if(editMode) makeEditable(td, b.id, 'label');
+        } else if (key==='type'){
+          td.className='mono'; td.textContent = b.type || '';
+          if(editMode) makeEditable(td, b.id, 'type');
+        } else if (key==='usage'){
+          td.textContent = b.usage || '';
+          if(editMode) makeEditable(td, b.id, 'usage');
+        } else if (key==='funding'){
+          td.textContent = b.funding || '';
+          if(editMode) makeEditable(td, b.id, 'funding');
+        } else if (key==='distance'){
+          td.className='mono'; td.textContent = calcDistanceStr(b);
+        } else if (key==='nearestDry'){
+          td.className='mono'; td.textContent = minutesDisplayFromDistance(nearestDistanceTo(b, isDryGrocery));
+        } else if (key==='nearestFull'){
+          td.className='mono'; td.textContent = minutesDisplayFromDistance(nearestDistanceTo(b, isFullGrocery));
+        } else if (key==='nearestPark'){
+          td.className='mono'; td.textContent = minutesDisplayFromDistance(nearestDistanceTo(b, isParkSpace));
+        } else if (key==='nearestTransit'){
+          td.className='mono'; td.textContent = minutesDisplayFromDistance(nearestDistanceTo(b, isTransitNode));
+        } else if (key==='area'){
+          td.className='mono'; td.textContent = calcAreaDisplay(b);
+        } else if (key==='color'){
+          const sw=document.createElement('span'); sw.className='color-swatch'; sw.style.background = toHexOrFallback(b.color)||'#ffffff'; td.appendChild(sw);
+        } else if (key==='occupants'){
+          td.textContent = b.occupants || '';
+          if(editMode) makeEditable(td, b.id, 'occupants');
+        } else if (key==='notes'){
+          td.textContent = b.notes || '';
+          if(editMode) makeEditable(td, b.id, 'notes');
+        } else {
+          td.textContent = b[key]!=null ? String(b[key]) : '';
+        }
+        if (wrapColumns.has(key)) td.classList.add('wrap-col');
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    rowCount.textContent = rows.length;
+    updateHomeStatus();
+  }
+
+  function makeEditable(td, id, field){
+    td.contentEditable = true;
+    td.spellcheck = false;
+    td.dataset.key = field;
+    td.addEventListener('mousedown', e => e.stopPropagation());
+    td.addEventListener('keydown', function onKey(e){
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        td.blur();
+      }
+    });
+    td.addEventListener('blur', function onBlur(){
+      const newVal = td.textContent.trim();
+      const target = state.buildings.find(bb => bb.id === id);
+      if (target) target[field] = newVal;
+      render();
+    });
+  }
+
+  function rgbToHex(color){
+    if(!color) return '#ffffff';
+    if(color[0]==='#') return color;
+    const m = color.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+    if(!m) return null;
+    const r=Number(m[1]).toString(16).padStart(2,'0'), g=Number(m[2]).toString(16).padStart(2,'0'), b=Number(m[3]).toString(16).padStart(2,'0');
+    return '#'+r+g+b;
+  }
+  function toHexOrFallback(color){
+    if(!color) return '#ffffff';
+    if(color[0]==='#') return color;
+    const hex = rgbToHex(color); if(hex) return hex;
+    try{ const el=document.createElement('div'); el.style.color=color; document.body.appendChild(el); const cs=getComputedStyle(el).color; document.body.removeChild(el); return rgbToHex(cs)||'#ffffff'; }catch(e){return '#ffffff'}
+  }
+
+  // util: strip extension for display
+  function stripExtension(name){
+    return String(name||'').replace(/\.[^.]+$/,'');
+  }
+
+  // --- File load & save ---
+  loadBtn.addEventListener('click', ()=> fileInput.click());
+
+  fileInput.addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const txt = String(reader.result || '').trim();
+        let loaded = null;
+        let meta = null;
+
+        // Support both JS (data.js) and raw JSON exports (same detection as SICAMap)
+        if (/window\.MAP_DATA/.test(txt) || /window\.MAP_META/.test(txt)) {
+          (function(){ eval(txt); })();
+          loaded = window.MAP_DATA;
+          meta = (typeof window.MAP_META === 'object' && window.MAP_META) ? window.MAP_META : null;
+        } else {
+          loaded = JSON.parse(txt);
+        }
+
+        if(!loaded) throw new Error('Could not parse file');
+
+        originalRaw  = JSON.parse(JSON.stringify(loaded));
+        originalMeta = meta ? JSON.parse(JSON.stringify(meta)) : null;
+
+        originalState = normalizeLoaded(loaded);
+        state         = JSON.parse(JSON.stringify(originalState));
+
+        // Prefer MAP_META.name for display, otherwise use filename (no extension)
+        const displayName = (originalMeta && originalMeta.name) ? String(originalMeta.name) : (f.name || 'data');
+        mapNameEl.textContent = stripExtension(displayName);
+        render();
+      }catch(err){
+        console.error(err);
+        alert('Failed to load: '+(err&&err.message?err.message:err));
+      }
+    };
+    reader.readAsText(f);
+  });
+
+  // If embedded MAP present, show a sensible default name (no extension)
+  (function tryWindowMAP(){
+  try{
+    if(window.MAP_DATA){
+      originalRaw  = JSON.parse(JSON.stringify(window.MAP_DATA));
+      originalMeta = (typeof window.MAP_META === 'object' && window.MAP_META) ? JSON.parse(JSON.stringify(window.MAP_META)) : null;
+      originalState = normalizeLoaded(window.MAP_DATA);
+      state         = JSON.parse(JSON.stringify(originalState));
+      const displayName = (originalMeta && originalMeta.name) ? String(originalMeta.name) : 'data';
+      mapNameEl.textContent = stripExtension(displayName);
+      render();
+    }
+  }catch(e){}
+})();
+
+  // Save uses the display text as base filename; ensures .js extension
+  
+function sanitizeFilename(name){
+    name = (name || 'data').trim();
+    if(!name) name = 'data';
+    // If ends with .json, convert to .js; otherwise ensure .js extension
+    name = name.replace(/\.(json)$/i, '.js');
+    if(!/\.js$/i.test(name)) name += '.js';
+    // remove characters illegal in filenames on most systems
+    name = name.replace(/[\\\/:*?"<>|]+/g, '_');
+    return name;
+  }
+
+  // Build a new MAP_DATA object from the raw source + edited fields
+  function buildOutputFromRaw(raw, st){
+    const out = JSON.parse(JSON.stringify(raw || {}));
+
+    const editedBuildings = Array.isArray(st.buildings) ? st.buildings : [];
+    const rawBuildings    = Array.isArray(out.buildings) ? out.buildings : [];
+
+    const indexById = new Map();
+    rawBuildings.forEach((b, idx) => {
+      if (b && b.id) indexById.set(b.id, idx);
+    });
+
+    editedBuildings.forEach(bNew => {
+      if (!bNew || !bNew.id) return;
+      const idx = indexById.get(bNew.id);
+
+      // If the building existed in the raw file, merge edited fields into it (preserving any extra keys).
+      if (idx != null) {
+        const old = rawBuildings[idx] || {};
+        const merged = Object.assign({}, old, {
+          x: bNew.x,
+          y: bNew.y,
+          w: bNew.w,
+          h: bNew.h,
+          label: bNew.label,
+          type: bNew.type,
+          usage: bNew.usage,
+          funding: bNew.funding,
+          color: bNew.color,
+          occupants: bNew.occupants,
+          notes: bNew.notes,
+          isHome: bNew.isHome
+        });
+        rawBuildings[idx] = merged;
+        return;
+      }
+
+      // If it's new (e.g., added elsewhere), include it so we don't silently drop it.
+      rawBuildings.push(JSON.parse(JSON.stringify(bNew)));
+      indexById.set(bNew.id, rawBuildings.length - 1);
+    });
+
+    out.buildings = rawBuildings;
+    out.homeBuildingId = st.homeBuildingId || null;
+    return out;
+  }
+
+
+  saveBtn.addEventListener('click', ()=>{
+    if(!originalRaw){ alert('No dataset loaded. Click "Load Map" first.'); return; }
+
+    // Keep Home selection consistent with any label edits before saving
+    recomputeHomeFromLabels();
+
+    const out = buildOutputFromRaw(originalRaw, state);
+
+    // Match SICAMap behavior: strip any tracing image URL/data before saving (can be very large)
+    if (out && out.trace && out.trace.url) {
+      delete out.trace.url;
+    }
+
+    // Match SICAMap save format: write both MAP_META + MAP_DATA
+    const now = Date.now();
+    const meta = (originalMeta && typeof originalMeta === 'object') ? JSON.parse(JSON.stringify(originalMeta)) : {};
+    meta.name = String((mapNameEl && mapNameEl.textContent) ? mapNameEl.textContent : (meta.name || 'data')).trim() || 'data';
+    meta.savedAt = now;
+
+    const content = `window.MAP_META = ${JSON.stringify(meta, null, 2)};\nwindow.MAP_DATA = ${JSON.stringify(out, null, 2)};`;
+
+    const blob = new Blob([content], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    // Keep consistent with SICAMap: always download as data.js
+    a.download = 'data.js';
+
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+
+    // Update originals so repeated saves keep metadata in sync without requiring a reload
+    originalRaw = JSON.parse(JSON.stringify(out));
+    originalMeta = JSON.parse(JSON.stringify(meta));
+  });
+
+  /* sorting indicator using .col-label span */
+  function updateSortIndicator(){
+    Array.from(table.querySelectorAll('th[data-key]')).forEach(th=>{
+      const span = th.querySelector('.col-label');
+      if(!th.dataset.origLabel && span) th.dataset.origLabel = span.textContent.trim();
+      if(span) span.textContent = th.dataset.origLabel || th.dataset.key;
+    });
+    const th = Array.from(table.querySelectorAll('th')).find(t=>t.dataset.key===sortKey);
+    if(th){
+      const span = th.querySelector('.col-label'); if(span) span.textContent = (th.dataset.origLabel||th.dataset.key) + (sortDir===1?' ▾':' ▴');
+    }
+  }
+
+  function headerClickProxy(e){
+    if (suppressClick) { suppressClick = false; return; }
+    try {
+      if (typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (el && el.closest && el.closest('.col-resizer')) return;
+      }
+    } catch(_) {}
+    const th = e.currentTarget || e.target.closest('th');
+    if (!th) return;
+    const key = th.dataset.key;
+    if(sortKey === key) sortDir = -sortDir;
+    else { sortKey = key; sortDir = 1; }
+    updateSortIndicator();
+    render();
+  }
+
+  function wireHeaderClickHandlers(){
+    Array.from(table.querySelectorAll('th[data-key]')).forEach(th=>{
+      const span = th.querySelector('.col-label'); if(span && !th.dataset.origLabel) th.dataset.origLabel = span.textContent.trim();
+      th.onclick = headerClickProxy;
+    });
+  }
+
+  // resizing
+  let resizing = null;
+  headerRow.querySelectorAll('.col-resizer').forEach(res=>{
+    res.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      suppressClick = true;
+      const th = res.closest('th');
+      resizing = { th, startX: e.clientX, startWidth: th.getBoundingClientRect().width };
+      th.setPointerCapture?.(e.pointerId);
+      document.body.style.userSelect = 'none';
+    });
+    res.addEventListener('click', e => e.stopPropagation());
+  });
+  window.addEventListener('pointermove', e=>{
+    if(!resizing) return;
+    const { th, startX, startWidth } = resizing;
+    const dx = e.clientX - startX;
+    const newW = Math.max(40, startWidth + dx);
+    th.style.minWidth = newW + 'px';
+  });
+  window.addEventListener('pointerup', e=>{
+    if(resizing){
+      try{ resizing.th.releasePointerCapture?.(e.pointerId); }catch(_){}
+      const key = resizing.th && resizing.th.dataset.key;
+      if (key) {
+        wrapColumns.add(key);
+        render();
+      }
+      resizing = null;
+      document.body.style.userSelect = '';
+      setTimeout(()=> { suppressClick = false; }, 100);
+    }
+  });
+
+  // reordering (drag of th)
+  let dragSrc = null, placeholder = null;
+  headerRow.addEventListener('dragstart', (e)=>{
+    const th = e.target.closest('th'); if(!th) return;
+    dragSrc = th; th.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', th.dataset.key); }catch(_){}
+  });
+  headerRow.addEventListener('dragend', ()=>{ if(dragSrc) dragSrc.classList.remove('dragging'); dragSrc=null; if(placeholder){ placeholder.remove(); placeholder=null; }});
+  headerRow.addEventListener('dragover', (e)=>{
+    e.preventDefault();
+    const over = e.target.closest('th'); if(!over || over===dragSrc) return;
+    if(!placeholder){ placeholder = document.createElement('th'); placeholder.className='placeholder'; placeholder.style.width = getComputedStyle(over).width; const s=document.createElement('div'); s.className='headerInner'; const lab=document.createElement('span'); lab.className='col-label'; lab.textContent=''; s.appendChild(lab); placeholder.appendChild(s); }
+    const rect = over.getBoundingClientRect(), mid = rect.left + rect.width/2;
+    if(e.clientX > mid) over.parentNode.insertBefore(placeholder, over.nextSibling); else over.parentNode.insertBefore(placeholder, over);
+  });
+  headerRow.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    if(!dragSrc) return;
+    if(placeholder && placeholder.parentNode){ headerRow.insertBefore(dragSrc, placeholder); placeholder.remove(); placeholder=null; }
+    else { const th = e.target.closest('th'); if(th && th!==dragSrc){ const ref = th.nextSibling===dragSrc?th:th.nextSibling; headerRow.insertBefore(dragSrc, ref); } }
+    wireHeaderClickHandlers(); updateSortIndicator(); render();
+  });
+
+  // edit toggle
+  editToggle.addEventListener('click', ()=>{
+    editMode = !editMode;
+    editToggle.classList.toggle('toggle-on', editMode);
+    editToggle.textContent = editMode ? 'Editing: ON' : 'Edit';
+    render();
+  });
+
+  // search/filter & convenience
+  searchEl.addEventListener('input', render);
+  typeFilter.addEventListener('change', render);
+  window.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='f'){ e.preventDefault(); searchEl.focus(); } });
+
+  // initial wire + render
+  wireHeaderClickHandlers();
+  updateSortIndicator();
+  render();
+})();
+</script>
+</body>
+</html>
