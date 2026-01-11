@@ -398,6 +398,42 @@
       opacity:0.55;
     }
 
+
+    #quickEditBar .quick-top-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    #quickEditBar .quick-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 6px;
+      margin-top: 6px;
+    }
+    #quickEditBar .quick-field{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    #quickEditBar .quick-label{
+      font-size:11px;
+      opacity:0.8;
+      margin-top: 4px;
+    }
+    #quickEditBar .quick-span-2{
+      grid-column: 1 / -1;
+    }
+    #quickEditBar select{
+      padding: 8px;
+      border-radius: 10px;
+      font-size: 16px; /* avoid iOS zoom-on-focus */
+    }
+    #quickColorInput{
+      height: 38px;
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
     /* Hide UI the user doesn’t want */
     #mapNameDisplay,
     #autosaveRow,
@@ -580,13 +616,91 @@
         <button class="tool-btn tool-btn-file" id="cancelAutosaveBtn" style="display:none;padding:6px 10px">Cancel</button>
       </div>
       <div id="quickEditBar">
-        <div class="quick-top">
-          <span id="quickSelMeta">No selection</span>
-          <button class="tool-btn muted-btn" id="quickApplyBtn" type="button" disabled>Apply</button>
-        </div>
-        <input id="quickNameInput" class="quick-input" type="text" placeholder="Object name" disabled />
-        <textarea id="quickNotesInput" class="quick-textarea" rows="2" placeholder="Info / notes" disabled></textarea>
+  <div class="quick-top">
+    <span id="quickSelMeta">No selection</span>
+    <div class="quick-top-actions">
+      <button class="tool-btn muted-btn" id="quickRoutesBtn" type="button">Routes</button>
+      <button class="tool-btn muted-btn" id="quickApplyBtn" type="button" disabled>Apply</button>
+    </div>
+  </div>
+
+  <div class="quick-grid">
+    <div class="quick-field quick-span-2">
+      <label class="quick-label">Object name</label>
+      <input id="quickNameInput" class="quick-input" type="text" placeholder="Object name" disabled />
+    </div>
+
+    <div class="quick-field quick-span-2">
+      <label class="quick-label">Info / notes</label>
+      <textarea id="quickNotesInput" class="quick-textarea" rows="2" placeholder="Info / notes" disabled></textarea>
+    </div>
+  </div>
+
+  <div id="quickBuildingInfo" style="display:none">
+    <div class="quick-grid">
+      <div class="quick-field">
+        <label class="quick-label">Type</label>
+        <select id="quickTypeInput" disabled>
+          <option value="residential">Residential</option>
+          <option value="commercial">Commercial</option>
+          <option value="civic">Civic</option>
+          <option value="vacant">Vacant</option>
+          <option value="other">Other</option>
+          <option value="public_transport">Public Transport</option>
+        </select>
       </div>
+
+      <div class="quick-field">
+        <label class="quick-label">Usage</label>
+        <select id="quickUsageInput" disabled>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+
+      <div class="quick-field">
+        <label class="quick-label">Funding</label>
+        <select id="quickFundingInput" disabled>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+
+      <div class="quick-field quick-span-2">
+        <label class="quick-label">Occupants</label>
+        <textarea id="quickOccupantsInput" class="quick-textarea" rows="2" placeholder="Occupants" disabled></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div id="quickSetupInputs" style="display:none">
+    <div class="quick-grid">
+      <div class="quick-field">
+        <label class="quick-label">Color</label>
+        <input id="quickColorInput" type="color" disabled />
+      </div>
+
+      <div class="quick-field">
+        <label class="quick-label">Length</label>
+        <input id="quickLengthInput" class="quick-input" type="text" inputmode="decimal" disabled />
+      </div>
+
+      <div class="quick-field">
+        <label class="quick-label">Width</label>
+        <input id="quickWidthInput" class="quick-input" type="text" inputmode="decimal" disabled />
+      </div>
+
+      <div class="quick-field">
+        <label class="quick-label">Angle (°)</label>
+        <input id="quickAngleInput" class="quick-input" type="text" inputmode="decimal" disabled />
+      </div>
+    </div>
+  </div>
+</div>
     </div>
     <div class="controls">
       <span id="blockName" style="display:none"></span>
@@ -858,13 +972,31 @@
 
 
   // =========================
-  // Quick edit bar (name + notes) for the currently selected object
+  // Quick edit bar (mobile-docked) for the currently selected object
   const quickSelMetaEl = document.getElementById('quickSelMeta');
   const quickNameInputEl = document.getElementById('quickNameInput');
   const quickNotesInputEl = document.getElementById('quickNotesInput');
   const quickApplyBtnEl = document.getElementById('quickApplyBtn');
+  const quickRoutesBtnEl = document.getElementById('quickRoutesBtn');
 
-  let quickLoaded = { type:null, id:null, name:'', notes:'' };
+  const quickBuildingInfoWrapEl = document.getElementById('quickBuildingInfo');
+  const quickTypeInputEl = document.getElementById('quickTypeInput');
+  const quickUsageInputEl = document.getElementById('quickUsageInput');
+  const quickFundingInputEl = document.getElementById('quickFundingInput');
+  const quickOccupantsInputEl = document.getElementById('quickOccupantsInput');
+
+  const quickSetupWrapEl = document.getElementById('quickSetupInputs');
+  const quickColorInputEl = document.getElementById('quickColorInput');
+  const quickLengthInputEl = document.getElementById('quickLengthInput');
+  const quickWidthInputEl = document.getElementById('quickWidthInput');
+  const quickAngleInputEl = document.getElementById('quickAngleInput');
+
+  let quickLoaded = {
+    type:null, id:null,
+    name:'', notes:'',
+    color:'', length:'', width:'', angle:'',
+    bType:'', usage:'', funding:'', occupants:''
+  };
 
   function getQuickSelection(){
     try {
@@ -882,76 +1014,255 @@
     } catch(_) { return null; }
   }
 
+  function quickGetStreetAngleDeg(s){
+    try{
+      if (!s || !Array.isArray(s.nodes) || s.nodes.length < 2) return 0;
+      const a = s.nodes[0];
+      const b = s.nodes[s.nodes.length - 1];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      return Math.atan2(dy, dx) * 180 / Math.PI;
+    } catch(_) { return 0; }
+  }
+
+  function quickRotateStreetToAngle(s, targetDeg){
+    if (!s || !Array.isArray(s.nodes) || s.nodes.length < 2) return;
+    const first = s.nodes[0];
+    const cx = first.x;
+    const cy = first.y;
+    const last = s.nodes[s.nodes.length - 1];
+    const dx = last.x - cx;
+    const dy = last.y - cy;
+    const currentRad = Math.atan2(dy, dx);
+    const targetRad = targetDeg * Math.PI / 180;
+    const delta = targetRad - currentRad;
+
+    const cosD = Math.cos(delta);
+    const sinD = Math.sin(delta);
+    for (let i = 1; i < s.nodes.length; i++) {
+      const node = s.nodes[i];
+      const rx = (node.x - cx) * cosD - (node.y - cy) * sinD;
+      const ry = (node.x - cx) * sinD + (node.y - cy) * cosD;
+      node.x = Math.round(cx + rx);
+      node.y = Math.round(cy + ry);
+    }
+  }
+
+  function quickSetStreetLength(s, lenVal){
+    if (!s || !Array.isArray(s.nodes) || s.nodes.length < 2) return;
+    if (!(lenVal > 0) || Number.isNaN(lenVal)) return;
+    const nodes = s.nodes;
+    const a = nodes[0];
+    const b = nodes[nodes.length - 1];
+    const curDx = b.x - a.x;
+    const curDy = b.y - a.y;
+    const curLen = Math.sqrt(curDx * curDx + curDy * curDy);
+    if (!(curLen > 0)) return;
+    const scale = lenVal / curLen;
+    b.x = Math.round(a.x + curDx * scale);
+    b.y = Math.round(a.y + curDy * scale);
+  }
+
   function refreshQuickEditBar(){
     if (!quickSelMetaEl || !quickNameInputEl || !quickNotesInputEl || !quickApplyBtnEl) return;
+
     const sel = getQuickSelection();
     if (!sel){
-      quickLoaded = { type:null, id:null, name:'', notes:'' };
-      const multi = (selectedType === 'multi' && selectedIds && selectedIds.size > 1);
-      quickSelMetaEl.textContent = multi ? (selectedIds.size + ' items selected') : 'No selection';
-      quickNameInputEl.value = '';
-      quickNotesInputEl.value = '';
-      quickNameInputEl.disabled = true;
-      quickNotesInputEl.disabled = true;
+      quickLoaded = { type:null, id:null, name:'', notes:'', color:'', length:'', width:'', angle:'', bType:'', usage:'', funding:'', occupants:'' };
+      quickSelMetaEl.textContent = 'No selection';
+
+      // clear + disable
+      [quickNameInputEl, quickNotesInputEl, quickTypeInputEl, quickUsageInputEl, quickFundingInputEl,
+       quickOccupantsInputEl, quickColorInputEl, quickLengthInputEl, quickWidthInputEl, quickAngleInputEl]
+        .forEach(el => { if (el){ el.value = ''; el.disabled = true; } });
+
+      if (quickBuildingInfoWrapEl) quickBuildingInfoWrapEl.style.display = 'none';
+      if (quickSetupWrapEl) quickSetupWrapEl.style.display = 'none';
+
       quickApplyBtnEl.disabled = true;
       return;
     }
 
-    const displayType = sel.type === 'building' ? 'Building' : 'Street';
-    quickSelMetaEl.textContent = displayType;
+    const isBuilding = (sel.type === 'building');
+    quickSelMetaEl.textContent = isBuilding ? 'Building' : 'Street';
 
-    const nameVal = sel.type === 'building' ? (sel.obj.label || '') : (sel.obj.name || '');
+    // Always show setup inputs when something is selected
+    if (quickSetupWrapEl) quickSetupWrapEl.style.display = '';
+    if (quickBuildingInfoWrapEl) quickBuildingInfoWrapEl.style.display = isBuilding ? '' : 'none';
+
+    const nameVal = isBuilding ? (sel.obj.label || '') : (sel.obj.name || '');
     const notesVal = (sel.obj.notes || '');
 
-    quickLoaded = { type: sel.type, id: sel.id, name: String(nameVal), notes: String(notesVal) };
+    let colorVal = '';
+    let lengthVal = '';
+    let widthVal = '';
+    let angleVal = '';
 
-    quickNameInputEl.value = nameVal;
-    quickNotesInputEl.value = notesVal;
-    quickNameInputEl.disabled = false;
-    quickNotesInputEl.disabled = false;
+    if (isBuilding){
+      colorVal = toHexColor(sel.obj.color || getFillForType(sel.obj.type));
+      lengthVal = String((typeof sel.obj.h === 'number') ? sel.obj.h : (sel.obj.h || ''));
+      widthVal = String((typeof sel.obj.w === 'number') ? sel.obj.w : (sel.obj.w || ''));
+      angleVal = String((typeof sel.obj.angle === 'number') ? sel.obj.angle : (sel.obj.angle || 0));
+    } else {
+      colorVal = toHexColor(sel.obj.color || 'rgba(60,66,72,0.95)');
+      lengthVal = String(Math.round(computeStreetEndToEndLength(sel.obj) || 0));
+      widthVal = String((typeof sel.obj.width === 'number') ? Math.round(sel.obj.width) : (sel.obj.width || 60));
+      angleVal = String(Number(quickGetStreetAngleDeg(sel.obj)).toFixed(1));
+    }
+
+    quickLoaded = {
+      type: sel.type,
+      id: sel.id,
+      name: String(nameVal),
+      notes: String(notesVal),
+      color: String(colorVal),
+      length: String(lengthVal),
+      width: String(widthVal),
+      angle: String(angleVal),
+      bType: isBuilding ? String(sel.obj.type || 'other') : '',
+      usage: isBuilding ? String(sel.obj.usage || 'none') : '',
+      funding: isBuilding ? String(sel.obj.funding || 'none') : '',
+      occupants: isBuilding ? String(sel.obj.occupants || '') : ''
+    };
+
+    // Populate + enable base fields
+    if (quickNameInputEl){ quickNameInputEl.value = nameVal; quickNameInputEl.disabled = false; }
+    if (quickNotesInputEl){ quickNotesInputEl.value = notesVal; quickNotesInputEl.disabled = false; }
+
+    // Setup fields (both)
+    if (quickColorInputEl){ quickColorInputEl.value = colorVal || '#888888'; quickColorInputEl.disabled = false; }
+    if (quickLengthInputEl){ quickLengthInputEl.value = lengthVal; quickLengthInputEl.disabled = false; }
+    if (quickWidthInputEl){ quickWidthInputEl.value = widthVal; quickWidthInputEl.disabled = false; }
+    if (quickAngleInputEl){ quickAngleInputEl.value = angleVal; quickAngleInputEl.disabled = false; }
+
+    // Building-only fields
+    if (isBuilding){
+      if (quickTypeInputEl){ quickTypeInputEl.value = (sel.obj.type || 'other'); quickTypeInputEl.disabled = false; }
+      if (quickUsageInputEl){ quickUsageInputEl.value = (sel.obj.usage || 'none'); quickUsageInputEl.disabled = false; }
+      if (quickFundingInputEl){ quickFundingInputEl.value = (sel.obj.funding || 'none'); quickFundingInputEl.disabled = false; }
+      if (quickOccupantsInputEl){ quickOccupantsInputEl.value = (sel.obj.occupants || ''); quickOccupantsInputEl.disabled = false; }
+    } else {
+      [quickTypeInputEl, quickUsageInputEl, quickFundingInputEl, quickOccupantsInputEl]
+        .forEach(el => { if (el){ el.value = ''; el.disabled = true; } });
+    }
+
     quickApplyBtnEl.disabled = true;
   }
 
   function updateQuickApplyEnabled(){
-    if (!quickApplyBtnEl || !quickNameInputEl || !quickNotesInputEl) return;
-    if (!quickLoaded || !quickLoaded.type || !quickLoaded.id) { quickApplyBtnEl.disabled = true; return; }
-    const dirty = (String(quickNameInputEl.value) !== String(quickLoaded.name)) ||
-                  (String(quickNotesInputEl.value) !== String(quickLoaded.notes));
+    if (!quickApplyBtnEl) return;
+    const sel = getQuickSelection();
+    if (!sel) { quickApplyBtnEl.disabled = true; return; }
+
+    const isBuilding = (sel.type === 'building');
+
+    const now = {
+      name: String(quickNameInputEl ? (quickNameInputEl.value || '') : ''),
+      notes: String(quickNotesInputEl ? (quickNotesInputEl.value || '') : ''),
+      color: String(quickColorInputEl ? (quickColorInputEl.value || '') : ''),
+      length: String(quickLengthInputEl ? (quickLengthInputEl.value || '') : ''),
+      width: String(quickWidthInputEl ? (quickWidthInputEl.value || '') : ''),
+      angle: String(quickAngleInputEl ? (quickAngleInputEl.value || '') : ''),
+      bType: isBuilding ? String(quickTypeInputEl ? (quickTypeInputEl.value || '') : '') : '',
+      usage: isBuilding ? String(quickUsageInputEl ? (quickUsageInputEl.value || '') : '') : '',
+      funding: isBuilding ? String(quickFundingInputEl ? (quickFundingInputEl.value || '') : '') : '',
+      occupants: isBuilding ? String(quickOccupantsInputEl ? (quickOccupantsInputEl.value || '') : '') : ''
+    };
+
+    const dirty =
+      now.name !== String(quickLoaded.name) ||
+      now.notes !== String(quickLoaded.notes) ||
+      now.color !== String(quickLoaded.color) ||
+      now.length !== String(quickLoaded.length) ||
+      now.width !== String(quickLoaded.width) ||
+      now.angle !== String(quickLoaded.angle) ||
+      (isBuilding && (
+        now.bType !== String(quickLoaded.bType) ||
+        now.usage !== String(quickLoaded.usage) ||
+        now.funding !== String(quickLoaded.funding) ||
+        now.occupants !== String(quickLoaded.occupants)
+      ));
+
     quickApplyBtnEl.disabled = !dirty;
   }
 
-  if (quickNameInputEl) quickNameInputEl.addEventListener('input', updateQuickApplyEnabled);
-  if (quickNotesInputEl) quickNotesInputEl.addEventListener('input', updateQuickApplyEnabled);
+  // Enable Apply when any input changes
+  [quickNameInputEl, quickNotesInputEl, quickColorInputEl, quickLengthInputEl, quickWidthInputEl, quickAngleInputEl,
+   quickTypeInputEl, quickUsageInputEl, quickFundingInputEl, quickOccupantsInputEl]
+    .forEach(el => { if (el) el.addEventListener('input', updateQuickApplyEnabled); });
 
   if (quickApplyBtnEl) quickApplyBtnEl.addEventListener('click', (evt)=>{
     evt.preventDefault(); evt.stopPropagation();
     const sel = getQuickSelection();
     if (!sel) return;
 
+    const isBuilding = (sel.type === 'building');
+
+    // Snapshot new values
     const newName = String(quickNameInputEl ? (quickNameInputEl.value || '') : '');
     const newNotes = String(quickNotesInputEl ? (quickNotesInputEl.value || '') : '');
+    const newColor = String(quickColorInputEl ? (quickColorInputEl.value || '') : '');
 
-    const oldName = sel.type === 'building' ? (sel.obj.label || '') : (sel.obj.name || '');
-    const oldNotes = (sel.obj.notes || '');
+    const newLength = Number(quickLengthInputEl ? quickLengthInputEl.value : NaN);
+    const newWidth  = Number(quickWidthInputEl ? quickWidthInputEl.value : NaN);
+    const newAngle  = Number(quickAngleInputEl ? quickAngleInputEl.value : NaN);
 
-    const changed = (newName !== String(oldName)) || (newNotes !== String(oldNotes));
-    if (!changed) { refreshQuickEditBar(); return; }
+    const newBType = isBuilding ? String(quickTypeInputEl ? (quickTypeInputEl.value || '') : '') : '';
+    const newUsage = isBuilding ? String(quickUsageInputEl ? (quickUsageInputEl.value || '') : '') : '';
+    const newFunding = isBuilding ? String(quickFundingInputEl ? (quickFundingInputEl.value || '') : '') : '';
+    const newOccupants = isBuilding ? String(quickOccupantsInputEl ? (quickOccupantsInputEl.value || '') : '') : '';
+
+    // If nothing changed, just refresh
+    updateQuickApplyEnabled();
+    if (quickApplyBtnEl.disabled) { refreshQuickEditBar(); return; }
 
     pushHistory('Quick edit');
 
-    if (sel.type === 'building') {
+    if (isBuilding) {
       sel.obj.label = newName;
       sel.obj.notes = newNotes;
+
+      if (newBType) sel.obj.type = newBType;
+      sel.obj.usage = newUsage || sel.obj.usage;
+      sel.obj.funding = newFunding || sel.obj.funding;
+      sel.obj.occupants = newOccupants;
+
+      if (newColor) sel.obj.color = newColor;
+
+      if (!Number.isNaN(newWidth) && newWidth > 0) sel.obj.w = newWidth;
+      if (!Number.isNaN(newLength) && newLength > 0) sel.obj.h = newLength;
+      if (!Number.isNaN(newAngle)) sel.obj.angle = newAngle;
 
       // keep inspector fields in sync if it's open
       const bLabelEl = document.getElementById('bLabel'); if (bLabelEl) bLabelEl.value = newName;
       const bNotesEl = document.getElementById('bNotes'); if (bNotesEl) bNotesEl.value = newNotes;
-    } else if (sel.type === 'street') {
+      const bTypeEl = document.getElementById('bType'); if (bTypeEl && newBType) bTypeEl.value = newBType;
+      const bUsageEl = document.getElementById('bUsage'); if (bUsageEl) bUsageEl.value = newUsage || bUsageEl.value;
+      const bFundingEl = document.getElementById('bFunding'); if (bFundingEl) bFundingEl.value = newFunding || bFundingEl.value;
+      const bOccEl = document.getElementById('bOcc'); if (bOccEl) bOccEl.value = newOccupants;
+      const bColorEl = document.getElementById('bColor'); if (bColorEl && newColor) bColorEl.value = newColor;
+      const bWEl = document.getElementById('bW'); if (bWEl && !Number.isNaN(newWidth) && newWidth > 0) bWEl.value = String(newWidth);
+      const bHEl = document.getElementById('bH'); if (bHEl && !Number.isNaN(newLength) && newLength > 0) bHEl.value = String(newLength);
+      const bAngleEl = document.getElementById('bAngle'); if (bAngleEl && !Number.isNaN(newAngle)) bAngleEl.value = String(newAngle);
+      refreshInspectorTitle(newName);
+    } else {
       sel.obj.name = newName;
       sel.obj.notes = newNotes;
+      if (newColor) sel.obj.color = newColor;
 
+      if (!Number.isNaN(newWidth) && newWidth > 0) sel.obj.width = newWidth;
+      quickSetStreetLength(sel.obj, newLength);
+      if (!Number.isNaN(newAngle)) quickRotateStreetToAngle(sel.obj, newAngle);
+
+      // keep street inspector fields in sync if open
       const sNameEl = document.getElementById('streetName'); if (sNameEl) sNameEl.value = newName;
       const sNotesEl = document.getElementById('streetNotes'); if (sNotesEl) sNotesEl.value = newNotes;
+      const sColorEl = document.getElementById('streetColor'); if (sColorEl && newColor) sColorEl.value = newColor;
+
+      const sLenEl = document.getElementById('streetGW'); if (sLenEl && !Number.isNaN(newLength) && newLength > 0) sLenEl.value = String(Math.round(newLength));
+      const sWidEl = document.getElementById('streetGH'); if (sWidEl && !Number.isNaN(newWidth) && newWidth > 0) sWidEl.value = String(Math.round(newWidth));
+      const sAngEl = document.getElementById('streetAngle'); if (sAngEl && !Number.isNaN(newAngle)) sAngEl.value = String(newAngle);
+
       const st = document.getElementById('streetInspectorTitle');
       if (st) st.textContent = (newName && String(newName).trim()) ? newName : 'Street';
     }
@@ -961,7 +1272,15 @@
     refreshQuickEditBar();
   });
 
-  // initialize
+  // Routes button moved into the info/label panel (mobile)
+  if (quickRoutesBtnEl) quickRoutesBtnEl.addEventListener('click', (evt)=>{
+    evt.preventDefault(); evt.stopPropagation();
+    const wasOpen = document.body.classList.contains('mobile-pane-analytics');
+    document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
+    if (!wasOpen) document.body.classList.add('mobile-pane-analytics');
+  });
+
+// initialize
   refreshQuickEditBar();
 
 
@@ -4011,48 +4330,8 @@ if (traceToggleBtn) {
   function ensureOverlayButtons(){
     if (!mq.matches) return;
 
-    const grid = document.getElementById('mapToolsGrid');
-    if (!grid) return;
-
-    // Inspector button
-    let insp = document.getElementById('mobileInspectorBtn');
-    if (!insp){
-      insp = document.createElement('button');
-      insp.id = 'mobileInspectorBtn';
-      insp.type = 'button';
-      insp.className = 'tool-btn muted-btn';
-      insp.textContent = 'Inspector';
-      insp.addEventListener('click', () => {
-        const wasOpen = document.body.classList.contains('mobile-pane-info');
-        document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
-        if (!wasOpen) document.body.classList.add('mobile-pane-info');
-      });
-      grid.insertBefore(insp, grid.firstChild);
-    }
-
-    // Routes button
-    let routes = document.getElementById('mobileRoutesBtn');
-    if (!routes){
-      routes = document.createElement('button');
-      routes.id = 'mobileRoutesBtn';
-      routes.type = 'button';
-      routes.className = 'tool-btn muted-btn';
-      routes.textContent = 'Routes';
-      routes.addEventListener('click', () => {
-        const wasOpen = document.body.classList.contains('mobile-pane-analytics');
-        document.body.classList.remove('mobile-pane-info','mobile-pane-analytics');
-        if (!wasOpen) document.body.classList.add('mobile-pane-analytics');
-      });
-
-      // Insert right after Inspector if possible
-      if (insp && insp.parentElement === grid){
-        grid.insertBefore(routes, insp.nextSibling);
-      } else {
-        grid.insertBefore(routes, grid.firstChild);
-      }
-    }
-
-    // Ensure overlay close buttons
+    // No Inspector button on mobile; Routes is in the bottom info/label panel.
+    // We only ensure the overlay close buttons exist.
     addClose('infoPanel', 'Inspector', 'mobile-pane-info');
     addClose('analyticsPanel', 'Lines & Routes', 'mobile-pane-analytics');
   }
