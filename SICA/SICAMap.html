@@ -742,7 +742,7 @@
         <button class="tool-btn tool-btn-layer layer-toggle" data-layer="streets">Streets</button>
         <button class="tool-btn tool-btn-layer layer-toggle" data-layer="bike">Bike</button>
         <button class="tool-btn tool-btn-layer layer-toggle" data-layer="rail">Rail</button>
-        <button class="tool-btn tool-btn-layer layer-toggle" data-layer="bus">Bus</button>
+        <button class="tool-btn tool-btn-layer" id="mapTraceBtn" title="Show tracing image" aria-pressed="false">Map</button>
 
         <button class="tool-btn tool-btn-orient rotate-btn" data-angle="0">N</button>
         <button class="tool-btn tool-btn-orient rotate-btn" data-angle="180">S</button>
@@ -919,6 +919,7 @@
   const traceRotationInput = document.getElementById('traceRotationInput');
   const traceRotationInputBox = document.getElementById('traceRotationInputBox');
   const traceToggleBtn = document.getElementById('traceToggleBtn');
+  const mapTraceBtn = document.getElementById('mapTraceBtn');
   const traceOffsetXInput = document.getElementById('traceOffsetX');
   const traceOffsetYInput = document.getElementById('traceOffsetY');
   const traceScaleInput = document.getElementById('traceScaleInput');
@@ -954,7 +955,7 @@
   // Tracing image state
   let traceImageUrl = null;
   let traceImageName = ''; // filename for per-image tracing presets
-  let traceImageVisible = true;
+  let traceImageVisible = false;
   let traceImageX = 0;
   let traceImageY = 0;
   let traceImageBaseWidth = 0;
@@ -965,7 +966,18 @@
   let traceDragMode = false;
   let traceDrag = null;
 
-  // world rotation angle (degrees)
+  function syncTraceVisibilityUI(){
+    if (traceToggleBtn) {
+      traceToggleBtn.textContent = traceImageVisible ? 'Hide tracing image' : 'Show tracing image';
+    }
+    if (mapTraceBtn) {
+      mapTraceBtn.classList.toggle('drag-on', !!traceImageVisible);
+      mapTraceBtn.setAttribute('aria-pressed', traceImageVisible ? 'true' : 'false');
+      mapTraceBtn.title = traceImageVisible ? 'Hide tracing image' : 'Show tracing image';
+    }
+  }
+
+// world rotation angle (degrees)
   let worldAngle = 0;
 
   // pan dragging
@@ -1525,6 +1537,9 @@
 
     // Keep tracing image / overlay consistent with restored state
     hydrateTraceFromState();
+    // Default: keep the tracing image hidden on page load (even if a default image exists)
+    traceImageVisible = false;
+    syncTraceVisibilityUI();
 
     renderAll();
     reconcileSelectionAfterUndoRedo();
@@ -2088,9 +2103,7 @@ function getViewCenter(){
       if (traceRotationInput) traceRotationInput.value = a;
       if (traceRotationInputBox) traceRotationInputBox.value = a;
 
-      if (traceToggleBtn) {
-        traceToggleBtn.textContent = traceImageVisible ? 'Hide tracing image' : 'Show tracing image';
-      }
+      syncTraceVisibilityUI()
       return;
     }
 
@@ -2112,9 +2125,7 @@ function getViewCenter(){
     if (traceScaleInputBox) traceScaleInputBox.value = traceImageScale;
     if (traceRotationInput) traceRotationInput.value = traceImageAngle;
     if (traceRotationInputBox) traceRotationInputBox.value = traceImageAngle;
-    if (traceToggleBtn) {
-      traceToggleBtn.textContent = traceImageVisible ? 'Hide tracing image' : 'Show tracing image';
-    }
+    syncTraceVisibilityUI()
   }
 
 
@@ -2247,7 +2258,7 @@ function renderAll(){
 
       traceImageUrl = filename;     // keep as a simple relative URL (no data URL needed)
       traceImageName = filename;
-      traceImageVisible = true;
+      traceImageVisible = false;
 
       // Apply any saved transform metadata for this filename (preferred),
       // otherwise fall back to the generic trace settings, and finally to the current viewBox.
@@ -2261,7 +2272,6 @@ function renderAll(){
         if (typeof t.baseHeight === 'number') traceImageBaseHeight = t.baseHeight;
         if (typeof t.scale === 'number') traceImageScale = t.scale;
         if (typeof t.angle === 'number') traceImageAngle = t.angle;
-        if (typeof t.visible === 'boolean') traceImageVisible = t.visible;
       }
 
       // Ensure the image has a usable base size so it actually renders.
@@ -2276,7 +2286,7 @@ function renderAll(){
         if (!Number.isFinite(traceImageAngle)) traceImageAngle = 0;
       }
 
-      if (traceToggleBtn) traceToggleBtn.textContent = traceImageVisible ? 'Hide tracing image' : 'Show tracing image';
+      syncTraceVisibilityUI();
       if (traceOffsetXInput) traceOffsetXInput.value = Math.round(traceImageX);
       if (traceOffsetYInput) traceOffsetYInput.value = Math.round(traceImageY);
       if (traceScaleInput) traceScaleInput.value = traceImageScale;
@@ -2322,6 +2332,9 @@ function renderAll(){
 
     // If the loaded map has a saved tracing image, restore it
     hydrateTraceFromState();
+    // Default: keep the tracing image hidden on page load (even if a default image exists)
+    traceImageVisible = false;
+    syncTraceVisibilityUI();
 
     renderAll();
     updateToggleDragButton();
@@ -3700,8 +3713,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
           if (typeof t.baseHeight === 'number') traceImageBaseHeight = t.baseHeight;
           if (typeof t.scale === 'number') traceImageScale = t.scale;
           if (typeof t.angle === 'number') traceImageAngle = t.angle;
-          if (typeof t.visible === 'boolean') traceImageVisible = t.visible;
-        } else {
+          } else {
           // Fall back to initializing placement to current viewBox
           const vb = svg.viewBox.baseVal;
           traceImageX = vb.x;
@@ -3723,9 +3735,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
           if (!Number.isFinite(traceImageAngle)) traceImageAngle = 0;
         }
 
-        if (traceToggleBtn) {
-          traceToggleBtn.textContent = 'Hide tracing image';
-        }
+        syncTraceVisibilityUI();
         if (traceOffsetXInput) traceOffsetXInput.value = Math.round(traceImageX);
         if (traceOffsetYInput) traceOffsetYInput.value = Math.round(traceImageY);
         if (traceScaleInput) traceScaleInput.value = traceImageScale;
@@ -3764,10 +3774,20 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     traceToggleBtn.addEventListener('click', (e) => {
       e.preventDefault();
       traceImageVisible = !traceImageVisible;
-      traceToggleBtn.textContent = traceImageVisible ? 'Hide tracing image' : 'Show tracing image';
+      syncTraceVisibilityUI();
       renderAll();
     });
   }
+
+  if (mapTraceBtn) {
+    mapTraceBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      traceImageVisible = !traceImageVisible;
+      syncTraceVisibilityUI();
+      renderAll();
+    });
+  }
+
 
   if (traceOffsetXInput) {
     traceOffsetXInput.addEventListener('input', (e) => {
