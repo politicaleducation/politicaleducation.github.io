@@ -954,7 +954,6 @@
 
   // Tracing image state
   let traceImageUrl = null;
-  let traceImageObjectUrl = null; // blob URL for tracing image loaded via file picker (revoked on replace/unload)
   let traceImageName = ''; // filename for per-image tracing presets
   let traceImageVisible = false;
   let traceImageX = 0;
@@ -967,13 +966,415 @@
   let traceDragMode = false;
   let traceDrag = null;
 
-  // Revoke the current tracing blob URL (if any) when leaving the page
-  window.addEventListener('beforeunload', () => {
-    if (traceImageObjectUrl) {
-      try { URL.revokeObjectURL(traceImageObjectUrl); } catch(_) {}
-      traceImageObjectUrl = null;
+
+  // --- Tracing image performance helpers (LOD / object URLs) ---
+  // Reality check: large JPGs decode into raw RGBA pixels (often hundreds of MB).
+  // File size (e.g., 23MB) is not what crashes mobile; decoded pixel dimensions are.
+  // We avoid decoding full-res on mobile by default and instead render a downsampled proxy,
+  // swapping resolution based on zoom ("level of detail"). This keeps detail where it matters.
+
+  let traceOriginalUrl = null;      // the "true" source (filename URL or blob URL)
+  let traceOriginalFile = null;     // File object when loaded via picker (best for safe downsample decode)
+  let traceOriginalIsObjectUrl = false;
+
+  // Active (currently-rendered) raster source for the SVG <image>
+  let traceLodUrl = null;
+  let traceLodKey = null;           // numeric max-dimension (e.g., 2048) or "full"
+  const traceLodCache = new Map();  // key -> { url, w, h }
+  const traceLodInFlight = new Map();
+  const traceLodObjectUrls = new Set();
+
+  // Persistent SVG image element (so we can swap href without re-rendering everything)
+  let traceImageEl = null;
+
+  // Persistent SVG layers (avoid rebuilding the entire SVG tree)
+  let __layersBuilt = false;
+  let worldG = null, traceG = null, streetsG = null, buildingsG = null, handlesG = null;
+
+  // LOD scheduling
+  let __traceLodRaf = 0;
+  let __traceRawTargetPx = 0;
+
+  function isLikelyMobile(){
+    try {
+      if (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) return true;
+    } catch(_) {}
+    const ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+  }
+
+  // Conservative caps (can be changed if you really want to risk mobile crashes)
+  const TRACE_MAXDIM_MOBILE = 4096;  // phones often struggle beyond this as a single bitmap
+  const TRACE_MAXDIM_DESKTOP = 8192; // good balance; "full" is still available on desktop
+
+  function revokeTraceObjectUrls(){
+    for (const u of traceLodObjectUrls) {
+      try { URL.revokeObjectURL(u); } catch(_) {}
     }
-  });
+    traceLodObjectUrls.clear();
+  }
+
+  function clearTraceLod(){
+    traceLodCache.clear();
+    traceLodInFlight.clear();
+    revokeTraceObjectUrls();
+    traceLodUrl = null;
+    traceLodKey = null;
+  }
+
+  function ensureSvgLayers(){
+    if (__layersBuilt) return;
+
+    // Build a stable SVG structure so renderAll doesn't recreate the tracing image node repeatedly.
+    svg.innerHTML = '';
+    worldG = document.createElementNS(NS, 'g');
+    worldG.id = 'world';
+
+    traceG = document.createElementNS(NS, 'g');
+    traceG.id = 'traceLayerGroup';
+
+    streetsG = document.createElementNS(NS, 'g');
+    streetsG.id = 'streetsLayerGroup';
+
+    buildingsG = document.createElementNS(NS, 'g');
+    buildingsG.id = 'buildingsLayerGroup';
+
+    handlesG = document.createElementNS(NS, 'g');
+    handlesG.id = 'handlesLayerGroup';
+
+    // Ordering: tracing image behind everything
+    worldG.appendChild(traceG);
+    worldG.appendChild(streetsG);
+    worldG.appendChild(buildingsG);
+    worldG.appendChild(handlesG);
+
+    svg.appendChild(worldG);
+
+    // Create a persistent <image> node (we'll show/hide and swap href as needed)
+    traceImageEl = document.createElementNS(NS, 'image');
+    traceImageEl.setAttribute('id', 'traceImageLayer');
+    traceImageEl.setAttribute('opacity', traceImageOpacity); // always 100%
+    traceImageEl.setAttribute('pointer-events', 'none');
+    traceG.appendChild(traceImageEl);
+
+    __layersBuilt = true;
+  }
+
+  function updateTraceImageElement(){
+    if (!traceImageEl) return;
+
+    // Hide if not active
+    if (!(traceImageVisible && (traceImageUrl || traceLodUrl || (traceOriginalFile ? null : traceOriginalUrl)))) {
+      traceImageEl.style.display = 'none';
+      return;
+    }
+
+    // If the source came from a File picker, we intentionally avoid rendering the full-res original until a proxy is ready.
+    // For URL-based sources (e.g. BrooklynMap.jpg), we can fall back to the URL.
+    const href = traceImageUrl || traceLodUrl || (traceOriginalFile ? null : traceOriginalUrl);
+    if (!href) {
+      traceImageEl.style.display = 'none';
+      return;
+    }
+
+    traceImageEl.style.display = '';
+    const w = traceImageBaseWidth * traceImageScale || 0;
+    const h = traceImageBaseHeight * traceImageScale || 0;
+
+    traceImageEl.setAttribute('x', traceImageX);
+    traceImageEl.setAttribute('y', traceImageY);
+    if (w > 0) traceImageEl.setAttribute('width', w);
+    if (h > 0) traceImageEl.setAttribute('height', h);
+
+    if (w > 0 && h > 0) {
+      const cx = traceImageX + w / 2;
+      const cy = traceImageY + h / 2;
+      traceImageEl.setAttribute('transform', 'rotate(' + traceImageAngle + ' ' + cx + ' ' + cy + ')');
+    } else {
+      traceImageEl.removeAttribute('transform');
+    }
+
+    traceImageEl.setAttribute('pointer-events', traceDragMode ? 'visiblePainted' : 'none');
+    traceImageEl.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href);
+  }
+
+  function nextPow2(n){
+    let p = 1;
+    while (p < n) p <<= 1;
+    return p;
+  }
+
+  function getTraceDesiredMaxDim(){
+    // Choose a raster resolution based on how big the tracing image is on-screen.
+    // We aim for ~2x screen resolution (oversampling) to keep it crisp.
+    const vb = svg.viewBox.baseVal;
+    const rect = svg.getBoundingClientRect();
+    const screenW = rect && rect.width ? rect.width : (svg.clientWidth || 1);
+    const screenH = rect && rect.height ? rect.height : (svg.clientHeight || 1);
+
+    const pxPerWorldX = screenW / (vb.width || 1);
+    const pxPerWorldY = screenH / (vb.height || 1);
+
+    const wWorld = (traceImageBaseWidth * traceImageScale) || vb.width || 1;
+    const hWorld = (traceImageBaseHeight * traceImageScale) || vb.height || 1;
+
+    const wScreen = Math.max(1, wWorld * pxPerWorldX);
+    const hScreen = Math.max(1, hWorld * pxPerWorldY);
+
+    const target = Math.max(wScreen, hScreen) * 2; // oversample
+    __traceRawTargetPx = target;
+    const cap = isLikelyMobile() ? TRACE_MAXDIM_MOBILE : TRACE_MAXDIM_DESKTOP;
+
+    // Snap to power-of-two-ish levels for caching.
+    const desired = Math.min(cap, Math.max(512, nextPow2(Math.ceil(target))));
+    return desired;
+  }
+
+  function chooseTraceLodKey(){
+    // If we only have a filename URL (autoload) and we're on mobile, decoding full-res can crash.
+    // We still allow it if the user explicitly loads via the file picker (traceOriginalFile),
+    // because then we can safely decode downsampled proxies without touching full-res.
+    const desired = getTraceDesiredMaxDim();
+    const cap = isLikelyMobile() ? TRACE_MAXDIM_MOBILE : TRACE_MAXDIM_DESKTOP;
+
+    // On desktop: allow "full" if you zoom far enough (beyond our desktop cap).
+    // On mobile: never auto-switch to full; it's a common crash vector.
+    const allowFull = !isLikelyMobile();
+
+    if (allowFull && desired >= cap && (cap >= TRACE_MAXDIM_DESKTOP)) {
+      // Still keep within cap unless we truly need full; we'll only use full if the desired is at cap and the user is zooming in.
+      // We'll decide in updateTraceLODNow based on current key.
+    }
+
+    return desired;
+  }
+
+
+  async function getImageDimsFromBlobOrFile(blobOrFile){
+    try {
+      const type = (blobOrFile && blobOrFile.type) ? String(blobOrFile.type).toLowerCase() : '';
+      // Read only a small header region
+      const head = await blobOrFile.slice(0, 512 * 1024).arrayBuffer();
+      const view = new DataView(head);
+
+      // PNG: 8-byte signature + IHDR chunk
+      // Width/Height are big-endian uint32 at offsets 16 and 20.
+      const isPng = view.byteLength >= 24 &&
+        view.getUint8(0) === 0x89 && view.getUint8(1) === 0x50 && view.getUint8(2) === 0x4E && view.getUint8(3) === 0x47;
+      if (isPng) {
+        const w = view.getUint32(16, false);
+        const h = view.getUint32(20, false);
+        if (w > 0 && h > 0) return { w, h };
+      }
+
+      // JPEG: parse SOF markers to read dimensions without full decode.
+      const isJpeg = view.byteLength >= 4 &&
+        view.getUint8(0) === 0xFF && view.getUint8(1) === 0xD8;
+      if (isJpeg) {
+        let offset = 2;
+        const len = view.byteLength;
+        while (offset + 3 < len) {
+          // Find marker 0xFF
+          if (view.getUint8(offset) !== 0xFF) { offset++; continue; }
+          let marker = view.getUint8(offset + 1);
+          offset += 2;
+
+          // Skip padding FFs
+          while (marker === 0xFF && offset < len) marker = view.getUint8(offset++);
+
+          // Start of Scan or End of Image: stop
+          if (marker === 0xDA || marker === 0xD9) break;
+
+          if (offset + 1 >= len) break;
+          const segLen = view.getUint16(offset, false);
+          if (segLen < 2) break;
+
+          // SOF markers that contain width/height
+          const isSOF =
+            (marker >= 0xC0 && marker <= 0xC3) ||
+            (marker >= 0xC5 && marker <= 0xC7) ||
+            (marker >= 0xC9 && marker <= 0xCB) ||
+            (marker >= 0xCD && marker <= 0xCF);
+
+          if (isSOF && offset + 7 < len) {
+            const h = view.getUint16(offset + 3, false);
+            const w = view.getUint16(offset + 5, false);
+            if (w > 0 && h > 0) return { w, h };
+            break;
+          }
+
+          offset += segLen;
+        }
+      }
+    } catch(_) {}
+    return null;
+  }
+
+  async function makeLodFromFile(fileOrBlob, maxDim){
+    // Decode directly to a smaller bitmap when possible (prevents full-res decode on mobile).
+    // IMPORTANT: preserve aspect ratio by computing resizeWidth/resizeHeight from header dimensions.
+    const dims = await getImageDimsFromBlobOrFile(fileOrBlob);
+
+    let resizeW = maxDim;
+    let resizeH = maxDim;
+    if (dims && dims.w > 0 && dims.h > 0) {
+      if (dims.w >= dims.h) {
+        resizeW = maxDim;
+        resizeH = Math.max(1, Math.round(maxDim * (dims.h / dims.w)));
+      } else {
+        resizeH = maxDim;
+        resizeW = Math.max(1, Math.round(maxDim * (dims.w / dims.h)));
+      }
+    }
+
+    // Some browsers may ignore resize options; still safe for the common case (large JPG on mobile).
+    const bitmap = await createImageBitmap(fileOrBlob, {
+      resizeWidth: resizeW,
+      resizeHeight: resizeH,
+      resizeQuality: 'high'
+    });
+
+    const w = bitmap.width;
+    const h = bitmap.height;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    try { bitmap.close && bitmap.close(); } catch(_) {}
+
+    const blob = await new Promise((resolve) => {
+      // This does NOT change your original file; it only creates a runtime proxy.
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92);
+    });
+
+    const url = URL.createObjectURL(blob);
+    traceLodObjectUrls.add(url);
+    return { url, w, h };
+  }
+
+  async function ensureTraceLod(maxDim){
+    if (!traceOriginalUrl && !traceOriginalFile) return null;
+
+    // If we have a cached LOD, use it
+    if (traceLodCache.has(maxDim)) return traceLodCache.get(maxDim);
+
+    if (traceLodInFlight.has(maxDim)) return traceLodInFlight.get(maxDim);
+
+    const p = (async () => {
+      // Prefer File-based decode (safe on mobile because we can resize during decode)
+      if (traceOriginalFile && window.createImageBitmap) {
+        const out = await makeLodFromFile(traceOriginalFile, maxDim);
+        traceLodCache.set(maxDim, out);
+        return out;
+      }
+
+      // Fallback: attempt fetch -> blob -> createImageBitmap (may fail on file:// in some browsers)
+      if (window.createImageBitmap && window.fetch && traceOriginalUrl) {
+        try {
+          const resp = await fetch(traceOriginalUrl);
+          const blob = await resp.blob();
+          const out = await makeLodFromFile(blob, maxDim);
+          traceLodCache.set(maxDim, out);
+          return out;
+        } catch(_) {
+          // ignore and fall through
+        }
+      }
+
+      // Last resort: we cannot safely build a proxy; return null (caller may fall back to original URL).
+      return null;
+    })();
+
+    traceLodInFlight.set(maxDim, p);
+    const out = await p;
+    traceLodInFlight.delete(maxDim);
+    return out;
+  }
+
+  function scheduleTraceLODUpdate(){
+    if (!traceImageVisible) return;
+    if (!traceOriginalUrl && !traceOriginalFile) return;
+    if (__traceLodRaf) return;
+    __traceLodRaf = requestAnimationFrame(() => {
+      __traceLodRaf = 0;
+      updateTraceLODNow();
+    });
+  }
+
+  async function updateTraceLODNow(){
+    if (!traceImageVisible) return;
+    if (!traceOriginalUrl && !traceOriginalFile) return;
+
+    const desiredMaxDim = chooseTraceLodKey();
+
+    // On desktop, if you zoom in far enough, allow switching to full-res original.
+    // We use the *raw* target before capping so you can still reach "full" beyond our cached proxy cap.
+    const wantFullDesktop = (!isLikelyMobile()) && (__traceRawTargetPx > TRACE_MAXDIM_DESKTOP * 1.5);
+
+    // Desktop: if you really zoom in, use full original. Mobile: never auto-switch to full.
+    const key = wantFullDesktop ? 'full' : desiredMaxDim;
+
+    if (traceLodKey === key) return;
+
+    if (key === 'full') {
+      // Full-res: use original URL directly
+      traceLodKey = 'full';
+      traceLodUrl = null;
+      traceImageUrl = traceOriginalUrl; // renderAll/update element reads traceImageUrl
+      updateTraceImageElement();
+      return;
+    }
+
+    const out = await ensureTraceLod(key);
+    if (out && out.url) {
+      traceLodKey = key;
+      traceLodUrl = out.url;
+      traceImageUrl = out.url;
+      updateTraceImageElement();
+    } else {
+      // If we cannot build a proxy, fall back to original (desktop) or do nothing (mobile)
+      if (!isLikelyMobile() && traceOriginalUrl) {
+        traceLodKey = 'full';
+        traceLodUrl = null;
+        traceImageUrl = traceOriginalUrl;
+        updateTraceImageElement();
+      }
+    }
+  }
+
+  function setTracingImageSource(sourceUrl, filename, fileObj, makeVisible){
+    // Clear old generated proxies
+    clearTraceLod();
+
+    // Revoke previous original object URL if any
+    if (traceOriginalIsObjectUrl && traceOriginalUrl) {
+      try { URL.revokeObjectURL(traceOriginalUrl); } catch(_) {}
+    }
+
+    traceOriginalUrl = sourceUrl || null;
+    traceOriginalFile = fileObj || null;
+    traceOriginalIsObjectUrl = !!(sourceUrl && sourceUrl.startsWith('blob:') && fileObj);
+
+    traceImageName = filename || '';
+    traceImageVisible = !!makeVisible;
+
+    // KEY CHANGE:
+    // If we have a File object (user loaded via picker), do NOT point the SVG <image> at the full-res source first.
+    // That initial decode is what stalls desktop and crashes mobile. Instead, we start hidden and immediately build an LOD proxy.
+    if (traceOriginalFile) {
+      traceImageUrl = null;   // wait for proxy
+      traceLodUrl = null;
+      traceLodKey = null;
+    } else {
+      // Filename / URL source (autoload): we may not be able to safely build a proxy on file://
+      traceImageUrl = traceOriginalUrl;
+    }
+
+    // Kick LOD selection
+    scheduleTraceLODUpdate();
+  }
 
   function syncTraceVisibilityUI(){
     if (traceToggleBtn) {
@@ -2210,43 +2611,24 @@ function renderAll(){
     }
 
 
-    svg.innerHTML = '';
-    const world = createWorldGroup();
+    ensureSvgLayers();
 
-    // optional tracing background image (in world coordinates)
-    if (traceImageUrl && traceImageVisible) {
-      const img = document.createElementNS(NS, 'image');
+    // Update tracing image element (persistent) without rebuilding the entire SVG
+    updateTraceImageElement();
 
-      // Use saved world coordinates & scale so zoom (viewBox changes) doesn't resize the image itself
-      const w = traceImageBaseWidth * traceImageScale || 0;
-      const h = traceImageBaseHeight * traceImageScale || 0;
+    // Re-render vector layers
+    streetsG.innerHTML = '';
+    buildingsG.innerHTML = '';
+    handlesG.innerHTML = '';
 
-      img.setAttribute('x', traceImageX);
-      img.setAttribute('y', traceImageY);
-      if (w > 0) img.setAttribute('width', w);
-      if (h > 0) img.setAttribute('height', h);
-
-      // Apply independent rotation around image center
-      if (w > 0 && h > 0) {
-        const cx = traceImageX + w / 2;
-        const cy = traceImageY + h / 2;
-        img.setAttribute('transform', 'rotate(' + traceImageAngle + ' ' + cx + ' ' + cy + ')');
-      }
-
-      img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', traceImageUrl);
-      img.setAttribute('opacity', traceImageOpacity); // always 100%
-      img.setAttribute('pointer-events', traceDragMode ? 'visiblePainted' : 'none');
-      img.setAttribute('id', 'traceImageLayer');
-      world.appendChild(img);
-    }
-
-    renderStreetsInto(world);
+    renderStreetsInto(streetsG);
     computeStopHighlightIds();
-    renderBuildingsInto(world);
-    renderNodeHandlesInto(world);
-    svg.appendChild(world);
+    renderBuildingsInto(buildingsG);
+    renderNodeHandlesInto(handlesG);
+
     applyWorldRotation();
   }
+
 
   // --- Default tracing image autoload ---
   // If a sibling image named BrooklynMap.jpg exists, load it automatically as the tracing image.
@@ -2265,8 +2647,9 @@ function renderAll(){
       // If the user loaded something while we were probing, don't override it
       if (traceImageUrl) return;
 
-      traceImageUrl = filename;     // keep as a simple relative URL (no data URL needed)
+            // Use URL source (no base64). Keep hidden by default.
       traceImageName = filename;
+      setTracingImageSource(filename, filename, null, false);
       traceImageVisible = false;
 
       // Apply any saved transform metadata for this filename (preferred),
@@ -3577,6 +3960,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
 
     svg.setAttribute('viewBox', `${newX} ${newY} ${newW} ${newH}`);
     applyWorldRotation();
+    scheduleTraceLODUpdate();
 
     pinchState.lastDist = dist;
     pinchState.lastCenterClient.x = midX;
@@ -3625,6 +4009,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
 
       svg.setAttribute('viewBox', `${newX} ${newY} ${newW} ${newH}`);
       applyWorldRotation();
+      scheduleTraceLODUpdate();
       return;
     }
 
@@ -3698,95 +4083,68 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
   }
 
 
-// === Tracing image controls ===
-function __applyTracingImageSession(url, name){
-  // Keep the image URL only in memory; do NOT put it in state so data.js stays small.
-  traceImageUrl = url;
-  traceImageVisible = true;
+  // === Tracing image controls ===
+  if (traceInput) {
+    traceInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
 
-  // If we have saved transform metadata for this filename, reuse it so the image
-  // snaps back to its previous position/scale/rotation when reloaded.
-  traceImageName = name || '';
-  const byName = state && state.traceByName ? state.traceByName : null;
-  const t = (traceImageName && byName && byName[traceImageName]) ? byName[traceImageName] : (state && state.trace ? state.trace : null);
+      // Use a blob URL (no base64) and keep the original File so we can generate safe downsampled proxies.
+      const url = URL.createObjectURL(file);
 
-  if (t) {
-    if (typeof t.x === 'number') traceImageX = t.x;
-    if (typeof t.y === 'number') traceImageY = t.y;
-    if (typeof t.baseWidth === 'number') traceImageBaseWidth = t.baseWidth;
-    if (typeof t.baseHeight === 'number') traceImageBaseHeight = t.baseHeight;
-    if (typeof t.scale === 'number') traceImageScale = t.scale;
-    if (typeof t.angle === 'number') traceImageAngle = t.angle;
-  } else {
-    // Fall back to initializing placement to current viewBox
-    const vb = svg.viewBox.baseVal;
-    traceImageX = vb.x;
-    traceImageY = vb.y;
-    traceImageBaseWidth = vb.width;
-    traceImageBaseHeight = vb.height;
-    traceImageScale = 1;
-    traceImageAngle = 0;
+      // Keep the image data only in memory; do NOT put it in state so data.js stays small.
+      // IMPORTANT: We do NOT immediately decode full-res on mobile. We start with an LOD proxy.
+      traceImageVisible = true;
+      traceImageName = file.name || '';
+
+      // Restore transform settings for this filename (so it snaps back to previous position/scale/rotation).
+      const byName = state && state.traceByName ? state.traceByName : null;
+      const t = (traceImageName && byName && byName[traceImageName]) ? byName[traceImageName] : (state && state.trace ? state.trace : null);
+
+      if (t) {
+        if (typeof t.x === 'number') traceImageX = t.x;
+        if (typeof t.y === 'number') traceImageY = t.y;
+        if (typeof t.baseWidth === 'number') traceImageBaseWidth = t.baseWidth;
+        if (typeof t.baseHeight === 'number') traceImageBaseHeight = t.baseHeight;
+        if (typeof t.scale === 'number') traceImageScale = t.scale;
+        if (typeof t.angle === 'number') traceImageAngle = t.angle;
+      } else {
+        // Fall back to initializing placement to current viewBox
+        const vb = svg.viewBox.baseVal;
+        traceImageX = vb.x;
+        traceImageY = vb.y;
+        traceImageBaseWidth = vb.width;
+        traceImageBaseHeight = vb.height;
+        traceImageScale = 1;
+        traceImageAngle = 0;
+      }
+
+      // Ensure usable base size so the image renders (especially on a fresh map)
+      if (!(traceImageBaseWidth > 0 && traceImageBaseHeight > 0)) {
+        const vb = svg.viewBox.baseVal;
+        traceImageX = vb.x;
+        traceImageY = vb.y;
+        traceImageBaseWidth = vb.width;
+        traceImageBaseHeight = vb.height;
+        if (!(traceImageScale > 0)) traceImageScale = 1;
+        if (!Number.isFinite(traceImageAngle)) traceImageAngle = 0;
+      }
+
+      syncTraceVisibilityUI();
+      if (traceOffsetXInput) traceOffsetXInput.value = Math.round(traceImageX);
+      if (traceOffsetYInput) traceOffsetYInput.value = Math.round(traceImageY);
+      if (traceScaleInput) traceScaleInput.value = traceImageScale;
+      if (traceScaleInputBox) traceScaleInputBox.value = traceImageScale;
+      if (traceRotationInput) traceRotationInput.value = traceImageAngle;
+      if (traceRotationInputBox) traceRotationInputBox.value = traceImageAngle;
+
+      // Set source (keeps File object for safe downsample decode)
+      setTracingImageSource(url, traceImageName, file, true);
+
+      renderAll();            // ensures layers exist + draws current selection
+      scheduleTraceLODUpdate(); // pick an LOD proxy immediately
+    });
   }
-
-  // Ensure usable base size so the image renders (especially on a fresh map)
-  if (!(traceImageBaseWidth > 0 && traceImageBaseHeight > 0)) {
-    const vb = svg.viewBox.baseVal;
-    traceImageX = vb.x;
-    traceImageY = vb.y;
-    traceImageBaseWidth = vb.width;
-    traceImageBaseHeight = vb.height;
-    if (!(traceImageScale > 0)) traceImageScale = 1;
-    if (!Number.isFinite(traceImageAngle)) traceImageAngle = 0;
-  }
-
-  syncTraceVisibilityUI();
-  if (traceOffsetXInput) traceOffsetXInput.value = Math.round(traceImageX);
-  if (traceOffsetYInput) traceOffsetYInput.value = Math.round(traceImageY);
-  if (traceScaleInput) traceScaleInput.value = traceImageScale;
-  if (traceScaleInputBox) traceScaleInputBox.value = traceImageScale;
-  if (traceRotationInput) traceRotationInput.value = traceImageAngle;
-  if (traceRotationInputBox) traceRotationInputBox.value = traceImageAngle;
-
-  renderAll();
-}
-
-if (traceInput) {
-  traceInput.addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    // Prefer a blob URL to avoid massive base64 strings in memory (helps a lot on mobile).
-    // Revoke the previous blob URL if we created one.
-    if (traceImageObjectUrl) {
-      try { URL.revokeObjectURL(traceImageObjectUrl); } catch(_) {}
-      traceImageObjectUrl = null;
-    }
-
-    let url = null;
-    try {
-      url = URL.createObjectURL(file);
-      traceImageObjectUrl = url;
-    } catch(_) {
-      url = null;
-    }
-
-    if (url) {
-      __applyTracingImageSession(url, file.name || '');
-      // Allow selecting the same file again to re-trigger change if needed
-      try { traceInput.value = ''; } catch(_) {}
-      return;
-    }
-
-    // Fallback: FileReader data URL (should be rare)
-    const reader = new FileReader();
-    reader.onload = () => {
-      __applyTracingImageSession(reader.result, file.name || '');
-      try { traceInput.value = ''; } catch(_) {}
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 
   if (traceRotationInput) {
     traceRotationInput.addEventListener('input', (e) => {
@@ -3815,7 +4173,8 @@ if (traceInput) {
       traceImageVisible = !traceImageVisible;
       syncTraceVisibilityUI();
       renderAll();
-    });
+          if (traceImageVisible) scheduleTraceLODUpdate();
+});
   }
 
   if (mapTraceBtn) {
@@ -3824,7 +4183,8 @@ if (traceInput) {
       traceImageVisible = !traceImageVisible;
       syncTraceVisibilityUI();
       renderAll();
-    });
+          if (traceImageVisible) scheduleTraceLODUpdate();
+});
   }
 
 
