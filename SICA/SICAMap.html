@@ -954,6 +954,7 @@
 
   // Tracing image state
   let traceImageUrl = null;
+  let traceImageObjectUrl = null; // blob URL for tracing image loaded via file picker (revoked on replace/unload)
   let traceImageName = ''; // filename for per-image tracing presets
   let traceImageVisible = false;
   let traceImageX = 0;
@@ -965,6 +966,14 @@
   const traceImageOpacity = 1;
   let traceDragMode = false;
   let traceDrag = null;
+
+  // Revoke the current tracing blob URL (if any) when leaving the page
+  window.addEventListener('beforeunload', () => {
+    if (traceImageObjectUrl) {
+      try { URL.revokeObjectURL(traceImageObjectUrl); } catch(_) {}
+      traceImageObjectUrl = null;
+    }
+  });
 
   function syncTraceVisibilityUI(){
     if (traceToggleBtn) {
@@ -3689,65 +3698,95 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
   }
 
 
-  // === Tracing image controls ===
-  if (traceInput) {
-    traceInput.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        // Keep the image data only in memory; do NOT put it in state so data.js stays small.
-        traceImageUrl = reader.result;
-        traceImageVisible = true;
+// === Tracing image controls ===
+function __applyTracingImageSession(url, name){
+  // Keep the image URL only in memory; do NOT put it in state so data.js stays small.
+  traceImageUrl = url;
+  traceImageVisible = true;
 
-        // If we have saved transform metadata for this filename, reuse it so the image
-        // snaps back to its previous position/scale/rotation when reloaded.
-        traceImageName = file.name || '';
-        const byName = state && state.traceByName ? state.traceByName : null;
-        const t = (traceImageName && byName && byName[traceImageName]) ? byName[traceImageName] : (state && state.trace ? state.trace : null);
+  // If we have saved transform metadata for this filename, reuse it so the image
+  // snaps back to its previous position/scale/rotation when reloaded.
+  traceImageName = name || '';
+  const byName = state && state.traceByName ? state.traceByName : null;
+  const t = (traceImageName && byName && byName[traceImageName]) ? byName[traceImageName] : (state && state.trace ? state.trace : null);
 
-        if (t) {
-          if (typeof t.x === 'number') traceImageX = t.x;
-          if (typeof t.y === 'number') traceImageY = t.y;
-          if (typeof t.baseWidth === 'number') traceImageBaseWidth = t.baseWidth;
-          if (typeof t.baseHeight === 'number') traceImageBaseHeight = t.baseHeight;
-          if (typeof t.scale === 'number') traceImageScale = t.scale;
-          if (typeof t.angle === 'number') traceImageAngle = t.angle;
-          } else {
-          // Fall back to initializing placement to current viewBox
-          const vb = svg.viewBox.baseVal;
-          traceImageX = vb.x;
-          traceImageY = vb.y;
-          traceImageBaseWidth = vb.width;
-          traceImageBaseHeight = vb.height;
-          traceImageScale = 1;
-          traceImageAngle = 0;
-        }
-
-        // Ensure usable base size so the image renders (especially on a fresh map)
-        if (!(traceImageBaseWidth > 0 && traceImageBaseHeight > 0)) {
-          const vb = svg.viewBox.baseVal;
-          traceImageX = vb.x;
-          traceImageY = vb.y;
-          traceImageBaseWidth = vb.width;
-          traceImageBaseHeight = vb.height;
-          if (!(traceImageScale > 0)) traceImageScale = 1;
-          if (!Number.isFinite(traceImageAngle)) traceImageAngle = 0;
-        }
-
-        syncTraceVisibilityUI();
-        if (traceOffsetXInput) traceOffsetXInput.value = Math.round(traceImageX);
-        if (traceOffsetYInput) traceOffsetYInput.value = Math.round(traceImageY);
-        if (traceScaleInput) traceScaleInput.value = traceImageScale;
-        if (traceScaleInputBox) traceScaleInputBox.value = traceImageScale;
-        if (traceRotationInput) traceRotationInput.value = traceImageAngle;
-        if (traceRotationInputBox) traceRotationInputBox.value = traceImageAngle;
-
-        renderAll();
-      };
-      reader.readAsDataURL(file);
-    });
+  if (t) {
+    if (typeof t.x === 'number') traceImageX = t.x;
+    if (typeof t.y === 'number') traceImageY = t.y;
+    if (typeof t.baseWidth === 'number') traceImageBaseWidth = t.baseWidth;
+    if (typeof t.baseHeight === 'number') traceImageBaseHeight = t.baseHeight;
+    if (typeof t.scale === 'number') traceImageScale = t.scale;
+    if (typeof t.angle === 'number') traceImageAngle = t.angle;
+  } else {
+    // Fall back to initializing placement to current viewBox
+    const vb = svg.viewBox.baseVal;
+    traceImageX = vb.x;
+    traceImageY = vb.y;
+    traceImageBaseWidth = vb.width;
+    traceImageBaseHeight = vb.height;
+    traceImageScale = 1;
+    traceImageAngle = 0;
   }
+
+  // Ensure usable base size so the image renders (especially on a fresh map)
+  if (!(traceImageBaseWidth > 0 && traceImageBaseHeight > 0)) {
+    const vb = svg.viewBox.baseVal;
+    traceImageX = vb.x;
+    traceImageY = vb.y;
+    traceImageBaseWidth = vb.width;
+    traceImageBaseHeight = vb.height;
+    if (!(traceImageScale > 0)) traceImageScale = 1;
+    if (!Number.isFinite(traceImageAngle)) traceImageAngle = 0;
+  }
+
+  syncTraceVisibilityUI();
+  if (traceOffsetXInput) traceOffsetXInput.value = Math.round(traceImageX);
+  if (traceOffsetYInput) traceOffsetYInput.value = Math.round(traceImageY);
+  if (traceScaleInput) traceScaleInput.value = traceImageScale;
+  if (traceScaleInputBox) traceScaleInputBox.value = traceImageScale;
+  if (traceRotationInput) traceRotationInput.value = traceImageAngle;
+  if (traceRotationInputBox) traceRotationInputBox.value = traceImageAngle;
+
+  renderAll();
+}
+
+if (traceInput) {
+  traceInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    // Prefer a blob URL to avoid massive base64 strings in memory (helps a lot on mobile).
+    // Revoke the previous blob URL if we created one.
+    if (traceImageObjectUrl) {
+      try { URL.revokeObjectURL(traceImageObjectUrl); } catch(_) {}
+      traceImageObjectUrl = null;
+    }
+
+    let url = null;
+    try {
+      url = URL.createObjectURL(file);
+      traceImageObjectUrl = url;
+    } catch(_) {
+      url = null;
+    }
+
+    if (url) {
+      __applyTracingImageSession(url, file.name || '');
+      // Allow selecting the same file again to re-trigger change if needed
+      try { traceInput.value = ''; } catch(_) {}
+      return;
+    }
+
+    // Fallback: FileReader data URL (should be rare)
+    const reader = new FileReader();
+    reader.onload = () => {
+      __applyTracingImageSession(reader.result, file.name || '');
+      try { traceInput.value = ''; } catch(_) {}
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 
   if (traceRotationInput) {
     traceRotationInput.addEventListener('input', (e) => {
