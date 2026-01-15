@@ -2329,13 +2329,8 @@ function getViewCenter(){
       hit.dataset.layer = layer;
       hit.addEventListener('click', e => {
         e.stopPropagation();
-        // For map clicks, select in inspector but DO NOT update Lines & Routes
-        suppressAnalyticsFromSelectStreet = true;
-        try {
-          selectStreet(s.id);
-        } finally {
-          suppressAnalyticsFromSelectStreet = false;
-        }
+        // For map clicks, select in inspector but do NOT change the active analytics group
+        selectStreet(s.id, { suppressAnalyticsSync: true });
       });
 
       hit.addEventListener('mousedown', e => {
@@ -2444,57 +2439,47 @@ function getViewCenter(){
   }
 
   function renderNodeHandlesInto(world){
-  // Always remove any existing node handles layer so we can re-append it on top
-  const existing = world.querySelector('#nodeHandlesLayer');
-  if (existing && existing.parentNode === world) {
-    world.removeChild(existing);
+    // Caller clears handlesG; we just build a fresh handles group and append it last so it stays on top.
+    const handlesGroup = document.createElementNS(NS,'g');
+    handlesGroup.setAttribute('id', 'nodeHandlesLayer');
+
+    (state.streets || []).forEach(s => {
+      if (s.id !== activeStreetId) return;
+      (s.nodes || []).forEach((n, idx) => {
+        // Large invisible hit area for easier clicking/tapping
+        const hit = document.createElementNS(NS,'circle');
+        hit.setAttribute('cx', n.x);
+        hit.setAttribute('cy', n.y);
+        hit.setAttribute('r', 34);
+        hit.setAttribute('fill', 'transparent');
+        hit.classList.add('node-handle','node-handle-hit');
+        hit.dataset.sid = s.id;
+        hit.dataset.idx = String(idx);
+        hit.style.cursor = 'pointer';
+        hit.style.pointerEvents = 'all';
+        hit.addEventListener('mousedown', e => { e.stopPropagation(); startNodeDrag(e, s.id, idx); });
+        hit.addEventListener('touchstart', e => { e.stopPropagation(); startNodeDrag(e, s.id, idx); }, { passive:false });
+        handlesGroup.appendChild(hit);
+
+        // Visible handle
+        const c = document.createElementNS(NS,'circle');
+        c.setAttribute('cx', n.x);
+        c.setAttribute('cy', n.y);
+        c.setAttribute('r', 25);
+        c.setAttribute('fill', '#ffffff');
+        c.classList.add('node-handle','node-handle-visual');
+        c.dataset.sid = s.id;
+        c.dataset.idx = String(idx);
+        c.style.pointerEvents = 'none';
+        handlesGroup.appendChild(c);
+      });
+    });
+
+    world.appendChild(handlesGroup);
   }
 
-  const handlesGroup = document.createElementNS(NS,'g');
-  handlesGroup.setAttribute('id', 'nodeHandlesLayer');
-
-  (state.streets || []).forEach(s => {
-    if (s.id !== activeStreetId) return;
-    (s.nodes || []).forEach((n, idx) => {
-      // Visible handle: white, doubled radius from the original
-      const c = document.createElementNS(NS,'circle');
-      c.setAttribute('cx', n.x);
-      c.setAttribute('cy', n.y);
-      c.setAttribute('r', 25); // original was 7 -> now doubled
-      c.setAttribute('fill', '#ffffff');
-      c.classList.add('node-handle');
-      c.dataset.sid = s.id;
-      c.dataset.idx = String(idx);
-      c.style.pointerEvents = 'all';
-      c.addEventListener('mousedown', e => { e.stopPropagation(); startNodeDrag(e, s.id, idx); });
-      c.addEventListener('touchstart', e => { e.stopPropagation(); startNodeDrag(e, s.id, idx); }, { passive:false });
-      handlesGroup.appendChild(c);
-
-      // Larger invisible hit area for easier clicking/tapping
-      const hit = document.createElementNS(NS,'circle');
-      hit.setAttribute('cx', n.x);
-      hit.setAttribute('cy', n.y);
-      hit.setAttribute('r', 24);
-      hit.setAttribute('fill', 'transparent');
-      hit.dataset.sid = s.id;
-      hit.dataset.idx = String(idx);
-      hit.style.cursor = 'pointer';
-      hit.style.pointerEvents = 'all';
-      hit.addEventListener('mousedown', e => { e.stopPropagation(); startNodeDrag(e, s.id, idx); });
-      hit.addEventListener('touchstart', e => { e.stopPropagation(); startNodeDrag(e, s.id, idx); }, { passive:false });
-      handlesGroup.appendChild(hit);
-    });
-  });
-
-  // Append at the very end so the handles are always on top of streets, including highlights
-  world.appendChild(handlesGroup);
-}
 
 
-
-
-
-  
   function hydrateTraceFromState(){
     // When loading a map from data.js, restore any saved tracing image settings
     if (!state || !state.trace) {
@@ -2627,10 +2612,16 @@ function renderAll(){
     renderNodeHandlesInto(handlesG);
 
     applyWorldRotation();
+
+    // Analytics panel: keep route/street lists and highlights in sync with the current state
+    if (typeof buildAnalyticsFromState === 'function') {
+      buildAnalyticsFromState();
+      if (analyticsActiveKey && analyticsGroups && analyticsGroups[analyticsActiveKey]) {
+        highlightAnalyticsGroup(analyticsActiveKey);
+      }
+    }
   }
-
-
-  // --- Default tracing image autoload ---
+// --- Default tracing image autoload ---
   // If a sibling image named BrooklynMap.jpg exists, load it automatically as the tracing image.
   // If it doesn't exist, keep the existing behavior (user can load a tracing image manually).
   let __defaultTraceAttempted = false;
@@ -2820,7 +2811,39 @@ function clearAllRectTransforms(){
     });
   }
 
-  function startNodeDrag(evt, streetId, idx){
+  function syncStreetInspectorGeometry(s){
+    if (!s) return;
+    if (!(selectedType === 'street' && selectedId === s.id)) return;
+    const nodes = s.nodes || [];
+    let gx = 0, gy = 0;
+    if (nodes.length >= 1) {
+      gx = nodes[0].x;
+      gy = nodes[0].y;
+    }
+    const len = computeStreetEndToEndLength(s) || 0;
+    const widthVal = s.width || 60;
+    let angleDeg = 0;
+    if (nodes.length >= 2) {
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const dx = last.x - first.x;
+      const dy = last.y - first.y;
+      const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      if (Number.isFinite(ang)) angleDeg = ang;
+    }
+    const gxEl = document.getElementById('streetGX');
+    const gyEl = document.getElementById('streetGY');
+    const lenEl = document.getElementById('streetGW');
+    const widthEl = document.getElementById('streetGH');
+    const angleEl = document.getElementById('streetAngle');
+    if (gxEl) gxEl.value = Math.round(gx);
+    if (gyEl) gyEl.value = Math.round(gy);
+    if (lenEl) lenEl.value = Math.round(len);
+    if (widthEl) widthEl.value = Math.round(widthVal);
+    if (angleEl) angleEl.value = angleDeg.toFixed(1);
+  }
+
+function startNodeDrag(evt, streetId, idx){
     evt.preventDefault();
     const p = getWorldPoint(evt);
     const _preHistoryJson = getUndoSnapshotJson();
@@ -2851,35 +2874,7 @@ function clearAllRectTransforms(){
     s.nodes[idx].y = Math.round(nodeDrag.origY + dy);
 
     // Keep street inspector geometry/angle in sync while dragging nodes
-    if (selectedType === 'street' && selectedId === s.id) {
-      const nodes = s.nodes || [];
-      let gx = 0, gy = 0;
-      let len = computeStreetEndToEndLength(s) || 0;
-      let widthVal = s.width || 60;
-      if (nodes.length >= 1) {
-        gx = nodes[0].x;
-        gy = nodes[0].y;
-      }
-      let angleDeg = 0;
-      if (nodes.length >= 2) {
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const dx2 = last.x - first.x;
-        const dy2 = last.y - first.y;
-        const ang = Math.atan2(dy2, dx2) * 180 / Math.PI;
-        if (Number.isFinite(ang)) angleDeg = ang;
-      }
-      const gxEl = document.getElementById('streetGX');
-      const gyEl = document.getElementById('streetGY');
-      const lenEl = document.getElementById('streetGW');
-      const widthEl = document.getElementById('streetGH');
-      const angleEl = document.getElementById('streetAngle');
-      if (gxEl) gxEl.value = Math.round(gx);
-      if (gyEl) gyEl.value = Math.round(gy);
-      if (lenEl) lenEl.value = Math.round(len);
-      if (widthEl) widthEl.value = Math.round(widthVal);
-      if (angleEl) angleEl.value = angleDeg.toFixed(1);
-    }
+    syncStreetInspectorGeometry(s);
 
     renderAll();
   }
@@ -2930,35 +2925,7 @@ function clearAllRectTransforms(){
     });
 
     // Keep street inspector geometry/angle in sync while translating street
-    if (selectedType === 'street' && selectedId === s.id) {
-      const nodes = s.nodes || [];
-      let gx = 0, gy = 0;
-      let len = computeStreetEndToEndLength(s) || 0;
-      let widthVal = s.width || 60;
-      if (nodes.length >= 1) {
-        gx = nodes[0].x;
-        gy = nodes[0].y;
-      }
-      let angleDeg = 0;
-      if (nodes.length >= 2) {
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const dx2 = last.x - first.x;
-        const dy2 = last.y - first.y;
-        const ang = Math.atan2(dy2, dx2) * 180 / Math.PI;
-        if (Number.isFinite(ang)) angleDeg = ang;
-      }
-      const gxEl = document.getElementById('streetGX');
-      const gyEl = document.getElementById('streetGY');
-      const lenEl = document.getElementById('streetGW');
-      const widthEl = document.getElementById('streetGH');
-      const angleEl = document.getElementById('streetAngle');
-      if (gxEl) gxEl.value = Math.round(gx);
-      if (gyEl) gyEl.value = Math.round(gy);
-      if (lenEl) lenEl.value = Math.round(len);
-      if (widthEl) widthEl.value = Math.round(widthVal);
-      if (angleEl) angleEl.value = angleDeg.toFixed(1);
-    }
+    syncStreetInspectorGeometry(s);
 
     renderAll();
   }
@@ -3072,7 +3039,8 @@ function showMultiInspector(){
     }
   }
 
-  function selectStreet(id){
+  function selectStreet(id, opts){
+    opts = opts || {};
     selectedIds.clear();
     selectedId = id; selectedType = 'street'; activeStreetId = id;
     noSelection.style.display = 'none'; form.style.display = 'none';
@@ -3081,6 +3049,12 @@ function showMultiInspector(){
     renderAll();
     applySelectedStreetHighlight(id);
     refreshQuickEditBar();
+
+    // Selecting a street from the inspector should activate the corresponding analytics group
+    // unless the caller explicitly suppresses it (used for map-click selection).
+    if (!opts.suppressAnalyticsSync && typeof syncAnalyticsSelectionToStreet === 'function') {
+      syncAnalyticsSelectionToStreet(id);
+    }
   }
 
   function removeStreetInspector(){
@@ -4489,8 +4463,6 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
   let analyticsGroups = {};
   let streetIdToGroupKey = {};
   let analyticsActiveKey = null;
-  let suppressAnalyticsFromSelectStreet = false;
-
   function buildAnalyticsFromState(){
     analyticsGroups = {};
     streetIdToGroupKey = {};
@@ -4582,6 +4554,14 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     renderAnalyticsLists();
   }
 
+  function syncAnalyticsSelectionToStreet(streetId){
+    const key = streetIdToGroupKey[streetId];
+    if (!key) return;
+    analyticsActiveKey = key;
+    highlightAnalyticsGroup(key);
+    renderAnalyticsLists();
+  }
+
   function formatAnalyticsLength(lenFeet){
     if (!lenFeet || !isFinite(lenFeet)) return '';
     const miles = lenFeet / 5280;
@@ -4644,7 +4624,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
       li.addEventListener('click', ()=>{
         const ids = group.streetIds || [];
         if (ids.length){
-          // This will also sync the analytics panel via handleStreetSelectedFromMap
+          // Selecting a street here will also activate the corresponding analytics group
           selectStreet(ids[0]);
         } else {
           analyticsActiveKey = group.key;
@@ -4663,7 +4643,6 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     railGroups.forEach(g => addAnalyticsItem(analyticsRailList, g));
     waterGroups.forEach(g => addAnalyticsItem(analyticsWaterList, g));
   }
-
   function highlightAnalyticsGroup(groupKey){
     const group = analyticsGroups[groupKey];
     if (!group) return;
@@ -4677,20 +4656,13 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
       const path = svg.querySelector('.street[data-id="' + id + '"]');
       if (path){
         path.classList.add('highlighted');
-        if (path.parentNode) {
-        const handlesLayer = path.parentNode.querySelector && path.parentNode.querySelector('#nodeHandlesLayer');
-        if (handlesLayer) path.parentNode.insertBefore(path, handlesLayer);
-        else path.parentNode.appendChild(path);
-      }
+        // Bring to front within the streets layer so highlights stay visible at intersections
+        if (path.parentNode) path.parentNode.appendChild(path);
       }
       const label = svg.querySelector('text[data-street-id="' + id + '"]');
       if (label){
         label.classList.add('highlighted');
-        if (label.parentNode) {
-        const handlesLayer = label.parentNode.querySelector && label.parentNode.querySelector('#nodeHandlesLayer');
-        if (handlesLayer) label.parentNode.insertBefore(label, handlesLayer);
-        else label.parentNode.appendChild(label);
-      }
+        if (label.parentNode) label.parentNode.appendChild(label);
       }
     });
 
@@ -4698,7 +4670,6 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     highlightedStreetIdsForStops = (group.streetIds || []).slice();
     computeStopHighlightIds();
     applyStopHighlightClasses();
-
   }
 
   function zoomToAnalyticsGroup(groupKey){
@@ -4763,41 +4734,6 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     svg.setAttribute('viewBox', `${vx} ${vy} ${newW} ${newH}`);
     applyWorldRotation();
   }
-
-
-
-
-  function handleStreetSelectedFromMap(id){
-    const key = streetIdToGroupKey[id];
-    if (!key) return;
-    analyticsActiveKey = key;
-    highlightAnalyticsGroup(key);
-    renderAnalyticsLists();
-  }
-
-  const __originalRenderAll = renderAll;
-  renderAll = function(){
-    __originalRenderAll();
-    buildAnalyticsFromState();
-    if (analyticsActiveKey && analyticsGroups && analyticsGroups[analyticsActiveKey]) {
-      highlightAnalyticsGroup(analyticsActiveKey);
-    }
-  };
-
-  const __originalSelectStreet = selectStreet;
-  selectStreet = function(id){
-    __originalSelectStreet(id);
-
-    // Only sync into analytics when this wasn't a “map click” selection
-    if (!suppressAnalyticsFromSelectStreet) {
-      handleStreetSelectedFromMap(id);
-    }
-  };
-
-  // initial analytics build for initial state
-  buildAnalyticsFromState();
-
-
 // Apply saved positions/sizes on load
     applyWindowState('mapPanel');
     applyWindowState('infoPanel');
