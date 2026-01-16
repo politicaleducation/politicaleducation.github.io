@@ -797,6 +797,15 @@
 </div>
 <label class="small">Angle (°)</label>
 <input id="bAngle" type="text"/>
+    <label class="small">Shape</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+      <button class="tool-btn muted-btn" id="bShapeRectBtn" type="button">Rectangle</button>
+      <button class="tool-btn muted-btn" id="bShapePolyBtn" type="button">Polygon</button>
+      <button class="tool-btn muted-btn" id="bPolyAddBtn" type="button">+ point</button>
+      <button class="tool-btn muted-btn" id="bPolyDelBtn" type="button">− point</button>
+    </div>
+    <div class="small" style="margin-top:6px">Tip: switch to <b>Polygon</b>, then drag the white points on the map.</div>
+
 </details>
 <details id="fill">
 <summary>Building Info</summary>
@@ -931,6 +940,7 @@
   let clipboard = null;  // for copy/paste of buildings & streets
   let drag = null;           // building drag
   let nodeDrag = null;       // street node drag
+  let polyPointDrag = null;  // building polygon point drag
   let activeStreetId = null;
 
   // buildings that should be visually highlighted as transit stops on the active line
@@ -1945,10 +1955,12 @@
 
     state = normalizeState(next);
 
+    // Preserve current tracing visibility; Undo/Redo should not toggle hide/show.
+    const prevTraceVisible = traceImageVisible;
+
     // Keep tracing image / overlay consistent with restored state
     hydrateTraceFromState();
-    // Default: keep the tracing image hidden on page load (even if a default image exists)
-    traceImageVisible = false;
+    traceImageVisible = prevTraceVisible;
     syncTraceVisibilityUI();
 
     renderAll();
@@ -2243,12 +2255,81 @@ function getViewCenter(){
     const interactiveClasses = new Set(['building','node-handle','street']);
     if (target.closest && target.closest('#world')){
       if (target.classList){
-        for (const cls of interactiveClasses){ if (target.classList.contains(cls)) return false; }
+        for (const cls of interactiveClasses){
+          if (target.classList.contains(cls)) return false;
+        }
       }
       return true;
     }
     return false;
   }
+
+  // =========================
+  // Building polygons (optional)
+  // =========================
+  // Buildings default to rectangles. If a building has a `poly` array (normalized points), it renders as a polygon.
+  // Each point is {u, v} where u and v are relative to the building's width/height (0..1 is the rectangle bounds).
+  function isPolyBuilding(b){
+    return !!(b && Array.isArray(b.poly) && b.poly.length >= 3);
+  }
+
+  function ensureBuildingPoly(b){
+    if (!b) return;
+    if (!Array.isArray(b.poly) || b.poly.length < 3){
+      b.poly = [
+        { u: 0, v: 0 },
+        { u: 1, v: 0 },
+        { u: 1, v: 1 },
+        { u: 0, v: 1 }
+      ];
+    }
+  }
+
+  function rotateAround(px, py, cx, cy, deg){
+    const rad = (Number(deg) || 0) * Math.PI / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const dx = px - cx;
+    const dy = py - cy;
+    return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+  }
+
+  function unrotateAround(px, py, cx, cy, deg){
+    return rotateAround(px, py, cx, cy, -(Number(deg) || 0));
+  }
+
+  function getBuildingPolyPointsString(b){
+    if (!b || !Array.isArray(b.poly)) return '';
+    const w = (Number(b.w) || 1);
+    const h = (Number(b.h) || 1);
+    return b.poly.map(p => {
+      const u = Number(p && p.u);
+      const v = Number(p && p.v);
+      const x = b.x + (Number.isFinite(u) ? u : 0) * w;
+      const y = b.y + (Number.isFinite(v) ? v : 0) * h;
+      return `${x},${y}`;
+    }).join(' ');
+  }
+
+  function refreshBuildingShapeUI(b){
+    const rectBtn = document.getElementById('bShapeRectBtn');
+    const polyBtn = document.getElementById('bShapePolyBtn');
+    const addBtn  = document.getElementById('bPolyAddBtn');
+    const delBtn  = document.getElementById('bPolyDelBtn');
+    if (!rectBtn || !polyBtn || !addBtn || !delBtn) return;
+
+    const hasB = !!b;
+    const polyActive = hasB && isPolyBuilding(b);
+
+    rectBtn.disabled = !hasB;
+    polyBtn.disabled = !hasB;
+    addBtn.disabled  = !hasB;
+    delBtn.disabled  = !hasB || !polyActive || (b.poly.length <= 3);
+
+    rectBtn.classList.toggle('drag-on', hasB && !polyActive);
+    polyBtn.classList.toggle('drag-on', polyActive);
+  }
+
 
   function createWrappedText(svgEl, text, bx, by, bw, bh, fontSize, lineHeight, align, orient) {
     const NS = svgEl.namespaceURI;
@@ -2360,65 +2441,76 @@ function getViewCenter(){
 
   function renderBuildingsInto(world){
     (state.buildings || []).forEach(b=>{
-      const rect = document.createElementNS(NS,'rect');
-      rect.setAttribute('x', b.x); rect.setAttribute('y', b.y);
-      rect.setAttribute('width', b.w); rect.setAttribute('height', b.h);
-      rect.setAttribute('rx', 6); rect.setAttribute('ry', 6);
-      rect.classList.add('building'); rect.dataset.id = b.id;
+      const angle = Number(b.angle) || 0;
+      const usePoly = isPolyBuilding(b);
+
+      const el = document.createElementNS(NS, usePoly ? 'polygon' : 'rect');
+      if (usePoly) {
+        el.setAttribute('points', getBuildingPolyPointsString(b));
+      } else {
+        el.setAttribute('x', b.x); el.setAttribute('y', b.y);
+        el.setAttribute('width', b.w); el.setAttribute('height', b.h);
+        el.setAttribute('rx', 6); el.setAttribute('ry', 6);
+      }
+
+      el.classList.add('building');
+      el.dataset.id = b.id;
+
       if (stopHighlightIds && stopHighlightIds.has(b.id)) {
-        rect.classList.add('stop-highlight');
+        el.classList.add('stop-highlight');
       }
       if (selectedIds && selectedIds.has(b.id)) {
-        rect.classList.add('selected');
+        el.classList.add('selected');
       }
-      rect.setAttribute('fill', b.color || getFillForType(b.type));
-      rect.setAttribute('stroke', b.stroke || 'rgba(0,0,0,0.6)');
-      rect.setAttribute('stroke-width', 2);
-      rect.style.cursor = 'move';
-      rect.style.pointerEvents = 'auto';
 
-      const angle = Number(b.angle) || 0;
+      el.setAttribute('fill', b.color || getFillForType(b.type));
+      el.setAttribute('stroke', b.stroke || 'rgba(0,0,0,0.6)');
+      el.setAttribute('stroke-width', 2);
+      el.style.cursor = 'move';
+      el.style.pointerEvents = 'auto';
+
       let baseTransform = '';
       if (angle) {
         const cx = b.x + b.w / 2;
         const cy = b.y + b.h / 2;
         baseTransform = `rotate(${angle}, ${cx}, ${cy})`;
-        rect.setAttribute('data-base-transform', baseTransform);
-        rect.setAttribute('transform', baseTransform);
+        el.setAttribute('data-base-transform', baseTransform);
+        el.setAttribute('transform', baseTransform);
       } else {
-        rect.removeAttribute('data-base-transform');
+        el.removeAttribute('data-base-transform');
+        el.removeAttribute('transform');
       }
 
-      rect.addEventListener('mouseenter', () => {
-        if (!drag) {
-          const bt = rect.getAttribute('data-base-transform') || '';
-          rect.setAttribute('transform', bt ? bt + ' translate(0,-3)' : 'translate(0,-3)');
+      el.addEventListener('mouseenter', () => {
+        if (!drag && !polyPointDrag) {
+          const bt = el.getAttribute('data-base-transform') || '';
+          el.setAttribute('transform', bt ? bt + ' translate(0,-3)' : 'translate(0,-3)');
         }
       });
-      rect.addEventListener('mouseleave', () => {
-        const bt = rect.getAttribute('data-base-transform');
-        if (bt) rect.setAttribute('transform', bt);
-        else rect.removeAttribute('transform');
+      el.addEventListener('mouseleave', () => {
+        const bt = el.getAttribute('data-base-transform');
+        if (bt) el.setAttribute('transform', bt);
+        else el.removeAttribute('transform');
       });
 
-      rect.addEventListener('mousedown', e => {
+      el.addEventListener('mousedown', e => {
         e.stopPropagation();
-        const bt = rect.getAttribute('data-base-transform');
-        if (bt) rect.setAttribute('transform', bt);
-        else rect.removeAttribute('transform');
+        const bt = el.getAttribute('data-base-transform');
+        if (bt) el.setAttribute('transform', bt);
+        else el.removeAttribute('transform');
         if (dragEnabled) startDrag(e, b);
       });
-      rect.addEventListener('touchstart', e => {
+      el.addEventListener('touchstart', e => {
         e.stopPropagation();
-        const bt = rect.getAttribute('data-base-transform');
-        if (bt) rect.setAttribute('transform', bt);
-        else rect.removeAttribute('transform');
+        const bt = el.getAttribute('data-base-transform');
+        if (bt) el.setAttribute('transform', bt);
+        else el.removeAttribute('transform');
         if (dragEnabled) startDrag(e, b);
       }, {passive:false});
 
-      rect.addEventListener('click', e => { e.stopPropagation(); handleBuildingClick(e, b); });
+      el.addEventListener('click', e => { e.stopPropagation(); handleBuildingClick(e, b); });
 
-      world.appendChild(rect);
+      world.appendChild(el);
 
       const align = b.align || 'top';
       const orient = b.orient || 'horizontal';
@@ -2475,8 +2567,54 @@ function getViewCenter(){
       });
     });
 
+    // Building polygon point handles (only when a single polygon building is selected)
+    if (selectedType === 'building' && selectedId) {
+      const b = (state.buildings || []).find(x => x.id === selectedId);
+      if (b && isPolyBuilding(b)) {
+        const angle = Number(b.angle) || 0;
+        const cx = b.x + b.w / 2;
+        const cy = b.y + b.h / 2;
+        const w = Number(b.w) || 1;
+        const h = Number(b.h) || 1;
+
+        (b.poly || []).forEach((pt, idx) => {
+          const u = Number(pt && pt.u);
+          const v = Number(pt && pt.v);
+          const ax = b.x + (Number.isFinite(u) ? u : 0) * w;
+          const ay = b.y + (Number.isFinite(v) ? v : 0) * h;
+          const rp = angle ? rotateAround(ax, ay, cx, cy, angle) : { x: ax, y: ay };
+
+          const hit = document.createElementNS(NS, 'circle');
+          hit.setAttribute('cx', rp.x);
+          hit.setAttribute('cy', rp.y);
+          hit.setAttribute('r', 30);
+          hit.setAttribute('fill', 'transparent');
+          // Use node-handle class so svg background-click logic doesn't clear selection.
+          hit.classList.add('node-handle', 'node-handle-hit');
+          hit.dataset.bid = b.id;
+          hit.dataset.pidx = String(idx);
+          hit.style.cursor = 'pointer';
+          hit.style.pointerEvents = 'all';
+          hit.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); startPolyPointDrag(e, b.id, idx); });
+          hit.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); startPolyPointDrag(e, b.id, idx); }, { passive:false });
+          handlesGroup.appendChild(hit);
+
+          const c = document.createElementNS(NS, 'circle');
+          c.setAttribute('cx', rp.x);
+          c.setAttribute('cy', rp.y);
+          c.setAttribute('r', 18);
+          c.setAttribute('fill', '#ffffff');
+          c.classList.add('node-handle','node-handle-visual');
+          c.style.pointerEvents = 'none';
+          handlesGroup.appendChild(c);
+        });
+      }
+    }
+
     world.appendChild(handlesGroup);
   }
+
+
 
 
 
@@ -2555,7 +2693,14 @@ function getViewCenter(){
 
   function clearRouteHighlight(){
     // Safely clear any active line/route highlight (and any stop highlights).
-    try { if (typeof analyticsActiveKey !== 'undefined') analyticsActiveKey = null; } catch(_) {}
+    try {
+      const A = window.__sicaAnalytics;
+      if (A && typeof A.setActiveKey === 'function') {
+        A.setActiveKey(null);
+        // Re-render the lists so the active item clears visually.
+        if (typeof A.buildFromState === 'function') A.buildFromState();
+      }
+    } catch(_) {}
     try { if (typeof highlightedStreetIdsForStops !== 'undefined') highlightedStreetIdsForStops = []; } catch(_) {}
     try { if (typeof stopHighlightIds !== 'undefined') stopHighlightIds = new Set(); } catch(_) {}
 
@@ -2614,12 +2759,18 @@ function renderAll(){
     applyWorldRotation();
 
     // Analytics panel: keep route/street lists and highlights in sync with the current state
-    if (typeof buildAnalyticsFromState === 'function') {
-      buildAnalyticsFromState();
-      if (analyticsActiveKey && analyticsGroups && analyticsGroups[analyticsActiveKey]) {
-        highlightAnalyticsGroup(analyticsActiveKey);
+    // (The analytics UI is implemented inside a nested IIFE; access it via window.__sicaAnalytics.)
+    try {
+      const A = window.__sicaAnalytics;
+      if (A && typeof A.buildFromState === 'function') {
+        A.buildFromState();
+        const k = (typeof A.getActiveKey === 'function') ? A.getActiveKey() : null;
+        const groups = (typeof A.getGroups === 'function') ? A.getGroups() : null;
+        if (k && groups && groups[k] && typeof A.highlightGroup === 'function') {
+          A.highlightGroup(k);
+        }
       }
-    }
+    } catch(_){ /* ignore analytics */ }
   }
 // --- Default tracing image autoload ---
   // If a sibling image named BrooklynMap.jpg exists, load it automatically as the tracing image.
@@ -2713,6 +2864,86 @@ function renderAll(){
       });
     });
 
+
+    // Building shape controls (rectangle by default; optional polygon + extra points)
+    const bShapeRectBtn = document.getElementById('bShapeRectBtn');
+    const bShapePolyBtn = document.getElementById('bShapePolyBtn');
+    const bPolyAddBtn   = document.getElementById('bPolyAddBtn');
+    const bPolyDelBtn   = document.getElementById('bPolyDelBtn');
+
+    const withSelectedBuilding = (fn) => {
+      if (!(selectedType === 'building' && selectedId)) return;
+      const b = (state.buildings || []).find(x => x.id === selectedId);
+      if (!b) return;
+      fn(b);
+    };
+
+    if (bShapeRectBtn) bShapeRectBtn.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      withSelectedBuilding((b)=>{
+        if (!b.poly) return;
+        pushHistory('Set building shape: rectangle');
+        delete b.poly;
+        renderAll();
+        selectBuilding(b.id);
+      });
+    });
+
+    if (bShapePolyBtn) bShapePolyBtn.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      withSelectedBuilding((b)=>{
+        if (isPolyBuilding(b)) return;
+        pushHistory('Set building shape: polygon');
+        ensureBuildingPoly(b);
+        renderAll();
+        selectBuilding(b.id);
+      });
+    });
+
+    if (bPolyAddBtn) bPolyAddBtn.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      withSelectedBuilding((b)=>{
+        pushHistory('Add polygon point');
+        ensureBuildingPoly(b);
+        const w = Number(b.w) || 1;
+        const h = Number(b.h) || 1;
+
+        // Insert at the midpoint of the longest edge (in pixel space)
+        let bestI = 0;
+        let bestLen = -1;
+        for (let i = 0; i < b.poly.length; i++) {
+          const a = b.poly[i];
+          const c = b.poly[(i + 1) % b.poly.length];
+          const ax = (Number(a.u) || 0) * w;
+          const ay = (Number(a.v) || 0) * h;
+          const cx = (Number(c.u) || 0) * w;
+          const cy = (Number(c.v) || 0) * h;
+          const len = Math.hypot(cx - ax, cy - ay);
+          if (len > bestLen) { bestLen = len; bestI = i; }
+        }
+        const p1 = b.poly[bestI];
+        const p2 = b.poly[(bestI + 1) % b.poly.length];
+        const nu = ((Number(p1.u) || 0) + (Number(p2.u) || 0)) / 2;
+        const nv = ((Number(p1.v) || 0) + (Number(p2.v) || 0)) / 2;
+        b.poly.splice(bestI + 1, 0, { u: nu, v: nv });
+
+        renderAll();
+        selectBuilding(b.id);
+      });
+    });
+
+    if (bPolyDelBtn) bPolyDelBtn.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      withSelectedBuilding((b)=>{
+        if (!isPolyBuilding(b)) return;
+        if (b.poly.length <= 3) return;
+        pushHistory('Remove polygon point');
+        b.poly.pop();
+        renderAll();
+        selectBuilding(b.id);
+      });
+    });
+
     // If the loaded map has a saved tracing image, restore it
     hydrateTraceFromState();
     // Default: keep the tracing image hidden on page load (even if a default image exists)
@@ -2803,8 +3034,8 @@ function renderAll(){
   }
 
 function clearAllRectTransforms(){
-    const rects = svg.querySelectorAll('rect.building');
-    rects.forEach(r => {
+    const els = svg.querySelectorAll('rect.building, polygon.building');
+    els.forEach(r => {
       const bt = r.getAttribute('data-base-transform');
       if (bt) r.setAttribute('transform', bt);
       else r.removeAttribute('transform');
@@ -2885,6 +3116,102 @@ function startNodeDrag(evt, streetId, idx){
     window.removeEventListener('touchmove', onNodeDrag);
     window.removeEventListener('mouseup', endNodeDrag);
     window.removeEventListener('touchend', endNodeDrag);
+  }
+
+
+  function startPolyPointDrag(evt, buildingId, idx){
+    evt.preventDefault();
+    evt.stopPropagation();
+
+    const b = (state.buildings || []).find(x => x.id === buildingId);
+    if (!b || !Array.isArray(b.poly) || b.poly.length <= idx) return;
+
+    const p0 = getWorldPoint(evt);
+    const _preHistoryJson = getUndoSnapshotJson();
+
+    const angle = Number(b.angle) || 0;
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    const w = Number(b.w) || 1;
+    const h = Number(b.h) || 1;
+
+    // Compute current vertex world position (matches the rendered handle position).
+    const curr = b.poly[idx] || { u: 0, v: 0 };
+    const cu = Number(curr.u); const cv = Number(curr.v);
+    const ax = b.x + (Number.isFinite(cu) ? cu : 0) * w;
+    const ay = b.y + (Number.isFinite(cv) ? cv : 0) * h;
+    const rp = angle ? rotateAround(ax, ay, cx, cy, angle) : { x: ax, y: ay };
+
+    // IMPORTANT: keep the grab offset so the point doesn't "snap" under the cursor.
+    const offx = p0.x - rp.x;
+    const offy = p0.y - rp.y;
+
+    polyPointDrag = {
+      id: buildingId,
+      idx,
+      offx,
+      offy,
+      _historyPre: _preHistoryJson,
+      _historyPushed: false
+    };
+
+    window.addEventListener('mousemove', onPolyPointDrag);
+    window.addEventListener('touchmove', onPolyPointDrag, {passive:false});
+    window.addEventListener('mouseup', endPolyPointDrag);
+    window.addEventListener('touchend', endPolyPointDrag);
+  }
+
+  function onPolyPointDrag(evt){
+    if (!polyPointDrag) return;
+    evt.preventDefault();
+
+    const b = (state.buildings || []).find(x => x.id === polyPointDrag.id);
+    if (!b || !Array.isArray(b.poly) || b.poly.length <= polyPointDrag.idx) return;
+
+    const p = getWorldPoint(evt);
+
+    const angle = Number(b.angle) || 0;
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+
+    // Apply the grab offset so dragging is stable and doesn't jump.
+    const tx = p.x - (Number(polyPointDrag.offx) || 0);
+    const ty = p.y - (Number(polyPointDrag.offy) || 0);
+
+    // Convert dragged world point back into the unrotated building-local frame.
+    const q = angle ? unrotateAround(tx, ty, cx, cy, angle) : { x: tx, y: ty };
+
+    const w = Number(b.w) || 1;
+    const h = Number(b.h) || 1;
+
+    let u = (q.x - b.x) / w;
+    let v = (q.y - b.y) / h;
+
+    if (!Number.isFinite(u)) u = 0;
+    if (!Number.isFinite(v)) v = 0;
+
+    // Keep values sane but give plenty of freedom so it doesn't feel "stuck".
+    u = Math.max(-10, Math.min(10, u));
+    v = Math.max(-10, Math.min(10, v));
+
+    const prev = b.poly[polyPointDrag.idx] || { u: 0, v: 0 };
+    if (!polyPointDrag._historyPushed && (u !== prev.u || v !== prev.v)) {
+      pushHistoryFromJson(polyPointDrag._historyPre, 'Move polygon point');
+      polyPointDrag._historyPushed = true;
+    }
+
+    b.poly[polyPointDrag.idx] = { u, v };
+
+    renderAll();
+  }
+
+  function endPolyPointDrag(){
+    if (!polyPointDrag) return;
+    polyPointDrag = null;
+    window.removeEventListener('mousemove', onPolyPointDrag);
+    window.removeEventListener('touchmove', onPolyPointDrag);
+    window.removeEventListener('mouseup', endPolyPointDrag);
+    window.removeEventListener('touchend', endPolyPointDrag);
   }
 
   function startStreetTranslate(evt, streetId) {
@@ -2991,6 +3318,7 @@ function showMultiInspector(){
     document.getElementById('bH').value = b.h;
     const bAngleEl = document.getElementById('bAngle');
     if (bAngleEl) bAngleEl.value = (typeof b.angle === 'number') ? b.angle : (b.angle || 0);
+    refreshBuildingShapeUI(b);
 
     const tEl = document.getElementById('inspectorTitle');
     if (tEl) tEl.textContent = (b.label && String(b.label).trim()) ? b.label : 'Building';
@@ -3052,8 +3380,14 @@ function showMultiInspector(){
 
     // Selecting a street from the inspector should activate the corresponding analytics group
     // unless the caller explicitly suppresses it (used for map-click selection).
-    if (!opts.suppressAnalyticsSync && typeof syncAnalyticsSelectionToStreet === 'function') {
-      syncAnalyticsSelectionToStreet(id);
+    if (!opts.suppressAnalyticsSync) {
+      // The analytics UI is implemented inside a nested IIFE; access it via window.__sicaAnalytics.
+      try {
+        const A = window.__sicaAnalytics;
+        if (A && typeof A.syncSelectionToStreet === 'function') {
+          A.syncSelectionToStreet(id);
+        }
+      } catch(_){ /* ignore analytics */ }
     }
   }
 
@@ -4017,6 +4351,7 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     nb.y = Number(nb.y) || 0;
     nb.w = Number(nb.w) || 40;
     nb.h = Number(nb.h) || 30;
+    nb.angle = Number(nb.angle) || 0;
     nb.label = nb.label || '';
     nb.type = nb.type || 'other';
     nb.color = nb.color || getFillForType(nb.type);
@@ -4024,7 +4359,19 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     nb.occupants = nb.occupants || '';
     nb.align = nb.align || 'top';
     nb.orient = nb.orient || 'horizontal';
-    nb.notes = nb.notes || ''; nb.usage = nb.usage || 'none'; nb.funding = nb.funding || 'none';
+    nb.notes = nb.notes || '';
+    nb.usage = nb.usage || 'none';
+    nb.funding = nb.funding || 'none';
+
+    if (Array.isArray(nb.poly)) {
+      const pts = nb.poly.map(p => ({
+        u: Number(p && (p.u != null ? p.u : p.x)),
+        v: Number(p && (p.v != null ? p.v : p.y))
+      })).filter(p => Number.isFinite(p.u) && Number.isFinite(p.v));
+      if (pts.length >= 3) nb.poly = pts;
+      else delete nb.poly;
+    }
+
     return nb;
   }
   function normalizeStreet(s){
@@ -4734,6 +5081,20 @@ document.getElementById('addStreetBtn').addEventListener('click', ()=>{
     svg.setAttribute('viewBox', `${vx} ${vy} ${newW} ${newH}`);
     applyWorldRotation();
   }
+
+	  // Expose analytics helpers to the main renderer.
+	  // The analytics UI lives inside this window-management IIFE, while renderAll/selectStreet live outside.
+	  try {
+	    window.__sicaAnalytics = {
+	      buildFromState: buildAnalyticsFromState,
+	      highlightGroup: highlightAnalyticsGroup,
+	      syncSelectionToStreet: syncAnalyticsSelectionToStreet,
+	      zoomToGroup: zoomToAnalyticsGroup,
+	      getActiveKey: () => analyticsActiveKey,
+	      setActiveKey: (k) => { analyticsActiveKey = k; },
+	      getGroups: () => analyticsGroups
+	    };
+	  } catch(_){ }
 // Apply saved positions/sizes on load
     applyWindowState('mapPanel');
     applyWindowState('infoPanel');
