@@ -592,24 +592,75 @@
       color:var(--muted);
       white-space:nowrap;
     }
+    /*
+      Street highlight: glow using the street's own stroke color (set via --glowColor on the element).
+      We "turn it up" by stacking multiple drop-shadows.
+      For darker/grey streets we also brighten the glow (same hue, higher value) via color-mix().
+    */
     .street.highlighted{
-      stroke:var(--accent) !important;
-      stroke-opacity:0.55;
-      filter:drop-shadow(0 0 4px rgba(110,231,183,0.25));
+      --glowBase: var(--glowColor, var(--accent));
+      --glowBright: var(--glowBase);
+      filter:
+        drop-shadow(0 0 1px var(--glowBase))
+        drop-shadow(0 0 4px var(--glowBright))
+        drop-shadow(0 0 10px var(--glowBright))
+        drop-shadow(0 0 18px var(--glowBright))
+        drop-shadow(0 0 28px var(--glowBright));
+    }
+    @supports (color: color-mix(in srgb, red 50%, white)){
+      .street.highlighted{
+        --glowBright: color-mix(in srgb, var(--glowBase) 45%, white);
+      }
     }
     text.highlighted{
-      fill:var(--accent) !important;
-      opacity:0.85;
+      --glowBase: var(--glowColor, var(--accent));
+      --glowBright: var(--glowBase);
+      opacity:0.9;
+      filter:
+        drop-shadow(0 0 3px rgba(0,0,0,0.65))
+        drop-shadow(0 0 4px var(--glowBright))
+        drop-shadow(0 0 10px var(--glowBright));
     }
-    /* Selection (street) highlight: subtle, transparent glow */
+    @supports (color: color-mix(in srgb, red 50%, white)){
+      text.highlighted{
+        --glowBright: color-mix(in srgb, var(--glowBase) 45%, white);
+      }
+    }
+    text.highlighted textPath{
+      fill:var(--glowBright, var(--glowColor, var(--accent))) !important;
+    }
+    /* Selection (street) highlight: stronger glow */
     .street.selected-street{
-      stroke:rgba(200,210,220,0.85) !important;
-      stroke-opacity:0.85;
-      filter:drop-shadow(0 0 3px rgba(255,255,255,0.18));
+      --glowBase: var(--glowColor, var(--accent));
+      --glowBright: var(--glowBase);
+      filter:
+        drop-shadow(0 0 2px var(--glowBase))
+        drop-shadow(0 0 6px var(--glowBright))
+        drop-shadow(0 0 14px var(--glowBright))
+        drop-shadow(0 0 24px var(--glowBright))
+        drop-shadow(0 0 36px var(--glowBright));
+    }
+    @supports (color: color-mix(in srgb, red 50%, white)){
+      .street.selected-street{
+        --glowBright: color-mix(in srgb, var(--glowBase) 35%, white);
+      }
     }
     text.selected-street{
-      fill:rgba(220,230,240,0.9) !important;
-      opacity:0.9;
+      --glowBase: var(--glowColor, var(--accent));
+      --glowBright: var(--glowBase);
+      opacity:0.95;
+      filter:
+        drop-shadow(0 0 3px rgba(0,0,0,0.65))
+        drop-shadow(0 0 6px var(--glowBright))
+        drop-shadow(0 0 14px var(--glowBright));
+    }
+    @supports (color: color-mix(in srgb, red 50%, white)){
+      text.selected-street{
+        --glowBright: color-mix(in srgb, var(--glowBase) 35%, white);
+      }
+    }
+    text.selected-street textPath{
+      fill:var(--glowBright, var(--glowColor, rgba(255,255,255,0.95))) !important;
     }
 </style>
 </head>
@@ -2391,7 +2442,9 @@ function getViewCenter(){
       const path = document.createElementNS(NS,'path');
       path.setAttribute('d', pathD);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', s.color || 'rgba(60,66,72,0.95)');
+      const strokeColor = s.color || 'rgba(60,66,72,0.95)';
+      path.setAttribute('stroke', strokeColor);
+      path.style.setProperty('--glowColor', strokeColor);
       path.setAttribute('stroke-width', s.width || 50);
       path.setAttribute('stroke-linecap', 'butt');
       path.setAttribute('stroke-linejoin', 'miter');
@@ -2426,6 +2479,7 @@ function getViewCenter(){
         const txt = document.createElementNS(NS,'text');
         txt.dataset.layer = layer;
         txt.dataset.streetId = s.id;
+        txt.style.setProperty('--glowColor', strokeColor);
         const tp = document.createElementNS(NS,'textPath');
         tp.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href', '#' + textPathId);
         tp.setAttribute('startOffset','50%');
