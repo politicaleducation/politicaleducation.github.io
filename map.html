@@ -46,7 +46,32 @@
       padding:8px;
       margin-bottom:4px;
     }
-    .row{
+    
+    /* Collapsible panels */
+    details.section.collapsible > summary{
+      cursor:pointer;
+      list-style:none;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-size:14px;
+      font-weight:600;
+      margin:0;
+      border-bottom:1px solid #374151;
+      padding:2px 0 4px 0;
+      user-select:none;
+    }
+    details.section.collapsible > summary::-webkit-details-marker{ display:none; }
+    details.section.collapsible > summary::after{
+      content:"▸";
+      font-size:12px;
+      opacity:0.85;
+      transform:rotate(0deg);
+      transition:transform 0.15s ease;
+    }
+    details.section.collapsible[open] > summary::after{ transform:rotate(90deg); }
+    details.section.collapsible > summary + *{ margin-top:6px; }
+.row{
       display:flex;
       gap:6px;
       align-items:center;
@@ -377,6 +402,16 @@
     .segBtn.active{ outline:2px solid rgba(148,163,184,.70); }
     .segLbl{ opacity:.9; }
 
+    /* Repo map list (GitHub Pages, /maps folder) */
+    .ghMapMeta{ font-size:11px; opacity:.75; margin-top:6px; line-height:1.2; }
+    .ghMapList{ margin-top:8px; display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto; padding-right:4px; }
+    .ghMapItem{ border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.03); border-radius:12px; padding:10px; display:flex; gap:10px; align-items:center; justify-content:space-between; }
+    .ghMapTitle{ min-width:0; flex:1 1 auto; }
+    .ghMapTitle b{ display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ghMapTitle span{ display:block; font-size:11px; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ghMapActions{ flex:0 0 auto; display:flex; gap:8px; align-items:center; }
+    .ghMapEmpty{ border:1px dashed rgba(255,255,255,.14); border-radius:12px; padding:10px; font-size:12px; opacity:.75; line-height:1.35; }
+
 </style>
 </head>
 <body>
@@ -384,8 +419,8 @@
   <div id="sidebarLeft" class="sidebar">
     <h1>Formation Trainer</h1>
 
-    <div class="section">
-      <div class="row"><span class="badge">Scale: 1 px = 1 ft @ 100% zoom</span></div>
+    <details class="section collapsible" id="instructionsSection">
+  <summary>Instructions</summary>
       <div class="row"><span>Pan: <strong>Drag empty space</strong></span></div>
       <div class="row"><span>Highlight: <strong>Shift + Drag</strong></span></div>
       <div class="row"><span>Select: <strong>Click</strong> (Cmd/Ctrl+Click to multi)</span></div>
@@ -393,12 +428,12 @@
       <div class="row"><span>Move soldier: <strong>Click-drag near soldier</strong></span></div>
       <div class="row"><span>Zoom: <strong>Mouse wheel</strong> (on canvas)</span></div>
       <div class="row"><span>Delete: <strong>Del</strong> (selected, else nearest)</span></div>
-    </div>
+    
+</details>
 
-    <div class="section">
-      <h2>Basic Tools</h2>
-
-      <div class="row" style="align-items:flex-start;">
+    <details class="section collapsible" id="basicToolsSection" open>
+  <summary>Basic Tools</summary>
+<div class="row" style="align-items:flex-start;">
         <label style="min-width:42px; padding-top:6px;">Tool:</label>
 
         <div style="flex:1;">
@@ -509,12 +544,12 @@
       </div>
 
       <div class="muted">Add things, then return to <strong>Select</strong> to edit/inspect.</div>
-    </div>
+    
+</details>
 
-    <div class="section" id="presetSection">
-      <h2>Formation + Movement Presets</h2>
-
-      <div class="row">
+    <details class="section collapsible" id="presetSection">
+  <summary>Formation + Movement Presets</summary>
+<div class="row">
         <label for="presetFormation">Formation:</label>
         <select id="presetFormation">
           <optgroup label="Basic">
@@ -589,19 +624,26 @@
       <div class="row">
         <button id="clearPresetPlanBtn" class="danger">Clear plan</button>
       </div>
-    </div>
+    
+</details>
 
-<div class="section">
-      <h2>Map</h2>
-      <div class="twoCol">
-        <button id="centerViewBtn">Center View</button>
-        <button id="toggleGridBtn">Grid: Off</button>
-      </div>
+<details class="section collapsible" id="mapSection">
+  <summary>Map</summary>
 <div class="row" style="margin-top:8px;">
         <button id="exportMapBtn">Save Map (JS)</button>
         <button id="importMapBtn">Import Map</button>
         <input id="importMapFile" type="file" accept=".js,.json" style="display:none;" />
       </div>
+
+      <div style="margin-top:10px;">
+        <div class="row">
+          <button id="githubMapRefreshBtn" type="button">Refresh maps folder</button>
+        </div>
+        <div id="githubMapMeta" class="ghMapMeta muted"></div>
+        <div id="githubMapList" class="ghMapList" aria-label="Repo maps list"></div>
+        <div class="muted" id="githubMapStatus" style="margin-top:6px;"></div>
+      </div>
+
       <div class="muted">
         Auto-loads <strong>formation_map_data.js</strong> if it’s in the same folder as this HTML.
       </div>
@@ -609,12 +651,9 @@
         Zoom: <span id="zoomReadout">100%</span> ·
         Pan: <span id="panReadout">0, 0</span>
       </div>
-    </div>
+    
+</details>
 
-    <div class="muted" style="margin-top:auto;">
-      This tool is about *to-scale spatial relationships*.
-      It is a map editor first: add soldiers, buildings, roads, and terrain — and edit them in the inspector on the right.
-    </div>
   </div>
 
   <!-- CENTER: canvas -->
@@ -633,9 +672,8 @@
       </select>
       </div>
       <div class="ctrlRow" id="mapTopRow2">
+      <button id="toggleGridBtn">Grid: Off</button>
       <button id="toggleFullViewBtn" title="Hide the side panels (stays in browser window)">Full screen: Off</button>
-      <button id="simPlayBtn">Play</button>
-      <button id="simResetBtn" title="Reset sim time and restore starting positions">Reset</button>
       <label class="simLbl" for="simSpeed">Speed</label>
       <input id="simSpeed" type="range" min="0.25" max="4" step="0.25" value="1" />
       <span id="simSpeedReadout" class="mono">1.00x</span>
@@ -643,6 +681,8 @@
       <span id="simTimeReadout" class="mono">t=0.0s</span>
       </div>
         <div class="ctrlRow" id="mapTopRow3">
+       <button id="simPlayBtn">Play</button>
+       <button id="simResetBtn" title="Reset sim time and restore starting positions">Reset</button>
         <div class="topScorecard" aria-label="Scoreboard">
           <div class="scorePill friendly">
             <div class="lbl" id="scoreTeamLabel">Friendly</div>
@@ -677,29 +717,30 @@
 
 <div class="section" id="inspectorBody">
       <div class="muted">
-        Choose <strong>Select / Inspect</strong>, then click an object (or drag empty space to marquee-select).
-        You’ll be able to edit terrain type and road width here.
+        Choose <strong>Select / Inspect</strong>, then click an object
       </div>
     </div>
 
-    <div class="section">
-      <h2>Selection Actions</h2>
-      <div class="row">
+    <details class="section collapsible" id="selectionActionsSection">
+  <summary>Selection Actions</summary>
+<div class="row">
         <button id="deleteSelectedBtn" class="danger" disabled>Delete Selected</button>
         <button id="duplicateSelectedBtn" disabled>Duplicate</button>
         <button id="deselectAllBtn" disabled>Deselect All</button>
       </div>
       <div class="muted">Keyboard: <strong>Del</strong> deletes the selected item (or nearest item if none selected).</div>
-    </div>
+    
+</details>
 
-    <div class="section">
-      <h2>Notes</h2>
-      <textarea id="mapNotes" placeholder="Freeform notes (stored in this file only while it’s open)"></textarea>
-    </div>
+    <details class="section collapsible" id="notesSection">
+  <summary>Notes</summary>
+<textarea id="mapNotes" placeholder="Freeform notes (stored in this file only while it’s open)"></textarea>
+    
+</details>
 
-    <div class="section">
-      <h2>Image Overlay</h2>
-      <div class="muted">Upload a map image and align it under your drawings so you can trace over it.</div>
+    <details class="section collapsible" id="overlaySection">
+  <summary>Image Overlay</summary>
+<div class="muted">Upload a map image and align it under your drawings so you can trace over it.</div>
       <div class="row">
         <input type="file" id="overlayFile" accept="image/*" style="display:none;">
         <button id="overlayUploadBtn">Upload Image</button>
@@ -752,7 +793,8 @@
       </div>
 
       <div class="muted">Tip: enable <strong>Drag overlay</strong>, then drag on the map to align. Disable it to select/move units normally.</div>
-    </div>
+    
+</details>
   </div>
 
 <script>
@@ -2989,6 +3031,10 @@ window.FORMATION_MAP_DATA = ${JSON.stringify(data, null, 2)};
   const exportMapBtn = document.getElementById("exportMapBtn");
   const importMapBtn = document.getElementById("importMapBtn");
   const importMapFile = document.getElementById("importMapFile");
+  const githubMapRefreshBtn = document.getElementById("githubMapRefreshBtn");
+  const githubMapMeta = document.getElementById("githubMapMeta");
+  const githubMapList = document.getElementById("githubMapList");
+  const githubMapStatus = document.getElementById("githubMapStatus");
   const toggleRangesBtn = document.getElementById("toggleRangesBtn");
   const toggleConesBtn = document.getElementById("toggleConesBtn");
   const sightStepSelect = document.getElementById("sightStepSelect");
@@ -4819,14 +4865,6 @@ if(kind === "road"){
       inspectorBody.innerHTML = `
         <div class="muted">
           Choose <strong>Select / Inspect</strong>, then click an object (or drag empty space to marquee-select).
-          <div class="hr"></div>
-          <div>Editable here:</div>
-          <ul style="margin:6px 0 0 18px; padding:0; font-size:11px; color:#9ca3af;">
-            <li>Road: width + type</li>
-            <li>Terrain: type + opacity</li>
-            <li>Building: size</li>
-            <li>Soldier: side + radius</li>
-          </ul>
         </div>
       `;
       return;
@@ -5879,6 +5917,258 @@ finishShapeBtn.addEventListener("click", ()=>{
     importMapFile.value = ""; // allow re-importing same file
   });
 
+  // --- GitHub map loader (lists files from /maps in the repo) ---
+  const _ghState = { auto: null, maps: [] };
+
+  function _setGitHubStatus(msg){
+    if(githubMapStatus) githubMapStatus.textContent = String(msg || "");
+  }
+
+  function _setGitHubMeta(cfg){
+    if(!githubMapMeta) return;
+    if(!cfg){
+      githubMapMeta.textContent = "";
+      return;
+    }
+    const folder = cfg.dir ? cfg.dir : "maps";
+    githubMapMeta.textContent = `Repo: ${cfg.owner}/${cfg.repo} · Branch: ${cfg.branch} · Folder: ${folder}`;
+  }
+
+function _renderGitHubMapList(files){
+    if(!githubMapList) return;
+    githubMapList.innerHTML = "";
+
+    if(!files || files.length === 0){
+      githubMapList.innerHTML = '<div class="ghMapEmpty">No map files found in <b>/maps</b>. Put files like <b>WoodsMap.js</b> (or a JSON save) into the <b>maps</b> folder in the repo, then click <b>Refresh maps folder</b>.</div>';
+      return;
+    }
+
+    for(const f of files){
+      const label = String(f && f.name ? f.name : "").replace(/\.(js|json)$/i, "");
+      const item = document.createElement("div");
+      item.className = "ghMapItem";
+
+      const title = document.createElement("div");
+      title.className = "ghMapTitle";
+      title.innerHTML = `<b>${escapeHtml(label)}</b><span>${escapeHtml(f.path || f.name || "")}</span>`;
+
+      const actions = document.createElement("div");
+      actions.className = "ghMapActions";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Load";
+      btn.addEventListener("click", ()=> loadGitHubMapFromUrl(f.url));
+      actions.appendChild(btn);
+
+      item.appendChild(title);
+      item.appendChild(actions);
+      githubMapList.appendChild(item);
+    }
+  }
+
+  function _parseOwnerRepo(s){
+    const m = String(s || "").trim().match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+    return m ? { owner: m[1], repo: m[2] } : null;
+  }
+
+  function _cleanPath(p){
+    const raw = String(p || "").trim();
+    if(!raw || raw === "." || raw === "/") return "";
+    return raw.replace(/^\/+/, "").replace(/\/+$/, "");
+  }
+
+  function _joinPaths(a, b){
+    const aa = _cleanPath(a);
+    const bb = _cleanPath(b);
+    if(!aa && !bb) return "";
+    if(!aa) return bb;
+    if(!bb) return aa;
+    return aa + "/" + bb;
+  }
+
+  function _encodePath(pathStr){
+    const p = _cleanPath(pathStr);
+    if(!p) return "";
+    return p.split("/").map(encodeURIComponent).join("/");
+  }
+
+  async function _fetchJson(url){
+    const r = await fetch(url, {
+      headers: {
+        "Accept": "application/vnd.github+json"
+      }
+    });
+    if(!r.ok) throw new Error("GitHub request failed: " + r.status + " " + r.statusText);
+    return await r.json();
+  }
+
+  async function _tryGetPagesSource(owner, repo){
+    try{
+      const j = await _fetchJson(`https://api.github.com/repos/${owner}/${repo}/pages`);
+      const src = j && j.source ? j.source : null;
+      if(src && typeof src.branch === "string"){
+        const branch = src.branch;
+        const basePath = (typeof src.path === "string") ? src.path : "/";
+        return { branch, basePath };
+      }
+    }catch(_e){
+      // pages endpoint may 404; ignore
+    }
+    return null;
+  }
+
+  async function _getDefaultBranch(owner, repo){
+    const j = await _fetchJson(`https://api.github.com/repos/${owner}/${repo}`);
+    return (j && typeof j.default_branch === "string") ? j.default_branch : "main";
+  }
+
+  async function _autoDetectGitHubConfig(){
+    const host = String(location.hostname || "");
+    if(!/github\.io$/i.test(host)) return null;
+
+    const owner = host.split(".")[0];
+    const path = String(location.pathname || "/");
+    const parts = path.replace(/^\/+/, "").split("/").filter(Boolean);
+
+    const urlHasTrailingSlash = path.endsWith("/");
+    const urlDirParts = urlHasTrailingSlash ? parts : parts.slice(0, -1);
+
+    // Candidate repo: project pages usually include repo as first segment: /<repo>/...
+    const candidateRepo = (parts.length && !parts[0].includes(".")) ? parts[0] : null;
+
+    async function repoExists(repo){
+      if(!repo) return false;
+      try{
+        const r = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+          headers: { "Accept": "application/vnd.github+json" }
+        });
+        return r.ok;
+      }catch(_e){
+        return false;
+      }
+    }
+
+    let repo = null;
+    let urlDirRel = null;
+
+    if(candidateRepo && await repoExists(candidateRepo)){
+      repo = candidateRepo;
+      urlDirRel = urlDirParts.slice(1).join("/");
+    } else {
+      const userRepo = `${owner}.github.io`;
+      if(await repoExists(userRepo)){
+        repo = userRepo;
+        urlDirRel = urlDirParts.join("/");
+      } else {
+        return null;
+      }
+    }
+
+    // Prefer Pages source branch + base path when available (handles gh-pages and /docs).
+    const pages = await _tryGetPagesSource(owner, repo);
+    if(pages){
+      const basePath = _cleanPath(pages.basePath);
+      const dir = _joinPaths(basePath, urlDirRel);
+      return { owner, repo, branch: pages.branch, dir, basePath };
+    }
+
+    // Fallback to default branch, no base path
+    const branch = await _getDefaultBranch(owner, repo);
+    return { owner, repo, branch, dir: _cleanPath(urlDirRel), basePath: "" };
+  }
+
+  async function _resolveGitHubConfig(){
+    // Auto-detect (github.io only). We intentionally keep this UI clean: no repo/folder inputs.
+    if(!_ghState.auto){
+      _ghState.auto = await _autoDetectGitHubConfig();
+    }
+    return _ghState.auto;
+  }
+
+  async function refreshGitHubMapList(){
+    if(!githubMapList) return;
+
+    _setGitHubStatus("");
+    _setGitHubMeta(null);
+    githubMapList.innerHTML = '<div class="ghMapEmpty">Loading…</div>';
+
+    let cfg = null;
+    try{
+      cfg = await _resolveGitHubConfig();
+    }catch(err){
+      console.error(err);
+      _setGitHubStatus(err && err.message ? err.message : String(err));
+      githubMapList.innerHTML = '<div class="ghMapEmpty">Refresh failed.<\/div>';
+      return;
+    }
+
+    if(!cfg){
+      _setGitHubStatus('No GitHub Pages repo detected for this page.');
+      githubMapList.innerHTML = '<div class="ghMapEmpty">Repo map list is available when this page is hosted on <b>github.io</b> (GitHub Pages). Open this HTML from your GitHub Pages site, and keep your map files in the <b>maps</b> folder in the repo.</div>';
+      return;
+    }
+
+    const owner = cfg.owner, repo = cfg.repo, branch = cfg.branch;
+    const mapsDir = _joinPaths(cfg.basePath || "", "maps");
+    _setGitHubMeta({ ...cfg, dir: mapsDir || "maps" });
+
+    try{
+      const pth = _encodePath(mapsDir || "maps");
+      const base = `https://api.github.com/repos/${owner}/${repo}/contents`;
+      const url = `${base}/${pth}?ref=${encodeURIComponent(branch)}`;
+      const listing = await _fetchJson(url);
+
+      if(!Array.isArray(listing)){
+        throw new Error('GitHub contents API returned an unexpected response (expected a folder listing).');
+      }
+
+      const files = listing
+        .filter(it => it && it.type === 'file' && typeof it.name === 'string' && /\.(js|json)$/i.test(it.name) && typeof it.download_url === 'string')
+        .map(it => ({ name: it.name, url: it.download_url, path: (mapsDir || "maps") + "/" + it.name }));
+
+      files.sort((a,b)=> a.name.localeCompare(b.name));
+      _ghState.maps = files;
+
+      if(files.length === 0){
+        _renderGitHubMapList([]);
+        _setGitHubStatus(`Looking in ${owner}/${repo} @ ${branch} : ${mapsDir || "maps"} (only files in /maps with .js or .json are listed).`);
+        return;
+      }
+
+      _renderGitHubMapList(files);
+      _setGitHubStatus(`Found ${files.length} map file(s) in ${owner}/${repo} @ ${branch} : ${mapsDir || "maps"}.`);
+    }catch(err){
+      console.error(err);
+      githubMapList.innerHTML = '<div class="ghMapEmpty">Refresh failed.<\/div>';
+      _setGitHubStatus(err && err.message ? err.message : String(err));
+    }
+  }
+
+  async function loadGitHubMapFromUrl(url){
+    const u = String(url || '').trim();
+    if(!u) return;
+
+    try{
+      _setGitHubStatus('Loading map...');
+      const r = await fetch(u, { cache: 'no-store' });
+      if(!r.ok) throw new Error('Failed to fetch map file: ' + r.status + ' ' + r.statusText);
+      const text = await r.text();
+      importMapFromText(text);
+      _setGitHubStatus('Loaded.');
+    }catch(err){
+      console.error(err);
+      _setGitHubStatus(err && err.message ? err.message : String(err));
+      alert('GitHub load failed. Make sure the file is a valid JSON save, or a JS file that sets window.FORMATION_MAP_DATA.');
+    }
+  }
+
+  if(githubMapRefreshBtn){
+    githubMapRefreshBtn.addEventListener('click', ()=>{ refreshGitHubMapList(); });
+  }
+
+  // If we can detect a GitHub Pages repo, populate the list on load.
+  refreshGitHubMapList();
+
   // --- Image overlay controls ---
   if(overlayUploadBtn && overlayFile){
     overlayUploadBtn.addEventListener("click", ()=> overlayFile.click());
@@ -5986,13 +6276,24 @@ finishShapeBtn.addEventListener("click", ()=>{
   syncOverlayUI();
 
 
-  centerViewBtn.addEventListener("click", ()=>{
+  if(centerViewBtn){
+
+
+
+    centerViewBtn.addEventListener("click", ()=>{
     state.panX = (container.clientWidth/2);
     state.panY = (container.clientHeight/2);
     state.zoom = 1;
     updateCursor();
     draw();
-  });
+
+
+
+    });
+
+
+
+  }
 
   toggleGridBtn.addEventListener("click", ()=>{
     state.showGrid = !state.showGrid;
