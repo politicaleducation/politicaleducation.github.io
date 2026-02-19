@@ -1,0 +1,1405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ICE — Timeline + Metrics</title>
+  <style>
+    :root{
+      --bg:#0b0c10;
+      --panel:#12141c;
+      --panel2:#0f1118;
+      --text:#e7e7ea;
+      --muted:#c7cad6;
+      --stroke:#222636;
+      --accent:#6ee7ff;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background:linear-gradient(180deg,var(--bg),#07070b);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter:saturate(130%) blur(10px);
+      background:rgba(11,12,16,.72);
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .wrap{max-width:1440px; margin:0 auto; padding:8px 12px;}
+    .top{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+    h1{font-size:13px; margin:0; font-weight:650; letter-spacing:.2px;}
+    .tiny{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .pillrow{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+
+    .mainTop{margin:6px 0 8px; justify-content:flex-start;}
+
+    .legend{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .legendBelow{margin:10px 0 6px; justify-content:flex-start;}
+    .legendItem{display:flex; gap:6px; align-items:center;}
+    .swatch{width:10px; height:10px; border-radius:3px; border:1px solid rgba(255,255,255,.18);}
+    .legendLabel{font-size:11px; color:var(--muted); white-space:nowrap;}
+    .pill{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(18,20,28,.75);
+      padding:6px 10px;
+      border-radius:999px;
+      color:var(--muted);
+      cursor:pointer;
+      user-select:none;
+    }
+    .pill:hover{border-color:rgba(255,255,255,.16); color:var(--text)}
+    .pill.active{border-color:rgba(110,231,255,.55); color:var(--text)}
+    .timeline-wrap{
+      margin-top:10px;
+    }
+
+    .readoutRow{
+      margin-top:10px;
+      display:flex;
+      justify-content:center;
+      align-items:stretch;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .playDock{
+      display:flex;
+      align-items:stretch;
+    }
+    .timelineHead{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      margin-bottom:10px;
+    }
+    .transport{
+      display:flex;
+      height:100%;
+      justify-content:center;
+      gap:8px;
+      align-items:center;
+      padding:4px;
+      border-radius:999px;
+      background:rgba(18,20,28,.35);
+      border:1px solid rgba(255,255,255,.10);
+      opacity:.92;
+      transition:opacity .15s ease;
+    }
+    .tlabel{
+      font-size:11px;
+      letter-spacing:.12em;
+      color:rgba(231,231,234,0.78);
+      padding:0 10px 0 12px;
+      user-select:none;
+    }
+    .transport.playing{
+      opacity:1;
+      border-color:rgba(110,231,255,0.22);
+      background:rgba(18,20,28,.50);
+    }
+    .transport.playing #tPlay{
+      border-color:rgba(110,231,255,0.38);
+    }
+    .timeline-wrap:hover .transport{opacity:1}
+                .tbtn{
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(18,20,28,.58);
+      color:rgba(231,231,234,.96);
+      cursor:pointer;
+      pointer-events:auto;
+      display:grid;
+      place-items:center;
+      padding:0;
+      line-height:1;
+      font-size:16px;
+    }
+    .tbtn:hover{border-color:rgba(255,255,255,.20)}
+    .tbtn:active{transform:translateY(1px)}
+    .timeline{
+      margin-top:0px;
+      display:flex;
+      gap:8px;
+      overflow:auto;
+      scroll-snap-type:x mandatory;
+      padding:0 var(--tSide, 0px) 6px;
+      scrollbar-width:none;
+      -ms-overflow-style:none;
+    }
+    .timeline::-webkit-scrollbar{display:none;}
+    .checkpoint{
+      min-width:320px;
+      max-width:420px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(18,20,28,.55);
+      border-radius:var(--radius);
+      padding:6px 10px 6px;
+      cursor:pointer;
+      position:relative;
+      overflow:hidden;
+      scroll-snap-align:center;
+    }
+    .checkpoint::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      width:calc(var(--p, 0) * 100%);
+      background:rgba(110,231,255,.12);
+      z-index:0;
+    }
+    .checkpoint > *{position:relative; z-index:1}
+    .checkpoint:hover{border-color:rgba(255,255,255,.16)}
+    .checkpoint.active{border-color:rgba(110,231,255,.55); box-shadow:0 0 0 2px rgba(110,231,255,.10) inset}
+
+    .cp-line{
+      display:flex;
+      align-items:baseline;
+      gap:6px;
+      white-space:nowrap;
+      overflow:hidden;
+    }
+    .cp-year, .cp-potus{
+      font-size:11px;
+      color:var(--muted);
+      flex:0 0 auto;
+    }
+    .cp-sep{
+      color:rgba(231,231,234,0.35);
+      flex:0 0 auto;
+    }
+    .cp-title{
+      font-size:12px;
+      font-weight:620;
+      flex:1 1 auto;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .cp-detail{
+      font-size:10.5px;
+      margin-top:3px;
+      color:var(--muted);
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+    main{padding:8px 0 14px;}
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+    }
+    
+    .yearReadout{
+      margin:0;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(0,0,0,.08);
+      border-radius:12px;
+      padding:6px;
+      overflow:auto;
+      width:fit-content;
+      max-width:100%;
+    }
+    .yrTitle{
+      font-size:11px;
+      font-weight:650;
+      color:var(--text);
+      margin:0 0 6px;
+      letter-spacing:.2px;
+      white-space:nowrap;
+    }
+    .yrTitle span{ color:var(--accent); }
+
+    table.yrTable{
+      width:auto;
+      border-collapse:collapse;
+      min-width:0;
+    }
+    .yrTable thead th{
+      color:rgba(231,231,234,0.9);
+      font-size:10px;
+      font-weight:650;
+      padding:5px 6px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      text-align:right;
+      white-space:nowrap;
+    }
+    .yrTable thead th:first-child{ text-align:left; }
+    .yrTable tbody th{
+      color:rgba(231,231,234,0.88);
+      font-weight:650;
+      font-size:10px;
+      padding:5px 6px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      text-align:left;
+      white-space:nowrap;
+    }
+    .yrTable tbody td{
+      color:rgba(231,231,234,0.88);
+      font-size:10px;
+      font-variant-numeric: tabular-nums;
+      padding:5px 6px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      text-align:right;
+      white-space:nowrap;
+    }
+    .yrTable tbody tr:last-child th,
+    .yrTable tbody tr:last-child td{ border-bottom:none; }
+
+    .yearReadout.empty .yrTitle span{ color:rgba(231,231,234,0.6); }
+@media (max-width: 900px){
+      .grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 640px){
+      .grid{ grid-template-columns:1fr; }
+    }
+.deepDives{
+  margin-top:12px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(0,0,0,.06);
+  border-radius:var(--radius);
+  padding:10px;
+}
+.deepHead{display:flex; flex-direction:column; gap:4px; margin-bottom:10px;}
+.sectionTitle{margin:0; font-size:12.5px; font-weight:700; letter-spacing:.2px;}
+.sectionSub{margin:0; font-size:11px; color:rgba(231,231,234,0.78); max-width:980px;}
+
+.deepGrid{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.deepCard{ padding:12px; }
+.deepRow{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);
+  gap:14px;
+  align-items:start;
+}
+.deepChartWrap{ height:260px; }
+.deepArticle{
+  padding:2px 0 2px 12px;
+  border-left:1px solid rgba(255,255,255,.08);
+}
+.deepKicker{
+  margin:0 0 6px;
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:rgba(231,231,234,0.68);
+}
+.deepH3{ margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:.2px; }
+.deepP{ margin:0 0 8px; font-size:12px; line-height:1.45; color:rgba(231,231,234,0.84); }
+.deepP:last-child{ margin-bottom:0; }
+
+@media (max-width: 900px){
+  .deepRow{ grid-template-columns:1fr; }
+  .deepArticle{ border-left:none; border-top:1px solid rgba(255,255,255,.08); padding:10px 0 0; }
+}
+
+    .card{
+      border:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg, rgba(18,20,28,.78), rgba(15,17,24,.72));
+      border-radius:var(--radius);
+      padding:8px;
+    }
+    .cardhead{
+      display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+      margin-bottom:6px;
+    }
+    .cardheadLeft{display:flex; flex-direction:column; gap:2px; min-width:0;}
+    .cardmeta{font-size:10.5px; color:rgba(231,231,234,0.78); margin:0; line-height:1.15;}
+
+    .cardheadRight{display:flex; flex-direction:row; align-items:baseline; justify-content:flex-end; gap:10px;}
+    .cardmetaRight{font-size:10.5px; color:rgba(231,231,234,0.78); margin:0; line-height:1.15; text-align:right; white-space:nowrap;}
+
+    .cardtitle{font-size:12px; font-weight:650; color:var(--text); margin:0;}
+    .cardsub{font-size:10.5px; color:var(--muted); margin:0; text-align:right;}
+    .canvasbox{height:175px; position:relative;}
+    footer{
+      border-top:1px solid rgba(255,255,255,.06);
+      color:var(--muted);
+      font-size:12px;
+      padding:10px 0 14px;
+    }
+    details{
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);
+      padding:10px 10px;
+      background:rgba(18,20,28,.55);
+    }
+    summary{cursor:pointer; color:var(--text); font-weight:600}
+    ul{margin:8px 0 0 18px; padding:0}
+    li{margin:4px 0}
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="timeline-wrap" aria-label="timeline">
+      <div class="timeline" id="timeline" aria-label="timeline checkpoints"></div>
+    </div>
+    <div class="readoutRow" aria-label="controls and readout">
+      <div class="playDock" aria-label="play controls">
+        <div class="transport" id="transport" aria-label="time controls">
+          <button class="tbtn" id="tPrev" type="button" aria-label="Previous time step" title="Previous">⏮</button>
+          <button class="tbtn" id="tPlay" type="button" aria-label="Play/Pause timeline" title="Play/Pause">⏵</button>
+          <button class="tbtn" id="tNext" type="button" aria-label="Next time step" title="Next">⏭</button>
+        </div>
+      </div>
+
+    <section class="yearReadout" id="yearReadout" aria-label="Year stats readout">
+<table class="yrTable">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Budget</th>
+            <th scope="col">Apprehensions</th>
+            <th scope="col">Deportations</th>
+            <th scope="col">Arrests</th>
+            <th scope="col">Deaths</th>
+            <th scope="col">Staffing</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Cumulative</th>
+            <td id="yr_budget_c">—</td>
+            <td id="yr_arrests_c">—</td>
+            <td id="yr_apprehensions_c">—</td>
+            <td id="yr_deportations_c">—</td>
+            <td id="yr_deaths_c">—</td>
+            <td id="yr_staffing_c">—</td>
+          </tr>
+          <tr>
+            <th scope="row" id="yr_year_label">—</th>
+            <td id="yr_budget_y">—</td>
+            <td id="yr_arrests_y">—</td>
+            <td id="yr_apprehensions_y">—</td>
+            <td id="yr_deportations_y">—</td>
+            <td id="yr_deaths_y">—</td>
+            <td id="yr_staffing_y">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    </div>
+
+<div class="grid" id="chartsGrid"></div>
+
+<section class="deepDives" aria-label="deep dives by president">
+  <div class="deepHead">
+    <h2 class="sectionTitle">Deep dives by presidency</h2>
+    <p class="sectionSub">Zoomed-in charts with a bit of context for each administration.</p>
+  </div>
+  <div class="deepGrid" id="deepGrid"></div>
+</section>
+
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+/* Embedded from ice_data.js */
+// Edit this file. The dashboard HTML loads it via <script src="ice_history_data_split.js"><\/script>.
+// Keep it simple: just update numbers/strings, save, then refresh the HTML page.
+// NOTE (2026-02):
+// - 'apprehensions' is reserved for larger aggregate "Enforcement Actions".
+// - 'arrests' is a mixed series here to avoid a discontinuity:
+//     * FY2003: ICE detentions (estimated; backcast from FY2004–FY2006 trend)
+//     * FY2004–FY2008: ICE detentions (proxy for broader interior enforcement volume)
+//     * FY2009+: ICE ERO/DRO administrative arrests
+//   (If you later want a clean series, add a dedicated 'detentions' field and revert 'arrests' to ERO-only.)
+
+// SOURCES (custody deaths / deaths in custody)
+// - The American Prospect tracker (posted Jan 29, 2026; updated Feb 10, 2026):
+//   https://prospect.org/2026/01/29/ice-trump-killed-injured-list-dhs-cbp-border-patrol-renee-good-alex-pretti/
+//   NOTE: When updating from this source, use CALENDAR-YEAR totals (not FY) and combine “deaths” + “deaths in custody”
+//   into the single field: `custody_deaths` below.
+
+
+window.ICE_DASHBOARD_DATA = {
+  embeddedData: [
+  // Layout-first starter values (replace with verified annual series)
+  { year: 2002, potus: "Bush", budget_nominal_usd: 3100000000, fte: 15000, custody_deaths: null, apprehensions: null, arrests: null, ice_criminal_arrests: null, removals: null, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2003, potus: "Bush", budget_nominal_usd: 3100000000, fte: 15000, custody_deaths: 3, apprehensions: 1046422, arrests: 224450, ice_criminal_arrests: null, removals: 211098, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2004, potus: "", budget_nominal_usd: 3300000000, fte: 16000, custody_deaths: 21, apprehensions: 1264232, arrests: 235247, ice_criminal_arrests: 9455, removals: 240665, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2005, potus: "", budget_nominal_usd: 3600000000, fte: 17000, custody_deaths: 25, apprehensions: 1291142, arrests: 237667, ice_criminal_arrests: 9874, removals: 246431, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2006, potus: "Bush", budget_nominal_usd: 4000000000, fte: 18000, custody_deaths: 26, apprehensions: 1206457, arrests: 256842, ice_criminal_arrests: 8778, removals: 280974, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2007, potus: "", budget_nominal_usd: 4300000000, fte: 19000, custody_deaths: 28, apprehensions: 960756, arrests: 311169, ice_criminal_arrests: null, removals: 319382, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2008, potus: "", budget_nominal_usd: 4800000000, fte: 20000, custody_deaths: 11, apprehensions: 1043863, arrests: 378582, ice_criminal_arrests: null, removals: 369221, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2009, potus: "Obama", budget_nominal_usd: 5200000000, fte: 20500, custody_deaths: 14, apprehensions: 889203, arrests: 297898, removals: 389834, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2010, potus: "", budget_nominal_usd: 5600000000, fte: 21000, custody_deaths: 8, apprehensions: 796587, arrests: 272384, removals: 392862, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2011, potus: "", budget_nominal_usd: 5800000000, fte: 21200, custody_deaths: 10, apprehensions: 678606, arrests: 288392, removals: 396906, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2012, potus: "Obama", budget_nominal_usd: 6000000000, fte: 21500, custody_deaths: 8, apprehensions: 671327, arrests: 265573, removals: 409849, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2013, potus: "", budget_nominal_usd: 6200000000, fte: 22000, custody_deaths: 9, apprehensions: 662483, arrests: 232287, removals: 368644, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2014, potus: "Obama", budget_nominal_usd: 6500000000, fte: 22500, custody_deaths: 6, apprehensions: 588875, arrests: 183703, removals: 315943, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2015, potus: "", budget_nominal_usd: 6600000000, fte: 23000, custody_deaths: 7, apprehensions: 462388, arrests: 119772, removals: 235413, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2016, potus: "", budget_nominal_usd: 6900000000, fte: 23500, custody_deaths: 10, apprehensions: 530250, arrests: 110104, removals: 240255, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2017, potus: "Trump", budget_nominal_usd: 7400000000, fte: 24000, custody_deaths: 12, apprehensions: 526901, arrests: 143470, removals: 226119, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2018, potus: "Trump", budget_nominal_usd: 7800000000, fte: 25000, custody_deaths: 9, apprehensions: 683178, arrests: 158581, removals: 256085, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2019, potus: "", budget_nominal_usd: 8000000000, fte: 26000, custody_deaths: 8, apprehensions: 1148024, arrests: 143099, removals: 267258, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2020, potus: "", budget_nominal_usd: 8200000000, fte: 26500, custody_deaths: 21, apprehensions: 646822, arrests: 103603, removals: 185884, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2021, potus: "Biden", budget_nominal_usd: 8700000000, fte: 27000, custody_deaths: 5, apprehensions: 1956519, arrests: 74082, removals: 59011, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2022, potus: "", budget_nominal_usd: 8900000000, fte: 27500, custody_deaths: 3, apprehensions: 2766582, arrests: 142750, removals: 72177, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2023, potus: "", budget_nominal_usd: 9100000000, fte: 28000, custody_deaths: 4, apprehensions: 3201144, arrests: 170590, removals: 142580, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2024, potus: "Biden", budget_nominal_usd: 9300000000, fte: 28200, custody_deaths:  12, apprehensions: 2901142, arrests: 113431, removals: 271484, injuries_in_custody: null, missing_persons_in_custody: null },
+  { year: 2025, potus: "Trump", budget_nominal_usd: 9500000000, fte: 28500, custody_deaths:  69, apprehensions: 691906, arrests: 400000, removals: 622000, injuries_in_custody: null, missing_persons_in_custody: null }
+],
+  checkpoints: [
+  { year: 2002, potus: "Bush", title: "DHS created", detail: "Homeland Security Act reorganizes federal enforcement." },
+  { year: 2003, potus: "Bush", title: "ICE created", detail: "ICE created inside DHS; merges legacy functions." },
+  { year: 2004, potus: "Bush", title: "Bush Re-elected", detail: "Bush Wins Second Term." },
+  { year: 2006, potus: "Bush", title: "Secure Fence era", detail: "Border + interior enforcement expansion." },
+  { year: 2008, potus: "Obama", title: "Obama Elected", detail: "Obama Era Begins." },
+  { year: 2009, potus: "Obama", title: "Secure Communities expands", detail: "Local-jail data sharing scales up." },
+  { year: 2012, potus: "Obama", title: "Obama Re-Elected", detail: "Obama Wins Second Term." },
+  { year: 2014, potus: "Obama", title: "Family detention surge", detail: "New facilities + contracts." },
+  { year: 2016, potus: "Trump", title: "Trump Elected", detail: "Trump Wins 1st Term." },
+  { year: 2017, potus: "Trump", title: "Interior enforcement EO", detail: "Expanded priorities + ops." },
+  { year: 2018, potus: "Trump", title: "Zero tolerance period", detail: "Detention capacity stress." },
+  { year: 2020, potus: "Biden", title: "Biden Elected", detail: "Biden's Only Term." },
+  { year: 2021, potus: "Biden", title: "Priorities memo", detail: "Priority framework changes." },
+  { year: 2024, potus: "Trump", title: "Modern baseline", detail: "High baseline funding persists." },
+  { year: 2025, potus: "Trump", title: "Trump Re-Elected", detail: "Trump Wins Second Term." },
+]
+};
+</script>
+<script>
+const embeddedData = (window.ICE_DASHBOARD_DATA && Array.isArray(window.ICE_DASHBOARD_DATA.embeddedData))
+  ? window.ICE_DASHBOARD_DATA.embeddedData
+  : [];
+
+const checkpoints = (window.ICE_DASHBOARD_DATA && Array.isArray(window.ICE_DASHBOARD_DATA.checkpoints))
+  ? window.ICE_DASHBOARD_DATA.checkpoints
+  : [];
+
+const metrics = [
+  { key:"budget_nominal_usd", title:"Budget (nominal)", subtitle:"USD", type:"line",
+    format:v=>v==null?"":"$"+Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(v),
+    yTick:v=>"$"+Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:1}).format(v)
+  },
+  { key:"apprehensions", title:"Apprehensions", subtitle:"Enforcement actions", type:"line",
+    sourceKeys:["apprehensions","enforcement_actions","enforcementActions","total_enforcement_actions"],
+    format:v=>v==null?"":Intl.NumberFormat("en-US").format(v),
+    yTick:v=>Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:1}).format(v)
+  },
+  { key:"removals", title:"Deportations", subtitle:"count", type:"line",
+    format:v=>v==null?"":Intl.NumberFormat("en-US").format(v),
+    yTick:v=>Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:1}).format(v)
+  },
+    { key:"arrests", title:"Arrests", subtitle:"Detentions proxy (2004–2008) + ERO admin (2009+)", type:"line",
+    sourceKeys:["arrests","ero_admin_arrests","ero_administrative_arrests","administrative_arrests","dro_nfop_fugitive_arrests","nfop_arrests","fugitive_operations_arrests","fugitive_operations_teams_arrests"],
+    format:v=>v==null?"":Intl.NumberFormat("en-US").format(v),
+    yTick:v=>Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:1}).format(v)
+  },
+  { key:"custody_deaths", title:"Official* Deaths caused by DHS/ICE", subtitle:"count", type:"bar",
+    format:v=>v==null?"":String(v),
+    yTick:v=>v
+  },
+    { key:"fte", title:"Staffing", subtitle:"FTE", type:"line",
+    format:v=>v==null?"":Intl.NumberFormat("en-US").format(v),
+    yTick:v=>Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:1}).format(v)
+  },
+];
+const state = { focusYear:null, charts:{}, series:{} };
+
+function isInViewport(el){
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  return r.bottom > 0 && r.top < vh;
+}
+
+function scrollToYear(year){
+  const el = document.querySelector(`.checkpoint[data-year="${year}"]`);
+  if(!el) return;
+  const transport = document.getElementById("transport");
+  // Don't yank the page back to the timeline during autoplay.
+  // Only scroll the timeline if it's already visible on screen.
+  if(transport && !isInViewport(transport)) return;
+
+  el.scrollIntoView({ behavior:"smooth", inline:"center", block:"nearest" });
+}
+
+const PLAY_STEP_MS = 2500;
+let playTimer = null;
+let playRaf = null;
+let playStepStart = 0;
+let isPlaying = false;
+let activeCheckpointEl = null;
+
+function setActiveCheckpointEl(el){
+  if(activeCheckpointEl && activeCheckpointEl !== el){
+    activeCheckpointEl.style.setProperty("--p","0");
+  }
+  activeCheckpointEl = el;
+  if(activeCheckpointEl){
+    activeCheckpointEl.style.setProperty("--p","0");
+  }
+}
+
+function startPlayProgress(){
+  if(playRaf) return;
+  const tick = (t)=>{
+    if(!isPlaying){ playRaf = null; return; }
+    if(activeCheckpointEl){
+      const p = Math.max(0, Math.min(1, (t - playStepStart) / PLAY_STEP_MS));
+      activeCheckpointEl.style.setProperty("--p", String(p));
+    }
+    playRaf = requestAnimationFrame(tick);
+  };
+  playRaf = requestAnimationFrame(tick);
+}
+
+function updatePlayButton(){
+  const b = document.getElementById("tPlay");
+  if(!b) return;
+  b.textContent = isPlaying ? "⏸" : "⏵";
+  const tr = document.getElementById("transport");
+  if(tr) tr.classList.toggle("playing", isPlaying);
+}
+
+function setPlaying(on, opts = {}){
+  const { keepProgress = true } = opts;
+  const next = !!on;
+  if(next === isPlaying) return;
+  isPlaying = next;
+
+  if(isPlaying){
+    if(!checkpoints.length){
+      isPlaying = false;
+      updatePlayButton();
+      return;
+    }
+    if(getFocusIndex() === -1) focusByIndex(0);
+    if(activeCheckpointEl) activeCheckpointEl.style.setProperty("--p","0");
+    playStepStart = performance.now();
+    startPlayProgress();
+
+    clearInterval(playTimer);
+    playTimer = setInterval(()=>{
+      if(!checkpoints.length) return;
+
+      const idx = getFocusIndex();
+      if(idx === -1){
+        focusByIndex(0);
+        if(activeCheckpointEl) activeCheckpointEl.style.setProperty("--p","0");
+        playStepStart = performance.now();
+        return;
+      }
+
+      if(idx >= checkpoints.length - 1){
+        if(activeCheckpointEl) activeCheckpointEl.style.setProperty("--p","1");
+        setPlaying(false, { keepProgress:true });
+        return;
+      }
+
+      focusByIndex(idx + 1);
+      if(activeCheckpointEl) activeCheckpointEl.style.setProperty("--p","0");
+      playStepStart = performance.now();
+    }, PLAY_STEP_MS);
+  } else {
+    clearInterval(playTimer);
+    playTimer = null;
+    if(!keepProgress && activeCheckpointEl) activeCheckpointEl.style.setProperty("--p","0");
+  }
+
+  updatePlayButton();
+}
+
+function togglePlay(){ setPlaying(!isPlaying); }
+
+function clearFocus(){
+  setPlaying(false);
+  setActiveCheckpointEl(null);
+  state.focusYear = null;
+  document.querySelectorAll(".checkpoint").forEach(n=>{ n.classList.remove("active"); n.style.setProperty("--p","0"); });
+  updateYearReadout();
+  Object.values(state.charts).forEach(ch=>ch.update());
+}
+
+function setFocusYear(year, opts = {}){
+  const { toggle = true, scroll = true } = opts;
+
+  if(toggle && year === state.focusYear) year = null;
+
+  state.focusYear = (year==null ? null : Number(year));
+
+  document.querySelectorAll(".checkpoint").forEach(n=>{
+    const isA = state.focusYear!==null && Number(n.dataset.year)===state.focusYear;
+    n.classList.toggle("active", isA);
+    if(!isA) n.style.setProperty("--p","0");
+  });
+
+  const active = (state.focusYear==null) ? null : document.querySelector(`.checkpoint[data-year="${state.focusYear}"]`);
+  setActiveCheckpointEl(active);
+
+  if(scroll && state.focusYear != null) scrollToYear(state.focusYear);
+
+  updateYearReadout();
+  Object.values(state.charts).forEach(ch=>ch.update());
+}
+
+function getFocusIndex(){
+  if(state.focusYear == null) return -1;
+  return checkpoints.findIndex(cp => Number(cp.year) === Number(state.focusYear));
+}
+
+function focusByIndex(i, opts = {}){
+  if(!checkpoints.length) return;
+  const clamped = Math.max(0, Math.min(checkpoints.length - 1, i));
+  setFocusYear(checkpoints[clamped].year, { toggle:false, scroll:true, ...opts });
+}
+
+function step(delta){
+  if(!checkpoints.length) return;
+  const idx = getFocusIndex();
+  if(idx === -1){
+    focusByIndex(delta > 0 ? 0 : checkpoints.length - 1);
+    return;
+  }
+  focusByIndex(idx + delta);
+}
+
+function setupTransport(){
+  const prev = document.getElementById("tPrev");
+  const next = document.getElementById("tNext");
+  const play = document.getElementById("tPlay");
+  prev?.addEventListener("click", ()=>{ setPlaying(false); step(-1); });
+  next?.addEventListener("click", ()=>{ setPlaying(false); step(1); });
+  play?.addEventListener("click", ()=>{ togglePlay(); });
+  updatePlayButton();
+}
+
+function setupKeyboard(){
+  window.addEventListener("keydown", (e)=>{
+    const t = e.target;
+    const tag = (t?.tagName || "").toLowerCase();
+    if(tag === "input" || tag === "textarea" || t?.isContentEditable) return;
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+
+    if(e.key === "ArrowRight"){ e.preventDefault(); setPlaying(false); step(1); }
+    else if(e.key === "ArrowLeft"){ e.preventDefault(); setPlaying(false); step(-1); }
+    else if(e.key === "Home"){ e.preventDefault(); setPlaying(false); focusByIndex(0); }
+    else if(e.key === "End"){ e.preventDefault(); setPlaying(false); focusByIndex(checkpoints.length - 1); }
+    else if(e.key === "Escape"){ e.preventDefault(); clearFocus(); }
+    else if(e.key === " "){ e.preventDefault(); togglePlay(); }
+  });
+}
+
+const focusLinePlugin = {
+  id: 'focusLine',
+  afterDatasetsDraw(chart) {
+    const year = state.focusYear;
+    if(year == null) return;
+
+    const xScale = chart.scales.x;
+    const yScale = chart.scales.y;
+    const labels = (chart.data && chart.data.labels) ? chart.data.labels : [];
+    if(!labels || !labels.length) return;
+
+    const yearStr = String(year);
+    let x = null;
+
+    const idx = labels.indexOf(yearStr);
+    if(idx !== -1){
+      x = xScale.getPixelForValue(idx);
+    } else {
+      const years = labels.map(v => Number(v));
+      const n = years.length;
+
+      const firstCenter = xScale.getPixelForValue(0);
+      const lastCenter  = xScale.getPixelForValue(n - 1);
+
+      let step = (n > 1) ? (xScale.getPixelForValue(1) - firstCenter) : (xScale.right - xScale.left);
+      if(!isFinite(step) || step === 0) step = (xScale.right - xScale.left) / Math.max(1, n);
+
+      const leftEdge  = firstCenter - step / 2;
+      const rightEdge = lastCenter  + step / 2;
+
+      let i = 0;
+      while(i < n && years[i] < year) i++;
+
+      if(i <= 0) x = leftEdge;
+      else if(i >= n) x = rightEdge;
+      else {
+        const y0 = years[i - 1], y1 = years[i];
+        const x0 = xScale.getPixelForValue(i - 1);
+        const x1 = xScale.getPixelForValue(i);
+        const t = (y1 === y0) ? 0 : (year - y0) / (y1 - y0);
+        x = x0 + (x1 - x0) * t;
+      }
+    }
+
+    if(x == null) return;
+    x = Math.max(xScale.left, Math.min(xScale.right, x));
+
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(110,231,255,0.55)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    ctx.moveTo(x, yScale.top);
+    ctx.lineTo(x, yScale.bottom);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+Chart.register(focusLinePlugin);
+
+const POTUS_BANDS = [
+  // NOTE: The chart "eras" are keyed to election-year buckets (shifted 1 year earlier than inauguration years),
+  // per user request: 2008 Obama, 2016 Trump, 2024 Trump.
+  { potus:"Bush",  start:2001, end:2007, band:"rgba(255,193,7,0.14)",  swatch:"rgba(255,193,7,0.75)" },
+  { potus:"Obama", start:2008, end:2015, band:"rgba(33,150,243,0.14)", swatch:"rgba(33,150,243,0.75)" },
+  { potus:"Trump", start:2016, end:2019, band:"rgba(244,67,54,0.12)",  swatch:"rgba(244,67,54,0.70)" },
+  { potus:"Biden", start:2020, end:2023, band:"rgba(76,175,80,0.12)",  swatch:"rgba(76,175,80,0.70)" },
+  { potus:"Trump", start:2024, end:2025, band:"rgba(244,67,54,0.12)",  swatch:"rgba(244,67,54,0.70)" }
+];
+
+function mergedPotusBands(){
+  const bands = [...POTUS_BANDS].sort((a,b)=>a.start-b.start);
+  const out = [];
+  for(const b of bands){
+    const last = out[out.length-1];
+    if(last && last.potus === b.potus && b.start <= (last.end + 1)){
+      last.end = Math.max(last.end, b.end);
+    } else {
+      out.push({ potus:b.potus, start:b.start, end:b.end });
+    }
+  }
+  return out;
+}
+
+function potusTickMap(yearLabels){
+  const years = yearLabels.map(v=>Number(v));
+  const map = Object.create(null);
+  for(const band of mergedPotusBands()){
+    let first=-1,last=-1;
+    for(let i=0;i<years.length;i++){
+      const y = years[i];
+      if(Number.isFinite(y) && y>=band.start && y<=band.end){
+        if(first===-1) first=i;
+        last=i;
+      }
+    }
+    if(first===-1) continue;
+    const mid = Math.round((first+last)/2);
+    map[mid] = band.potus;
+  }
+  return map;
+}
+
+function buildPOTUSLegend(){
+  const el = document.getElementById("potusLegend");
+  if(!el) return;
+  const seen = new Set();
+  el.innerHTML = "";
+  POTUS_BANDS.forEach(b=>{
+    if(seen.has(b.potus)) return;
+    seen.add(b.potus);
+    const item = document.createElement("div");
+    item.className = "legendItem";
+    const sw = document.createElement("div");
+    sw.className = "swatch";
+    sw.style.background = b.swatch;
+    const lab = document.createElement("div");
+    lab.className = "legendLabel";
+    lab.textContent = b.potus;
+    item.appendChild(sw);
+    item.appendChild(lab);
+    el.appendChild(item);
+  });
+}
+
+const potusBandPlugin = {
+  id: 'potusBands',
+  beforeDraw(chart) {
+    const labels = chart?.data?.labels || [];
+    if(!labels.length) return;
+    const xScale = chart.scales?.x;
+    const chartArea = chart.chartArea;
+    if(!xScale || !chartArea) return;
+
+    const centers = labels.map((_,i)=>xScale.getPixelForValue(i));
+    if(!centers.length) return;
+    const step = (centers.length > 1) ? (centers[1] - centers[0]) : (chartArea.right - chartArea.left);
+
+    const years = labels.map(v=>Number(v));
+    const ctx = chart.ctx;
+    ctx.save();
+
+    POTUS_BANDS.forEach(b=>{
+      let first = -1, last = -1;
+      for(let i=0;i<years.length;i++){
+        const y = years[i];
+        if(Number.isFinite(y) && y >= b.start && y <= b.end){
+          if(first === -1) first = i;
+          last = i;
+        }
+      }
+      if(first === -1) return;
+
+      let left = centers[first] - step/2;
+      let right = centers[last] + step/2;
+
+      left = Math.max(left, chartArea.left);
+      right = Math.min(right, chartArea.right);
+
+      ctx.fillStyle = b.band;
+      ctx.fillRect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+    });
+
+    ctx.restore();
+  }
+};
+Chart.register(potusBandPlugin);
+
+
+
+
+function buildTimeline(){
+  const el = document.getElementById("timeline");
+  el.innerHTML = "";
+  checkpoints.forEach(cp=>{
+    const d = document.createElement("div");
+    d.className = "checkpoint";
+    d.dataset.year = String(cp.year);
+    d.innerHTML = `
+      <div class="cp-line">
+        <span class="cp-title">${cp.year}${cp.potus ? " (" + cp.potus + ")" : ""} ${cp.title}</span>
+      </div>
+      <div class="cp-detail">${cp.detail}</div>`;
+    d.addEventListener("click", ()=>{ setPlaying(false); setFocusYear(cp.year, { toggle:true, scroll:true }); });
+    el.appendChild(d);
+  });
+}
+
+function setTimelineSidePadding(){
+  const tl = document.getElementById("timeline");
+  if(!tl) return;
+  const card = tl.querySelector(".checkpoint");
+  if(!card){
+    tl.style.setProperty("--tSide","0px");
+    return;
+  }
+  const cardW = card.getBoundingClientRect().width || 0;
+  const side = Math.max(0, (tl.clientWidth - cardW) / 2);
+  tl.style.setProperty("--tSide", `${side}px`);
+}
+
+let _tlResizeT = null;
+window.addEventListener("resize", ()=>{
+  clearTimeout(_tlResizeT);
+  _tlResizeT = setTimeout(setTimelineSidePadding, 80);
+});
+
+function cumulativeSeries(arr){
+  let c = 0;
+  return arr.map(v=>{
+    if(v==null || v==="" || Number.isNaN(Number(v))) return null;
+    c += Number(v);
+    return c;
+  });
+}
+
+function lastNonNull(arr){
+  for(let i=arr.length-1;i>=0;i--){
+    const v = arr[i];
+    if(v==null || v==="" || Number.isNaN(Number(v))) continue;
+    return Number(v);
+  }
+  return null;
+}
+
+function meanNonNull(arr){
+  let s = 0, n = 0;
+  for(const v of arr){
+    if(v==null || v==="" || Number.isNaN(Number(v))) continue;
+    s += Number(v);
+    n++;
+  }
+  return n ? (s / n) : null;
+}
+
+function formatHuman(v, opts={}){
+  const isMoney = !!opts.isMoney;
+  if(v==null || v==="" || !isFinite(Number(v))) return "—";
+  const num = Number(v);
+  const sign = num < 0 ? "-" : "";
+  const abs  = Math.abs(num);
+  const prefix = isMoney ? "$" : "";
+
+  const unit = (factor, label) => {
+    const scaled = abs / factor;
+    const decimals = scaled < 10 ? 1 : 0;
+    return `${sign}${prefix}${scaled.toFixed(decimals)} ${label}`;
+  };
+
+  if(abs >= 1e12) return unit(1e12, "Trillion");
+  if(abs >= 1e9)  return unit(1e9, "Billion");
+  if(abs >= 1e6)  return unit(1e6, "Million");
+  if(abs >= 1e3)  return `${sign}${prefix}${Math.round(abs/1e3)}K`;
+
+  const rounded = Math.round(abs);
+  return `${sign}${prefix}${Intl.NumberFormat("en-US").format(rounded)}`;
+}
+
+function _metricByKey(key){
+  return metrics.find(m => m.key === key) || null;
+}
+
+function _fmtCell(key, v){
+  if(v==null || v==="" || !isFinite(Number(v))) return "—";
+  const m = _metricByKey(key);
+  if(m && typeof m.format === "function"){
+    const out = m.format(Number(v));
+    return (out==="" ? "—" : out);
+  }
+  return Intl.NumberFormat("en-US").format(Number(v));
+}
+
+function updateYearReadout(){
+  const box = document.getElementById("yearReadout");
+  if(!box) return;
+
+  const year = state.focusYear;
+
+  const years = embeddedData.map(r => (r ? Number(r.year) : null));
+  const idx = (year==null) ? -1 : years.indexOf(Number(year));
+
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+
+  if(idx === -1){
+    box.classList.add("empty");
+    set("yr_year_label", "—");
+    [
+      "yr_budget_y","yr_arrests_y","yr_deportations_y","yr_deaths_y","yr_apprehensions_y","yr_staffing_y",
+      "yr_budget_c","yr_arrests_c","yr_deportations_c","yr_deaths_c","yr_apprehensions_c","yr_staffing_c"
+    ].forEach(id => set(id, "—"));
+    return;
+  }
+
+  box.classList.remove("empty");
+
+  set("yr_year_label", String(year));
+
+  const colMap = {
+    budget:       { key:"budget_nominal_usd", seriesKey:"budget_nominal_usd" },
+    arrests:      { key:"arrests",            seriesKey:"arrests" },
+    deportations: { key:"removals",           seriesKey:"removals" },
+    deaths:       { key:"custody_deaths",     seriesKey:"custody_deaths" },
+    appreh:       { key:"apprehensions",      seriesKey:"apprehensions" },
+    staffing:     { key:"fte",                seriesKey:"fte" }
+  };
+
+  const getSeries = (k) => state.series && state.series[k] ? state.series[k] : null;
+
+  const sBudget = getSeries(colMap.budget.seriesKey);
+  const sArrests = getSeries(colMap.arrests.seriesKey);
+  const sDeport  = getSeries(colMap.deportations.seriesKey);
+  const sDeaths  = getSeries(colMap.deaths.seriesKey);
+  const sApp     = getSeries(colMap.appreh.seriesKey);
+  const sStaff   = getSeries(colMap.staffing.seriesKey);
+
+  // Yearly
+  set("yr_budget_y",        _fmtCell(colMap.budget.key,       sBudget ? sBudget.perYear[idx] : null));
+  set("yr_arrests_y",       _fmtCell(colMap.arrests.key,      sArrests ? sArrests.perYear[idx] : null));
+  set("yr_deportations_y",  _fmtCell(colMap.deportations.key, sDeport ? sDeport.perYear[idx] : null));
+  set("yr_deaths_y",        _fmtCell(colMap.deaths.key,       sDeaths ? sDeaths.perYear[idx] : null));
+  set("yr_apprehensions_y", _fmtCell(colMap.appreh.key,       sApp ? sApp.perYear[idx] : null));
+  set("yr_staffing_y",      _fmtCell(colMap.staffing.key,     sStaff ? sStaff.perYear[idx] : null));
+
+  // Cumulative
+  set("yr_budget_c",        _fmtCell(colMap.budget.key,       sBudget ? sBudget.cumulative[idx] : null));
+  set("yr_arrests_c",       _fmtCell(colMap.arrests.key,      sArrests ? sArrests.cumulative[idx] : null));
+  set("yr_deportations_c",  _fmtCell(colMap.deportations.key, sDeport ? sDeport.cumulative[idx] : null));
+  set("yr_deaths_c",        _fmtCell(colMap.deaths.key,       sDeaths ? sDeaths.cumulative[idx] : null));
+  set("yr_apprehensions_c", _fmtCell(colMap.appreh.key,       sApp ? sApp.cumulative[idx] : null));
+  set("yr_staffing_c",      _fmtCell(colMap.staffing.key,     sStaff ? sStaff.cumulative[idx] : null));
+}
+
+
+function estimateNewHiresFromFTE(fteArr){
+  const out = new Array(fteArr.length).fill(null);
+
+  // Treat the first recorded staffing level as the initial stand-up hiring (baseline year).
+  const first = fteArr[0];
+  if(first != null && first !== "" && !Number.isNaN(Number(first))) out[0] = Number(first);
+
+  for(let i=1;i<fteArr.length;i++){
+    const prev = fteArr[i-1];
+    const cur  = fteArr[i];
+    if(prev==null || cur==null || prev==="" || cur==="") { out[i] = null; continue; }
+    const d = Number(cur) - Number(prev);
+    out[i] = d > 0 ? d : 0;
+  }
+  return out;
+}
+
+function getNewHiresSeries(){
+  const candidates = ["new_hires","fte_new_hires","staff_new_hires","hires"];
+  const series = embeddedData.map(r=>{
+    if(!r) return null;
+    for(const k of candidates){
+      if(r[k] !== undefined && r[k] !== null) return r[k];
+    }
+    return null;
+  });
+  const hasAny = series.some(v=>v!==null && v!==undefined);
+  if(hasAny) return series;
+  // fallback: minimum plausible estimate from FTE increases
+  const fte = embeddedData.map(r => (r && r.fte !== undefined ? r.fte : null));
+
+  // NOTE: This dataset includes a placeholder FY2002 row used for initial budget/staffing display.
+  // Charts begin at FY2003, and FY2003 should represent the "stand-up" hiring.
+  // Treat FY2003 as the baseline year for new hires, not FY2002.
+  const est = estimateNewHiresFromFTE(fte);
+  const idx2003 = embeddedData.findIndex(r => r && Number(r.year) === 2003);
+  if(idx2003 !== -1){
+    // Hard-code FY2003 new hires to 15,000 per user request.
+    est[idx2003] = 15000;
+    // Avoid implying hiring in the FY2002 placeholder row.
+    for(let i=0;i<idx2003;i++) est[i] = null;
+  }
+  return est;
+}
+
+
+function sumFromKeys(row, keys){
+  let sum = 0;
+  let has = false;
+  for(const k of keys){
+    const v = row[k];
+    if(v==null || v==="") continue;
+    const num = Number(v);
+    if(Number.isNaN(num)) continue;
+    sum += num;
+    has = true;
+  }
+  return has ? sum : null;
+}
+
+function buildCharts(){
+  const grid = document.getElementById("chartsGrid");
+  grid.innerHTML = "";
+  const years = embeddedData.map(r=>String(r.year));
+  // Keep 2002 in the timeline + readout, but start charts at 2003 so selecting 2002 draws the focus line
+  // at the very left edge (and 2002 doesn't render as a data point).
+  const CHART_START_YEAR = 2003;
+  const chartStartIdx = embeddedData.findIndex(r => Number(r.year) >= CHART_START_YEAR);
+  const chartStart = (chartStartIdx === -1) ? 0 : chartStartIdx;
+  const chartYears = years.slice(chartStart);
+
+  metrics.forEach(m=>{
+    const raw = embeddedData.map(r => {
+    if(!r) return null;
+    if(Array.isArray(m.sourceKeys) && m.sourceKeys.length){
+      return sumFromKeys(r, m.sourceKeys);
+    }
+    return (r[m.key] === undefined ? null : r[m.key]);
+  });
+    const perYear = (m.key === "fte") ? getNewHiresSeries() : raw;
+    const cumulative = (m.key === "fte") ? raw : cumulativeSeries(raw);
+    state.series[m.key] = { perYear, cumulative };
+
+    const yearlyAvg = meanNonNull(perYear);
+    const totalVal  = lastNonNull(cumulative);
+    const isMoney = (m.key === "budget_nominal_usd");
+    const yearlyTxt = formatHuman(yearlyAvg, { isMoney });
+    const totalTxt  = formatHuman(totalVal,  { isMoney });
+
+    const card = document.createElement("section");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="cardhead">
+        <div class="cardheadLeft">
+          <p class="cardtitle">${m.title}</p>
+        </div>
+
+      </div>
+      <div class="canvasbox"><canvas id="c_${m.key}"></canvas></div>
+    `;
+    grid.appendChild(card);
+
+    const ctx = card.querySelector("canvas");
+
+    const yearLabel = (m.key === "fte") ? "New hires (per year)" : (m.title + " (per year)");
+    const cumLabel  = (m.key === "fte") ? "FTE (total)" : (m.title + " (cumulative)");
+
+    const dsYear = {
+      type: "bar",
+      label: yearLabel,
+      data: perYear.slice(chartStart),
+      _fmt: m.format,
+      borderWidth: 0,
+      barPercentage: 0.9,
+      categoryPercentage: 0.9,
+      order: 1
+    };
+
+    const dsCum = {
+      type: "line",
+      label: cumLabel,
+      data: cumulative.slice(chartStart),
+      _fmt: m.format,
+      yAxisID: "y1",
+      borderWidth: 1.5,
+      pointRadius: 2,
+      pointHoverRadius: 3,
+      tension: 0.25,
+      order: 2
+    };
+
+    const potusMap = potusTickMap(chartYears);
+
+    const config = {
+      type: "bar",
+      data: { labels: chartYears, datasets: [dsYear, dsCum] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            callbacks: {
+              label: (t)=> {
+                const fmt = (t.dataset && t.dataset._fmt) ? t.dataset._fmt : m.format;
+                const val = (t.raw==null ? null : t.raw);
+                const label = (t.dataset && t.dataset.label) ? t.dataset.label : "";
+                return label + ": " + (val==null ? "no data" : fmt(val));
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { maxRotation:0, autoSkip:true, maxTicksLimit:7, color:"rgba(231,231,234,0.86)", font:{size:10} },
+            grid: { color:"rgba(255,255,255,0.05)" }
+          },
+
+          xTop: {
+            position: "top",
+            border: { display: false },
+            grid: { drawOnChartArea: false, tickLength: 0, color:"rgba(255,255,255,0.00)" },
+            ticks: {
+              autoSkip: false,
+              maxRotation: 0,
+              color: "rgba(231,231,234,0.86)",
+              font: { size: 10 },
+              callback: (val, idx) => (potusMap[idx] || "")
+            }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color:"rgba(231,231,234,0.86)", font:{size:10}, callback:m.yTick },
+            grid: { color:"rgba(255,255,255,0.05)" }
+          },
+          y1: {
+            position: "right",
+            beginAtZero: true,
+            ticks: { color:"rgba(231,231,234,0.86)", font:{size:10}, callback:m.yTick },
+            grid: { drawOnChartArea:false }
+          }
+        }
+      }
+    };
+
+    state.charts[m.key] = new Chart(ctx, config);
+  });
+}
+
+function pickPeak(labels, values){
+  let bestIdx = -1;
+  let bestVal = -Infinity;
+  for(let i=0;i<values.length;i++){
+    const v = values[i];
+    if(v==null || v==="" || Number.isNaN(Number(v))) continue;
+    const n = Number(v);
+    if(n > bestVal){
+      bestVal = n;
+      bestIdx = i;
+    }
+  }
+  if(bestIdx === -1) return null;
+  return { year: labels[bestIdx], value: bestVal };
+}
+
+
+function buildDeepDives(){
+  const host = document.getElementById("deepGrid");
+  if(!host) return;
+  host.innerHTML = "";
+
+  const dives = [
+    {
+      id:"bush",
+      metricKey:"removals",
+      title:"Bush era: Deportations",
+      term:[2003, 2007],
+      body:[
+        "Annual deportations (removals) centered on FY2003–FY2007 — ICE’s early years after its creation.",
+        "The window includes nearby context years so you can see what changes right before and right after the Bush-era segment."
+      ]
+    },
+    {
+      id:"obama",
+      metricKey:"removals",
+      title:"Obama era: Deportations",
+      term:[2008, 2015],
+      body:[
+        "Annual deportations (removals) centered on FY2008–FY2015 across both Obama terms.",
+        "Including a couple of years on either side makes it easier to compare the late Bush years to the early Trump years without leaving the panel."
+      ]
+    },
+    {
+      id:"trump",
+      metricKey:"apprehensions",
+      title:"Trump era: Apprehensions",
+      term:[2016, 2019],
+      body:[
+        "Annual apprehensions / enforcement actions centered on FY2016–FY2019 in this dataset.",
+        "The extra context years help show how the curve differs from the late Obama period and the first Biden years."
+      ]
+    },
+    {
+      id:"biden",
+      metricKey:"apprehensions",
+      title:"Biden era: Apprehensions",
+      term:[2020, 2023],
+      body:[
+        "Annual apprehensions / enforcement actions centered on FY2020–FY2023 in this dataset.",
+        "This window includes 2024–2025 so you can immediately compare the post‑Biden years to the preceding spike."
+      ]
+    }
+  ];
+
+  const yearsAll = embeddedData.map(r => (r ? Number(r.year) : null)).filter(Number.isFinite);
+  const minYear = yearsAll.length ? Math.min(...yearsAll) : null;
+  const maxYear = yearsAll.length ? Math.max(...yearsAll) : null;
+
+  dives.forEach(d=>{
+    const m = _metricByKey(d.metricKey);
+    if(!m) return;
+
+    const termStart = d.term[0];
+    const termEnd = d.term[1];
+
+    const winStart = (minYear==null) ? (termStart - 2) : Math.max(minYear, termStart - 2);
+    const winEnd = (maxYear==null) ? (termEnd + 2) : Math.min(maxYear, termEnd + 2);
+
+    const indices = [];
+    for(let i=0;i<embeddedData.length;i++){
+      const y = embeddedData[i] ? Number(embeddedData[i].year) : null;
+      if(Number.isFinite(y) && y >= winStart && y <= winEnd) indices.push(i);
+    }
+
+    const labels = indices.map(i => String(embeddedData[i].year));
+
+    const series = state.series && state.series[d.metricKey] ? state.series[d.metricKey] : null;
+    const perYearAll = series ? series.perYear : embeddedData.map(r => (r ? r[d.metricKey] : null));
+    const perYear = indices.map(i => perYearAll[i]);
+
+    const kicker = `${winStart}–${winEnd} • ${m.title}`;
+
+    const bodyHtml = (Array.isArray(d.body) ? d.body : [String(d.body||"")])
+      .filter(Boolean)
+      .map(p => `<p class="deepP">${p}</p>`)
+      .join("");
+
+    const card = document.createElement("section");
+    card.className = "card deepCard";
+    card.innerHTML = `
+      <div class="deepRow">
+        <div class="canvasbox deepChartWrap"><canvas id="dive_${d.id}"></canvas></div>
+        <div class="deepArticle">
+          <p class="deepKicker">${kicker}</p>
+          <h3 class="deepH3">${d.title}</h3>
+          ${bodyHtml}
+        </div>
+      </div>
+    `;
+    host.appendChild(card);
+
+    const ctx = card.querySelector("canvas");
+
+    const dsYear = {
+      type: "line",
+      label: m.title,
+      data: perYear,
+      _fmt: m.format,
+      borderWidth: 1.8,
+      pointRadius: 2.2,
+      pointHoverRadius: 3,
+      tension: 0.25,
+      order: 1
+    };
+
+    const config = {
+      type: "line",
+      data: { labels, datasets: [dsYear] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (t)=> {
+                const fmt = (t.dataset && t.dataset._fmt) ? t.dataset._fmt : m.format;
+                const val = (t.raw==null ? null : t.raw);
+                return (val==null ? "no data" : fmt(val));
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { autoSkip:false, maxRotation:0, color:"rgba(231,231,234,0.86)", font:{size:10} },
+            grid: { color:"rgba(255,255,255,0.05)" }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color:"rgba(231,231,234,0.86)", font:{size:10}, callback:m.yTick },
+            grid: { color:"rgba(255,255,255,0.05)" }
+          }
+        }
+      }
+    };
+
+    state.charts[`dive_${d.id}`] = new Chart(ctx, config);
+  });
+}
+
+
+
+buildPOTUSLegend();
+buildTimeline();
+requestAnimationFrame(setTimelineSidePadding);
+setupTransport();
+setupKeyboard();
+buildCharts();
+buildDeepDives();
+if(checkpoints.length){
+  setFocusYear(checkpoints[0].year, { toggle:false, scroll:false });
+}else{
+  updateYearReadout();
+}
+</script>
+*official sources are much lower than estimates from advocacy groups
+</body>
+</html>
