@@ -258,6 +258,51 @@
     @media (max-width: 640px){
       .grid{ grid-template-columns:1fr; }
     }
+.deepDives{
+  margin-top:12px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(0,0,0,.06);
+  border-radius:var(--radius);
+  padding:10px;
+}
+.deepHead{display:flex; flex-direction:column; gap:4px; margin-bottom:10px;}
+.sectionTitle{margin:0; font-size:12.5px; font-weight:700; letter-spacing:.2px;}
+.sectionSub{margin:0; font-size:11px; color:rgba(231,231,234,0.78); max-width:980px;}
+
+.deepGrid{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.deepCard{ padding:12px; }
+.deepRow{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);
+  gap:14px;
+  align-items:start;
+}
+.deepChartWrap{ height:260px; }
+.deepArticle{
+  padding:2px 0 2px 12px;
+  border-left:1px solid rgba(255,255,255,.08);
+}
+.deepKicker{
+  margin:0 0 6px;
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:rgba(231,231,234,0.68);
+}
+.deepH3{ margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:.2px; }
+.deepP{ margin:0 0 8px; font-size:12px; line-height:1.45; color:rgba(231,231,234,0.84); }
+.deepP:last-child{ margin-bottom:0; }
+
+@media (max-width: 900px){
+  .deepRow{ grid-template-columns:1fr; }
+  .deepArticle{ border-left:none; border-top:1px solid rgba(255,255,255,.08); padding:10px 0 0; }
+}
+
     .card{
       border:1px solid rgba(255,255,255,.08);
       background:linear-gradient(180deg, rgba(18,20,28,.78), rgba(15,17,24,.72));
@@ -348,7 +393,15 @@
     </section>
     </div>
 
-    <div class="grid" id="chartsGrid"></div>
+<div class="grid" id="chartsGrid"></div>
+
+<section class="deepDives" aria-label="deep dives by president">
+  <div class="deepHead">
+    <h2 class="sectionTitle">Deep dives by presidency</h2>
+    <p class="sectionSub">Zoomed-in charts with a bit of context for each administration.</p>
+  </div>
+  <div class="deepGrid" id="deepGrid"></div>
+</section>
 
   </div>
 </main>
@@ -415,7 +468,7 @@ window.ICE_DASHBOARD_DATA = {
   { year: 2018, potus: "Trump", title: "Zero tolerance period", detail: "Detention capacity stress." },
   { year: 2020, potus: "Biden", title: "Biden Elected", detail: "Biden's Only Term." },
   { year: 2021, potus: "Biden", title: "Priorities memo", detail: "Priority framework changes." },
-  { year: 2024, potus: "Biden", title: "Modern baseline", detail: "High baseline funding persists." },
+  { year: 2024, potus: "Trump", title: "Modern baseline", detail: "High baseline funding persists." },
   { year: 2025, potus: "Trump", title: "Trump Re-Elected", detail: "Trump Wins Second Term." },
 ]
 };
@@ -693,13 +746,13 @@ const focusLinePlugin = {
 Chart.register(focusLinePlugin);
 
 const POTUS_BANDS = [
-  { potus:"Bush",  start:2001, end:2004, band:"rgba(255,193,7,0.08)",  swatch:"rgba(255,193,7,0.40)" },
-  { potus:"Bush",  start:2005, end:2008, band:"rgba(255,193,7,0.08)",  swatch:"rgba(255,193,7,0.40)" },
-  { potus:"Obama", start:2009, end:2012, band:"rgba(33,150,243,0.08)", swatch:"rgba(33,150,243,0.40)" },
-  { potus:"Obama", start:2013, end:2016, band:"rgba(33,150,243,0.08)", swatch:"rgba(33,150,243,0.40)" },
-  { potus:"Trump", start:2017, end:2020, band:"rgba(244,67,54,0.07)",  swatch:"rgba(244,67,54,0.38)" },
-  { potus:"Biden", start:2021, end:2024, band:"rgba(76,175,80,0.07)",  swatch:"rgba(76,175,80,0.38)" },
-  { potus:"Trump", start:2025, end:2025, band:"rgba(244,67,54,0.07)",  swatch:"rgba(244,67,54,0.38)" }
+  // NOTE: The chart "eras" are keyed to election-year buckets (shifted 1 year earlier than inauguration years),
+  // per user request: 2008 Obama, 2016 Trump, 2024 Trump.
+  { potus:"Bush",  start:2001, end:2007, band:"rgba(255,193,7,0.14)",  swatch:"rgba(255,193,7,0.75)" },
+  { potus:"Obama", start:2008, end:2015, band:"rgba(33,150,243,0.14)", swatch:"rgba(33,150,243,0.75)" },
+  { potus:"Trump", start:2016, end:2019, band:"rgba(244,67,54,0.12)",  swatch:"rgba(244,67,54,0.70)" },
+  { potus:"Biden", start:2020, end:2023, band:"rgba(76,175,80,0.12)",  swatch:"rgba(76,175,80,0.70)" },
+  { potus:"Trump", start:2024, end:2025, band:"rgba(244,67,54,0.12)",  swatch:"rgba(244,67,54,0.70)" }
 ];
 
 function mergedPotusBands(){
@@ -1156,7 +1209,169 @@ function buildCharts(){
   });
 }
 
+function pickPeak(labels, values){
+  let bestIdx = -1;
+  let bestVal = -Infinity;
+  for(let i=0;i<values.length;i++){
+    const v = values[i];
+    if(v==null || v==="" || Number.isNaN(Number(v))) continue;
+    const n = Number(v);
+    if(n > bestVal){
+      bestVal = n;
+      bestIdx = i;
+    }
+  }
+  if(bestIdx === -1) return null;
+  return { year: labels[bestIdx], value: bestVal };
+}
 
+
+function buildDeepDives(){
+  const host = document.getElementById("deepGrid");
+  if(!host) return;
+  host.innerHTML = "";
+
+  const dives = [
+    {
+      id:"bush",
+      metricKey:"removals",
+      title:"Bush era: Deportations",
+      term:[2003, 2007],
+      body:[
+        "Annual deportations (removals) centered on FY2003–FY2007 — ICE’s early years after its creation.",
+        "The window includes nearby context years so you can see what changes right before and right after the Bush-era segment."
+      ]
+    },
+    {
+      id:"obama",
+      metricKey:"removals",
+      title:"Obama era: Deportations",
+      term:[2008, 2015],
+      body:[
+        "Annual deportations (removals) centered on FY2008–FY2015 across both Obama terms.",
+        "Including a couple of years on either side makes it easier to compare the late Bush years to the early Trump years without leaving the panel."
+      ]
+    },
+    {
+      id:"trump",
+      metricKey:"apprehensions",
+      title:"Trump era: Apprehensions",
+      term:[2016, 2019],
+      body:[
+        "Annual apprehensions / enforcement actions centered on FY2016–FY2019 in this dataset.",
+        "The extra context years help show how the curve differs from the late Obama period and the first Biden years."
+      ]
+    },
+    {
+      id:"biden",
+      metricKey:"apprehensions",
+      title:"Biden era: Apprehensions",
+      term:[2020, 2023],
+      body:[
+        "Annual apprehensions / enforcement actions centered on FY2020–FY2023 in this dataset.",
+        "This window includes 2024–2025 so you can immediately compare the post‑Biden years to the preceding spike."
+      ]
+    }
+  ];
+
+  const yearsAll = embeddedData.map(r => (r ? Number(r.year) : null)).filter(Number.isFinite);
+  const minYear = yearsAll.length ? Math.min(...yearsAll) : null;
+  const maxYear = yearsAll.length ? Math.max(...yearsAll) : null;
+
+  dives.forEach(d=>{
+    const m = _metricByKey(d.metricKey);
+    if(!m) return;
+
+    const termStart = d.term[0];
+    const termEnd = d.term[1];
+
+    const winStart = (minYear==null) ? (termStart - 2) : Math.max(minYear, termStart - 2);
+    const winEnd = (maxYear==null) ? (termEnd + 2) : Math.min(maxYear, termEnd + 2);
+
+    const indices = [];
+    for(let i=0;i<embeddedData.length;i++){
+      const y = embeddedData[i] ? Number(embeddedData[i].year) : null;
+      if(Number.isFinite(y) && y >= winStart && y <= winEnd) indices.push(i);
+    }
+
+    const labels = indices.map(i => String(embeddedData[i].year));
+
+    const series = state.series && state.series[d.metricKey] ? state.series[d.metricKey] : null;
+    const perYearAll = series ? series.perYear : embeddedData.map(r => (r ? r[d.metricKey] : null));
+    const perYear = indices.map(i => perYearAll[i]);
+
+    const kicker = `${winStart}–${winEnd} • ${m.title}`;
+
+    const bodyHtml = (Array.isArray(d.body) ? d.body : [String(d.body||"")])
+      .filter(Boolean)
+      .map(p => `<p class="deepP">${p}</p>`)
+      .join("");
+
+    const card = document.createElement("section");
+    card.className = "card deepCard";
+    card.innerHTML = `
+      <div class="deepRow">
+        <div class="canvasbox deepChartWrap"><canvas id="dive_${d.id}"></canvas></div>
+        <div class="deepArticle">
+          <p class="deepKicker">${kicker}</p>
+          <h3 class="deepH3">${d.title}</h3>
+          ${bodyHtml}
+        </div>
+      </div>
+    `;
+    host.appendChild(card);
+
+    const ctx = card.querySelector("canvas");
+
+    const dsYear = {
+      type: "line",
+      label: m.title,
+      data: perYear,
+      _fmt: m.format,
+      borderWidth: 1.8,
+      pointRadius: 2.2,
+      pointHoverRadius: 3,
+      tension: 0.25,
+      order: 1
+    };
+
+    const config = {
+      type: "line",
+      data: { labels, datasets: [dsYear] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (t)=> {
+                const fmt = (t.dataset && t.dataset._fmt) ? t.dataset._fmt : m.format;
+                const val = (t.raw==null ? null : t.raw);
+                return (val==null ? "no data" : fmt(val));
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { autoSkip:false, maxRotation:0, color:"rgba(231,231,234,0.86)", font:{size:10} },
+            grid: { color:"rgba(255,255,255,0.05)" }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color:"rgba(231,231,234,0.86)", font:{size:10}, callback:m.yTick },
+            grid: { color:"rgba(255,255,255,0.05)" }
+          }
+        }
+      }
+    };
+
+    state.charts[`dive_${d.id}`] = new Chart(ctx, config);
+  });
+}
 
 
 
@@ -1166,6 +1381,7 @@ requestAnimationFrame(setTimelineSidePadding);
 setupTransport();
 setupKeyboard();
 buildCharts();
+buildDeepDives();
 if(checkpoints.length){
   setFocusYear(checkpoints[0].year, { toggle:false, scroll:false });
 }else{
