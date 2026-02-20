@@ -1269,7 +1269,7 @@ function buildCharts(){
     const potusMap = potusTickMap(chartYears);
 
     const config = {
-      type: "bar",
+      type: "line",
       data: { labels: chartYears, datasets: [dsYear, dsCum] },
       options: {
         responsive: true,
@@ -1458,21 +1458,32 @@ function buildDeepDives(){
     const ctx = item.querySelector("canvas");
 
     const config = {
-      type: "bar",
+      type: "line",
       data: {
         labels,
         datasets: [{
-          type: "bar",
           label: meta.title + " (per year)",
           data,
-          backgroundColor: colors,
-          borderWidth: 0,
-          barPercentage: 0.9,
-          categoryPercentage: 0.9,
+          spanGaps: true,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 4,
+          pointBackgroundColor: labels.map(y => potusSwatchForYear(Number(y), 0.9)),
+          pointBorderColor: labels.map(y => potusSwatchForYear(Number(y), 1.0)),
+          pointBorderWidth: 0,
+          fill: false,
+          tension: 0,
+          borderColor: "rgba(231,231,234,0.86)",
+          segment: {
+            borderColor: (ctx) => {
+              const y = Number(labels[ctx.p0DataIndex]);
+              return potusSwatchForYear(y, 0.9);
+            }
+          },
           order: 1,
           _fmt: meta.format
         }]
-      },
+},
       options: {
         responsive: true,
         maintainAspectRatio: false,
