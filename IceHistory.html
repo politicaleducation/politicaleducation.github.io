@@ -543,9 +543,86 @@ const metrics = [
 ];
 const state = { focusYear:null, charts:{}, deepDiveCharts:{}, series:{} };
 
-function isMobileLike(){
-  // Touch-first devices + narrow layouts
-  return window.matchMedia("(max-width: 820px), (pointer: coarse)").matches;
+// --- Mobile mode (robust detection + runtime sync) ---
+function computeMobileLike(){
+  const w = window.innerWidth || document.documentElement.clientWidth || 9999;
+  const hasMM = typeof window.matchMedia === "function";
+  const small = hasMM ? window.matchMedia("(max-width: 820px)").matches : (w <= 820);
+  const coarse = hasMM ? window.matchMedia("(pointer: coarse)").matches : false;
+  const touch = (navigator.maxTouchPoints || 0) > 0 || ("ontouchstart" in window);
+  const ua = navigator.userAgent || "";
+  const uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+
+  // Treat tablets as "mobile" behaviorally if touch-first.
+  return small || (coarse && touch) || (uaMobile && touch) || (touch && w <= 1024);
+}
+
+let MOBILE_MODE = computeMobileLike();
+function isMobileLike(){ return MOBILE_MODE; }
+
+function syncMobileLike(force=false){
+  const next = computeMobileLike();
+  if(!force && next === MOBILE_MODE) return;
+  MOBILE_MODE = next;
+
+  const all = [
+    ...Object.values(state.charts || {}),
+    ...Object.values(state.deepDiveCharts || {})
+  ].filter(Boolean);
+
+  for(const ch of all){
+    if(ch?.options?.plugins?.tooltip){
+      ch.options.plugins.tooltip.enabled = !MOBILE_MODE;
+    }
+    ch?.setActiveElements?.([]);
+    if(ch?.tooltip) ch.tooltip.setActiveElements([], {x:0,y:0});
+    ch?.update?.();
+  }
+}
+
+window.addEventListener("resize", ()=> syncMobileLike(false));
+window.addEventListener("orientationchange", ()=> syncMobileLike(false));
+
+let _lastMobileTapAt = 0;
+
+function selectYearFromChartEvent(chart, evt){
+  const pts = chart.getElementsAtEventForMode(evt, "nearest", { intersect:false }, true);
+  if(!pts || !pts.length) return;
+  const idx = pts[0].index;
+  const year = chart.data.labels && chart.data.labels[idx] ? Number(chart.data.labels[idx]) : null;
+  if(!Number.isFinite(year)) return;
+
+  setPlaying(false);
+  setFocusYear(year, { toggle:false, scroll:false });
+}
+
+function attachMobileTapHandler(chart){
+  const canvas = chart?.canvas;
+  if(!canvas) return;
+  if(canvas.dataset.mobileTapAttached === "1") return;
+  canvas.dataset.mobileTapAttached = "1";
+
+  const handler = (evt)=>{
+    if(!isMobileLike()) return;
+
+    const now = Date.now();
+    // Prevent double-fire on some devices (touchend + pointerup).
+    if(now - _lastMobileTapAt < 250) return;
+    _lastMobileTapAt = now;
+
+    // Block the built-in tap tooltip on mobile and treat it like a selection.
+    if(evt && typeof evt.preventDefault === "function") evt.preventDefault();
+
+    selectYearFromChartEvent(chart, evt);
+
+    chart.setActiveElements([]);
+    if(chart.tooltip) chart.tooltip.setActiveElements([], {x:0,y:0});
+    chart.update();
+  };
+
+  // Touch devices sometimes don't dispatch a true "click" to Chart.js.
+  canvas.addEventListener("touchend", handler, { passive:false });
+  canvas.addEventListener("pointerup", handler, { passive:false });
 }
 
 
@@ -649,6 +726,7 @@ function clearFocus(){
   document.querySelectorAll(".checkpoint").forEach(n=>{ n.classList.remove("active"); n.style.setProperty("--p","0"); });
   updateYearReadout();
   Object.values(state.charts).forEach(ch=>ch.update());
+  Object.values(state.deepDiveCharts).forEach(ch=>ch.update());
 }
 
 function setFocusYear(year, opts = {}){
@@ -671,6 +749,7 @@ function setFocusYear(year, opts = {}){
 
   updateYearReadout();
   Object.values(state.charts).forEach(ch=>ch.update());
+  Object.values(state.deepDiveCharts).forEach(ch=>ch.update());
 }
 
 function getFocusIndex(){
@@ -1261,6 +1340,7 @@ function buildCharts(){
     };
 
     state.charts[m.key] = new Chart(ctx, config);
+    attachMobileTapHandler(state.charts[m.key]);
   });
 }
 
@@ -1454,6 +1534,7 @@ function buildDeepDives(){
     };
 
     state.deepDiveCharts[spec.id] = new Chart(ctx, config);
+    attachMobileTapHandler(state.deepDiveCharts[spec.id]);
   });
 }
 
@@ -1465,6 +1546,8 @@ setupTransport();
 setupKeyboard();
 buildCharts();
 buildDeepDives();
+// Ensure tooltips + tap behavior follow the current layout/device.
+syncMobileLike(true);
 if(checkpoints.length){
   setFocusYear(checkpoints[0].year, { toggle:false, scroll:false });
 }else{
