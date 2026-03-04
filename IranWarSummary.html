@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Iran War (Feb–Mar 2026) — One‑Page Data Summary</title>
+  <style>
+    :root{
+      --bg:#070A10;
+      --panel:#0B1220;
+      --panel2:#0E1830;
+      --text:#F4F7FF;
+      --muted:rgba(244,247,255,.72);
+      --faint:rgba(244,247,255,.12);
+      --shadow: 0 14px 45px rgba(0,0,0,.55);
+      --radius: 18px;
+
+      /* not subtle */
+      --coal:#005BFF;
+      --iran:#FF2D55;
+      --spill:#FFB000;
+      --ok:#18D87A;
+      --bad:#FF3B30;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1100px 600px at 12% -10%, rgba(0,91,255,.45), transparent 62%),
+        radial-gradient(1100px 600px at 88% -10%, rgba(255,45,85,.42), transparent 62%),
+        radial-gradient(900px 560px at 50% 130%, rgba(255,176,0,.22), transparent 65%),
+        var(--bg);
+      line-height:1.25;
+    }
+
+    a{ color:#CFE2FF; text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    .wrap{ max-width:1200px; margin:0 auto; padding:22px 16px 70px; }
+
+    .hero{
+      border:1px solid var(--faint);
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+      border-radius: calc(var(--radius) + 6px);
+      overflow:hidden;
+    }
+
+    .heroTop{
+      padding:18px 18px 10px;
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+
+    h1{
+      margin:0;
+      font-size: 22px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin:6px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 760px;
+    }
+
+    .legend{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      padding-top: 2px;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.20);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing:.2px;
+      user-select:none;
+      color:#0A0D12;
+      box-shadow: 0 10px 26px rgba(0,0,0,.35);
+    }
+    .chip .dot{ width:12px; height:12px; border-radius:50%; background:#0A0D12; box-shadow: inset 0 0 0 2px rgba(255,255,255,.28); }
+    .chip.coal{ background: var(--coal); }
+    .chip.iran{ background: var(--iran); }
+    .chip.spill{ background: var(--spill); }
+
+    .heroBottom{
+      border-top: 1px solid rgba(255,255,255,.16);
+      padding:14px 18px 18px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+
+    .noteRow{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    @media (min-width: 920px){
+      .heroBottom{ grid-template-columns: 1.35fr .65fr; align-items: start; }
+      .noteRow{ grid-template-columns: 1fr; }
+    }
+
+    .tinyBox{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.03);
+      border-radius: 14px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+
+    button{
+      border:1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing:.2px;
+    }
+    button:hover{ background: rgba(255,255,255,.10); }
+    button.primary{
+      background: rgba(255,255,255,.14);
+      border-color: rgba(255,255,255,.30);
+    }
+
+    .section{ margin-top: 16px; }
+    .sectionTitle{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin: 0 0 10px;
+    }
+    .sectionTitle h2{
+      margin:0;
+      font-size: 16px;
+      letter-spacing:.2px;
+    }
+    .sectionTitle .hint{
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+    @media (min-width: 960px){
+      .grid.cols2{ grid-template-columns: 1fr 1fr; }
+      .grid.cols3{ grid-template-columns: 1fr 1fr 1fr; }
+      .grid.cols4{ grid-template-columns: 1fr 1fr 1fr 1fr; }
+    }
+
+    .card{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.03);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardPad{ padding: 14px 14px 16px; }
+
+    .bar{
+      padding: 12px 14px;
+      font-weight: 900;
+      letter-spacing:.3px;
+      font-size: 13px;
+      color:#0B0E12;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .bar small{ font-weight:800; opacity:.9; }
+
+    .bar.coal{ background: linear-gradient(90deg, rgba(0,91,255,1), rgba(0,91,255,.72)); }
+    .bar.iran{ background: linear-gradient(90deg, rgba(255,45,85,1), rgba(255,45,85,.70)); }
+    .bar.spill{ background: linear-gradient(90deg, rgba(255,176,0,1), rgba(255,176,0,.72)); }
+
+    .kpiGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (min-width: 960px){
+      .kpiGrid.cols3{ grid-template-columns: 1fr 1fr 1fr; }
+      .kpiGrid.cols4{ grid-template-columns: 1fr 1fr 1fr 1fr; }
+    }
+
+    .kpi{
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.18);
+      border-radius: 16px;
+      padding: 12px 12px 12px;
+      min-height: 86px;
+      position: relative;
+      overflow:hidden;
+    }
+    .kpi::before{
+      content:"";
+      position:absolute;
+      inset:-2px -2px auto -2px;
+      height: 8px;
+      opacity: 1;
+    }
+    .kpi.coal::before{ background: var(--coal); }
+    .kpi.iran::before{ background: var(--iran); }
+    .kpi.spill::before{ background: var(--spill); }
+
+    .kpiLabel{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      letter-spacing:.2px;
+      margin-top: 6px;
+    }
+    .kpiValue{
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 900;
+      margin-top: 6px;
+      letter-spacing: .2px;
+    }
+    .kpiFoot{
+      margin-top: 6px;
+      font-size: 11px;
+      color: rgba(244,247,255,.60);
+    }
+
+    .list{
+      list-style:none;
+      margin:0;
+      padding:0;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .li{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      background: rgba(0,0,0,.14);
+    }
+    .li .k{
+      font-weight: 900;
+      letter-spacing:.2px;
+    }
+    .li .v{
+      color: var(--muted);
+      font-size: 12px;
+      text-align:right;
+      max-width: 58%;
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      margin: 10px 0 0;
+    }
+    .controlsLeft{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    select, input[type="search"]{
+      border:1px solid rgba(255,255,255,.20);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      outline:none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    input[type="search"]{ min-width: 250px; flex:1; }
+
+    .tableWrap{
+      overflow:auto;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 16px;
+      background: rgba(0,0,0,.14);
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+    th, td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      vertical-align: top;
+    }
+    th{
+      text-align:left;
+      font-size: 12px;
+      color: rgba(244,247,255,.70);
+      font-weight: 900;
+      letter-spacing:.2px;
+      background: rgba(255,255,255,.04);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr:last-child td{ border-bottom:0; }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing:.2px;
+      color:#0B0E12;
+      white-space: nowrap;
+    }
+    .tag.coal{ background: var(--coal); }
+    .tag.iran{ background: var(--iran); }
+    .tag.spill{ background: var(--spill); }
+
+    .rowCoal td{ background: rgba(0,91,255,.10); }
+    .rowIran td{ background: rgba(255,45,85,.10); }
+    .rowSpill td{ background: rgba(255,176,0,.10); }
+
+    .mono{ font-family: var(--mono); }
+    .muted{ color: var(--muted); }
+    .small{ font-size: 12px; color: var(--muted); }
+    .tiny{ font-size: 11px; color: rgba(244,247,255,.58); }
+
+    details{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.14);
+      border-radius: 16px;
+      padding: 10px 12px;
+    }
+    summary{
+      cursor:pointer;
+      font-weight: 900;
+      letter-spacing:.2px;
+    }
+    details p{ margin:10px 0 0; color: rgba(244,247,255,.85); font-size: 13px; }
+
+    .footer{
+      margin-top: 14px;
+      color: rgba(244,247,255,.58);
+      font-size: 12px;
+    }
+
+    @media print{
+      body{ background:#fff; color:#000; }
+      .hero, .card, details{ box-shadow:none; }
+      .chip{ box-shadow:none; }
+      a{ color:#000; text-decoration:underline; }
+      button, .controls{ display:none !important; }
+      th{ position: static; }
+      .rowCoal td, .rowIran td, .rowSpill td{ background: transparent !important; }
+      .tag{ border:1px solid #000; background: transparent !important; color:#000; }
+      .bar{ color:#000; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="heroTop">
+        <div>
+          <h1>Iran War (Feb–Mar 2026) — One‑Page Data Summary</h1>
+          <p class="sub" id="subline"></p>
+        </div>
+
+        <div class="legend" aria-label="Color legend">
+          <div class="chip coal"><span class="dot"></span>U.S.–Israel coalition</div>
+          <div class="chip iran"><span class="dot"></span>Iran & aligned forces</div>
+          <div class="chip spill"><span class="dot"></span>Spillover / economy / shipping</div>
+        </div>
+      </div>
+
+      <div class="heroBottom">
+        <div class="noteRow">
+          <div class="tinyBox" id="contextBox"></div>
+          <div class="tinyBox" id="scopeBox"></div>
+        </div>
+        <div class="btnRow">
+          <button class="primary" id="printBtn" type="button">Print</button>
+          <button id="copyBtn" type="button">Copy key stats</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CASUALTIES DASHBOARD -->
+    <div class="section">
+      <div class="sectionTitle">
+        <h2>Casualties (reported)</h2>
+        <div class="hint">High‑visibility numbers first; details below.</div>
+      </div>
+
+      <div class="grid cols3">
+        <div class="card">
+          <div class="bar spill">TOTAL (across affected locations) <small id="kpiTotalAsOf"></small></div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="kpiTotals"></div>
+            <div class="footer tiny" id="totalNote"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="bar iran">IRAN <small>reported deaths</small></div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="kpiIran"></div>
+            <details style="margin-top:10px;">
+              <summary>Small context</summary>
+              <p class="small" id="iranContext"></p>
+            </details>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="bar coal">ISRAEL + U.S. forces <small>reported deaths</small></div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="kpiCoal"></div>
+            <details style="margin-top:10px;">
+              <summary>Small context</summary>
+              <p class="small" id="coalContext"></p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid cols2" style="margin-top:12px;">
+        <div class="card">
+          <div class="bar spill">Deaths by location (table)</div>
+          <div class="cardPad">
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Location / category</th>
+                    <th>Reported deaths</th>
+                    <th>Reported by</th>
+                    <th>Date / notes</th>
+                  </tr>
+                </thead>
+                <tbody id="deathsTable"></tbody>
+              </table>
+            </div>
+            <div class="footer tiny" id="deathsFoot"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="bar spill">Injuries + displacement (selected)</div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="kpiSpill"></div>
+            <details style="margin-top:10px;">
+              <summary>Small context</summary>
+              <p class="small" id="spillContext"></p>
+            </details>
+            <div style="margin-top:10px;">
+              <ul class="list" id="injuryList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDES -->
+    <div class="section">
+      <div class="sectionTitle">
+        <h2>Two sides (countries + aligned forces)</h2>
+        <div class="hint">Focus is “who is acting in the conflict,” not formal treaties.</div>
+      </div>
+
+      <div class="grid cols2">
+        <div class="card">
+          <div class="bar coal">SIDE A — U.S.–Israel coalition</div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="sideAKpis"></div>
+            <div style="margin-top:10px;">
+              <ul class="list" id="sideAList"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="bar iran">SIDE B — Iran & aligned forces</div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="sideBKpis"></div>
+            <div style="margin-top:10px;">
+              <ul class="list" id="sideBList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAJOR EVENTS -->
+    <div class="section">
+      <div class="sectionTitle">
+        <h2>Major drone strikes, missile attacks, and ground moves</h2>
+        <div class="hint">Search + filter (no tabs).</div>
+      </div>
+
+      <div class="card">
+        <div class="bar spill">Events (data table)</div>
+        <div class="cardPad">
+          <div class="controls">
+            <div class="controlsLeft">
+              <select id="filterSide" aria-label="Filter by side">
+                <option value="all">All sides</option>
+                <option value="coal">U.S.–Israel coalition</option>
+                <option value="iran">Iran & aligned forces</option>
+                <option value="spill">Spillover / economy / shipping</option>
+              </select>
+              <select id="filterType" aria-label="Filter by event type">
+                <option value="all">All types</option>
+                <option value="Drone">Drone</option>
+                <option value="Missile">Missile</option>
+                <option value="Airstrike">Airstrike</option>
+                <option value="Ground">Ground</option>
+                <option value="Shipping">Shipping</option>
+                <option value="Markets">Markets</option>
+              </select>
+            </div>
+
+            <input id="searchBox" type="search" placeholder="Search events (Riyadh, Beirut, Hormuz, IRIB, Kuwait, Minab...)" />
+          </div>
+
+          <div class="tableWrap" style="margin-top:10px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Side</th>
+                  <th>Type</th>
+                  <th>Where</th>
+                  <th>What happened (short)</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTable"></tbody>
+            </table>
+          </div>
+          <div class="footer tiny">Tip: you can print this page and it will keep the table readable.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ECONOMY / SHIPPING -->
+    <div class="section">
+      <div class="sectionTitle">
+        <h2>Economy & shipping disruption (key fields)</h2>
+        <div class="hint">Pulled from Reuters market reporting.</div>
+      </div>
+
+      <div class="grid cols2">
+        <div class="card">
+          <div class="bar spill">Energy prices</div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="econKpis1"></div>
+            <div class="footer tiny" id="econFoot1"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="bar spill">Shipping & aviation</div>
+          <div class="cardPad">
+            <div class="kpiGrid cols3" id="econKpis2"></div>
+            <div class="footer tiny" id="econFoot2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCES -->
+    <div class="section">
+      <div class="sectionTitle">
+        <h2>Sources</h2>
+        <div class="hint">Each number ties to a source row.</div>
+      </div>
+
+      <div class="card">
+        <div class="bar spill">Source list</div>
+        <div class="cardPad">
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Used for</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="sourcesTable"></tbody>
+            </table>
+          </div>
+          <div class="footer">
+            If you want to keep this page current, update the DATA object at the bottom (no other edits needed).
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  const DATA = {
+    meta: {
+      title: "Iran War (Feb–Mar 2026) — One‑Page Data Summary",
+      lastUpdated: "March 3, 2026",
+      asOf: "Reuters factbox updated March 3, 2026 9:09 PM UTC",
+      contextTiny: "Small context: The conflict began February 28, 2026 with U.S. and Israeli strikes on Iran. Iran retaliated with missile/drone attacks across the region, and Hezbollah’s entry drew Lebanon deeper into fighting. Most reporting emphasizes long‑range strikes; Israel said deploying ground forces to Iran was unlikely at that time.",
+      scopeTiny: "Scope note: numbers below are reported by governments/agencies and summarized by major outlets. Reuters explicitly notes it does not independently verify the death tolls. Treat as a fast‑moving snapshot, not a final accounting."
+    },
+
+    casualties: {
+      deathsByLocation: [
+        { loc:"Iran", deaths:787, side:"iran", by:"Iranian Red Crescent Society (reported by Reuters)", date:"Mar 3, 2026", note:"Includes 165 schoolgirls + staff killed at Minab school on day one; unclear if IRGC military casualties included." },
+        { loc:"Israel", deaths:10, side:"coal", by:"Magen David Adom (reported by Reuters)", date:"Mar 3, 2026", note:"Reuters notes IDF reported no military casualties at that time." },
+        { loc:"Lebanon", deaths:50, side:"iran", by:"Lebanon health ministry (reported by Reuters)", date:"Mar 3, 2026", note:"Killed in Israeli strikes." },
+        { loc:"Bahrain", deaths:1, side:"coal", by:"Bahrain interior ministry (reported by Reuters)", date:"Mar 3, 2026", note:"Fatality after fire following missile interception." },
+        { loc:"Kuwait", deaths:3, side:"coal", by:"Kuwait health + foreign ministries (reported by Reuters)", date:"Mar 3, 2026", note:"Includes two Kuwaiti soldiers." },
+        { loc:"Oman", deaths:1, side:"spill", by:"V.Ships / Reuters", date:"Mar 1–3, 2026", note:"Crew member killed after projectile hit product tanker MKD VYOM off Muscat." },
+        { loc:"United Arab Emirates", deaths:3, side:"coal", by:"UAE defense ministry (reported by Reuters)", date:"Mar 3, 2026", note:"—" },
+        { loc:"U.S. military", deaths:6, side:"coal", by:"U.S. Central Command (reported by Reuters)", date:"Mar 3, 2026", note:"Killed in a strike on a facility in Kuwait." }
+      ],
+      selected: {
+        lebanonWounded: 246,
+        lebanonWoundedNote: "Lebanon health ministry: Israeli strikes killed at least 40 and wounded 246 since escalation began (Reuters).",
+        displacedLebanon: 30000,
+        displacedLebanonNote: "UN: at least 30,000 people (including 9,000 children) sought shelter (Reuters).",
+        recordedAttacks: 1039,
+        sitesHit: 504,
+        attacksNote: "Iranian Red Crescent: 1,039 attacks recorded and 504 sites hit (as relayed by Just Security’s Early Edition, citing AP/NYT reporting)."
+      }
+    },
+
+    sides: {
+      sideA: {
+        kpis: [
+          { label:"Core states", value:"United States; Israel", side:"coal", foot:"Primary belligerents" },
+          { label:"Major host states hit / at risk", value:"Saudi; Kuwait; UAE; Bahrain; Qatar", side:"coal", foot:"Basing + retaliation pattern" },
+          { label:"Coalition posture", value:"Air / naval campaign", side:"coal", foot:"Ground in Iran described as unlikely (Reuters)" }
+        ],
+        members: [
+          { k:"United States", v:"Conducts strikes; bases and diplomats targeted in retaliation." },
+          { k:"Israel", v:"Strikes in Iran; intensifies operations vs Hezbollah in Lebanon." },
+          { k:"Saudi Arabia", v:"U.S. embassy in Riyadh hit by drones; security posture raised." },
+          { k:"Kuwait", v:"U.S. facility struck; friendly‑fire downing of U.S. jets reported." },
+          { k:"UAE", v:"Drone strike near U.S. consulate area in Dubai reported." },
+          { k:"Bahrain", v:"Missile interception incident caused fatal fire (reported)." },
+          { k:"Qatar", v:"LNG exports disrupted amid Hormuz risk (Reuters market reporting)." }
+        ]
+      },
+      sideB: {
+        kpis: [
+          { label:"Core state", value:"Iran", side:"iran", foot:"Primary belligerent" },
+          { label:"Aligned force", value:"Hezbollah (Lebanon)", side:"iran", foot:"Entered fight; Israel responded with strikes + ground moves" },
+          { label:"Typical strike tools", value:"Drones + missiles", side:"iran", foot:"Retaliation across region reported" }
+        ],
+        members: [
+          { k:"Iran", v:"Missile + drone retaliation; pressure on shipping in/near Hormuz." },
+          { k:"Hezbollah", v:"Missiles/drones at Israel; draws Lebanon into wider war." },
+          { k:"Iran‑linked militias (Iraq region)", v:"Reported threats/attacks near U.S. positions in region (various reporting)." }
+        ]
+      }
+    },
+
+    events: [
+      { date:"Feb 28, 2026", side:"coal", type:"Airstrike", where:"Iran (multiple sites)", what:"Start of U.S.–Israel strikes on Iran; Reuters later reports early success in killing leadership incl. Supreme Leader Khamenei.", sourceId:"reuters_markets" },
+      { date:"Feb 28, 2026", side:"spill", type:"Markets", where:"Global", what:"Markets begin pricing energy shock as conflict starts; later Reuters reports crude +5% and EU gas +40% by Mar 3.", sourceId:"reuters_markets" },
+
+      { date:"Feb 28, 2026", side:"coal", type:"Airstrike", where:"Minab, Iran", what:"Primary school in Minab struck on day one; Reuters factbox reports 165 schoolgirls and staff killed.", sourceId:"reuters_factbox" },
+
+      { date:"Mar 1, 2026", side:"iran", type:"Missile", where:"Beit Shemesh, Israel", what:"Iranian missile strike reported killed nine; MDA reported 28 injured. Reuters later totals Israeli civilian deaths at 10.", sourceId:"reuters_factbox" },
+      { date:"Mar 1, 2026", side:"spill", type:"Shipping", where:"Off Muscat, Oman", what:"Projectile hit product tanker MKD VYOM; one crew member killed.", sourceId:"reuters_tanker" },
+
+      { date:"Mar 1, 2026", side:"coal", type:"Airstrike", where:"Iran (targets)", what:"U.S. military says strikes hit 1,000+ Iranian targets since start; first U.S. fatalities reported (3 killed, 5 seriously wounded) on base in Kuwait (Reuters).", sourceId:"reuters_us_casualties" },
+
+      { date:"Mar 2, 2026", side:"coal", type:"Drone", where:"Kuwait (U.S. mission)", what:"Reuters reports U.S. mission in Kuwait hit before later Riyadh incident; U.S. later closes embassies in region.", sourceId:"reuters_markets" },
+      { date:"Mar 2, 2026", side:"coal", type:"Airstrike", where:"Lebanon (Beirut/south)", what:"Hezbollah joins conflict; Israel responds with strikes and begins moving forces into southern Lebanon (reported).", sourceId:"reuters_lebanon" },
+      { date:"Mar 2, 2026", side:"coal", type:"Airstrike", where:"Saudi Arabia", what:"Saudi Arabia shuts its biggest refinery after drone strikes caused a fire (Reuters market reporting).", sourceId:"reuters_markets" },
+
+      { date:"Mar 3, 2026", side:"iran", type:"Drone", where:"Riyadh, Saudi Arabia", what:"Two drones hit U.S. embassy in Riyadh; limited fire and material damage reported; Reuters later reports CIA station at the embassy compound was hit by suspected Iranian drone.", sourceId:"reuters_cia_riyadh" },
+      { date:"Mar 3, 2026", side:"iran", type:"Drone", where:"Dubai, UAE", what:"Smoke near U.S. consulate; U.S. says parking lot hit and personnel accounted for (Reuters).", sourceId:"reuters_markets" },
+
+      { date:"Mar 3, 2026", side:"coal", type:"Airstrike", where:"Tehran, Iran", what:"Reuters reports strikes hit IRIB, area around Mehrabad airport, and Minzadehei underground nuclear development site.", sourceId:"reuters_markets" },
+      { date:"Mar 3, 2026", side:"coal", type:"Ground", where:"Southern Lebanon", what:"Reuters reports additional Israeli forces, airstrikes, and Israeli cross‑border incursions confirmed by UNIFIL; Lebanon health ministry reports wounded 246.", sourceId:"reuters_lebanon" },
+
+      { date:"Mar 3, 2026", side:"spill", type:"Shipping", where:"Strait of Hormuz", what:"Reuters reports Iran strangled shipping; tankers anchored; U.S. says it may escort tankers and provide insurance.", sourceId:"reuters_markets" },
+      { date:"Mar 3, 2026", side:"spill", type:"Markets", where:"Energy + freight", what:"Reuters: crude +5%; EU gas +40%; tanker hire cost nearly quadrupled to >$400,000/day; U.S. gasoline avg $3.11/gal.", sourceId:"reuters_markets" },
+
+      { date:"Mar 3, 2026", side:"coal", type:"Ground", where:"Iran (potential)", what:"Israel spokesperson says campaign could last weeks; deploying ground forces to Iran is unlikely.", sourceId:"reuters_ground_unlikely" },
+
+      { date:"Mar 3, 2026", side:"spill", type:"Humanitarian", where:"Lebanon", what:"Reuters: at least 30,000 people (incl. 9,000 children) sought shelter; more expected.", sourceId:"reuters_lebanon" },
+
+      { date:"Mar 3, 2026", side:"spill", type:"Humanitarian", where:"Iran", what:"Iranian Red Crescent cited as reporting 1,039 attacks recorded and 504 sites hit (via Just Security roundup).", sourceId:"justsecurity_early" }
+    ],
+
+    economy: {
+      energy: [
+        { label:"Crude oil move", value:"+5%", side:"spill", foot:"Reuters market reporting (Mar 3)" },
+        { label:"EU natural gas move", value:"+40%", side:"spill", foot:"Reuters market reporting (Mar 3)" },
+        { label:"U.S. gasoline avg", value:"$3.11/gal", side:"spill", foot:"AAA cited by Reuters (Mar 3)" }
+      ],
+      shipping: [
+        { label:"Hormuz status", value:"Shipping disrupted", side:"spill", foot:"Reuters: tankers anchored; escorts considered" },
+        { label:"Tanker hire cost", value:"> $400k/day", side:"spill", foot:"Reuters: nearly quadrupled vs last week" },
+        { label:"Air hubs", value:"Major disruptions", side:"spill", foot:"Reuters: Middle East hubs shut / chaos" }
+      ]
+    },
+
+    sources: [
+      {
+        id:"reuters_factbox",
+        name:"Reuters — How many people have been killed in the US‑Israel war on Iran?",
+        url:"https://www.reuters.com/world/middle-east/how-many-people-have-been-killed-us-israel-war-iran-2026-03-03/",
+        usedFor:"Deaths by location + Minab school figure (165); Israel civilian death total (10); U.S. military deaths (6).",
+        date:"Mar 3, 2026"
+      },
+      {
+        id:"reuters_markets",
+        name:"Reuters — Middle East conflict widens as Israeli, US strikes again hit Iran; oil soars, shares slide",
+        url:"https://www.reuters.com/world/middle-east/netanyahu-says-us-israel-war-iran-not-going-take-years-2026-03-03/",
+        usedFor:"Energy moves (+5% crude, +40% EU gas), gasoline ($3.11), tanker rates (> $400k/day), Hormuz disruption, Tehran targets incl. IRIB/Mehrabad/Minzadehei, Dubai consulate area hit.",
+        date:"Mar 3, 2026"
+      },
+      {
+        id:"reuters_lebanon",
+        name:"Reuters — Lebanon sucked deeper into war as Hezbollah, Israel trade blows",
+        url:"https://www.reuters.com/world/middle-east/lebanon-sucked-deeper-into-war-hezbollah-israel-trade-blows-2026-03-03/",
+        usedFor:"Lebanon wounded 246; displacement (30,000 in shelters); UNIFIL cross‑border incursions; Israeli troop deployments.",
+        date:"Mar 3, 2026"
+      },
+      {
+        id:"reuters_ground_unlikely",
+        name:"Reuters — Israel prepared for weeks‑long Iran campaign, unlikely to deploy ground forces, spokesperson says",
+        url:"https://www.reuters.com/world/middle-east/israel-prepared-weeks-long-iran-campaign-unlikely-deploy-ground-forces-2026-03-03/",
+        usedFor:"Statement that ground forces into Iran are unlikely; campaign scope weeks.",
+        date:"Mar 3, 2026"
+      },
+      {
+        id:"reuters_cia_riyadh",
+        name:"Reuters — CIA station in Saudi Arabia struck by suspected Iranian drone, source says",
+        url:"https://www.reuters.com/world/middle-east/cia-station-saudi-arabia-struck-by-suspected-iranian-drone-source-says-2026-03-03/",
+        usedFor:"Embassy hit by two drones; limited fire/material damage; CIA station at embassy compound struck.",
+        date:"Mar 3, 2026"
+      },
+      {
+        id:"reuters_tanker",
+        name:"Reuters — Crew member killed after projectile hits MKD VYOM tanker off Oman, manager says",
+        url:"https://www.reuters.com/world/crew-member-killed-after-projectile-hits-mkd-vyom-tanker-off-oman-manager-says-2026-03-01/",
+        usedFor:"Oman tanker casualty (1 death).",
+        date:"Mar 1, 2026"
+      },
+      {
+        id:"reuters_us_casualties",
+        name:"Reuters — US announces its first casualties in Iran war",
+        url:"https://www.reuters.com/world/us-military-says-three-its-service-members-killed-iran-operation-2026-03-01/",
+        usedFor:"Early U.S. casualties (3 killed, 5 seriously wounded) + claim of 1,000+ targets struck.",
+        date:"Mar 1, 2026"
+      },
+      {
+        id:"justsecurity_early",
+        name:"Just Security — Early Edition: March 3, 2026",
+        url:"https://www.justsecurity.org/132939/early-edition-march-3-2026/",
+        usedFor:"Iranian Red Crescent: attacks recorded (1,039) and sites hit (504) as relayed in roundup.",
+        date:"Mar 3, 2026"
+      }
+    ]
+  };
+
+  function el(id){ return document.getElementById(id); }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+  }
+  function sideLabel(side){
+    if(side==="coal") return "U.S.–Israel coalition";
+    if(side==="iran") return "Iran & aligned forces";
+    return "Spillover / economy / shipping";
+  }
+  function sideClass(side){
+    if(side==="coal") return "coal";
+    if(side==="iran") return "iran";
+    return "spill";
+  }
+  function rowClass(side){
+    if(side==="coal") return "rowCoal";
+    if(side==="iran") return "rowIran";
+    return "rowSpill";
+  }
+
+  function buildKpi({label,value,side,foot}){
+    return `
+      <div class="kpi ${esc(sideClass(side))}">
+        <div class="kpiLabel">${esc(label)}</div>
+        <div class="kpiValue">${esc(value)}</div>
+        ${foot ? `<div class="kpiFoot">${esc(foot)}</div>` : ``}
+      </div>
+    `;
+  }
+
+  function render(){
+    el("subline").textContent =
+      `${DATA.meta.lastUpdated} • ${DATA.meta.asOf} • Built for fast scanning + printing`;
+
+    el("contextBox").textContent = DATA.meta.contextTiny;
+    el("scopeBox").textContent = DATA.meta.scopeTiny;
+
+    // casualties totals
+    const totalDeaths = DATA.casualties.deathsByLocation.reduce((a,b)=>a + Number(b.deaths||0), 0);
+    el("kpiTotalAsOf").textContent = `as of ${DATA.meta.lastUpdated}`;
+
+    const totalKpis = [
+      { label:"Reported deaths (sum)", value:String(totalDeaths), side:"spill", foot:"Sum of rows below" },
+      { label:"Iran (reported)", value:"787", side:"iran", foot:"Reuters factbox" },
+      { label:"Israel (civilians)", value:"10", side:"coal", foot:"Reuters factbox" },
+      { label:"Lebanon (reported)", value:"50", side:"iran", foot:"Reuters factbox" },
+      { label:"U.S. military (reported)", value:"6", side:"coal", foot:"Reuters factbox" },
+      { label:"Worst single incident", value:"Minab school: 165", side:"iran", foot:"Reuters factbox" }
+    ];
+    el("kpiTotals").innerHTML = totalKpis.map(buildKpi).join("");
+    el("totalNote").textContent = "Reuters explicitly notes it did not independently verify the reported death tolls and that some categories may be incomplete.";
+
+    // Iran KPIs
+    const iranKpis = [
+      { label:"Reported deaths", value:"787", side:"iran", foot:"Reuters factbox (Mar 3)" },
+      { label:"Minab school deaths", value:"165", side:"iran", foot:"Reuters factbox" },
+      { label:"Recorded attacks", value:String(DATA.casualties.selected.recordedAttacks), side:"iran", foot:"Just Security roundup" },
+      { label:"Sites hit", value:String(DATA.casualties.selected.sitesHit), side:"iran", foot:"Just Security roundup" }
+    ];
+    el("kpiIran").innerHTML = iranKpis.map(buildKpi).join("");
+    el("iranContext").textContent = "Reuters says Iran reported 787 killed, including 165 schoolgirls and staff in Minab on day one; it was unclear if the death toll included IRGC military casualties.";
+
+    // Coalition KPIs
+    const coalKpis = [
+      { label:"Israel deaths (civ.)", value:"10", side:"coal", foot:"Reuters factbox" },
+      { label:"U.S. military deaths", value:"6", side:"coal", foot:"Reuters factbox" },
+      { label:"Lebanon wounded", value:String(DATA.casualties.selected.lebanonWounded), side:"spill", foot:"Reuters Lebanon report" },
+      { label:"Displaced in shelters (Leb.)", value:">= 30,000", side:"spill", foot:"Reuters Lebanon report" }
+    ];
+    el("kpiCoal").innerHTML = coalKpis.map(buildKpi).join("");
+    el("coalContext").textContent = "Reuters factbox: 10 Israeli civilians killed; IDF reported no military casualties at that time. Reuters also reports six U.S. service members killed in Kuwait.";
+
+    // deaths table
+    el("deathsTable").innerHTML = DATA.casualties.deathsByLocation.map(r => `
+      <tr class="${rowClass(r.side)}">
+        <td>
+          <span class="tag ${esc(sideClass(r.side))}">${esc(sideLabel(r.side))}</span>
+          <div style="margin-top:8px; font-weight:900;">${esc(r.loc)}</div>
+        </td>
+        <td class="mono" style="font-weight:900; font-size:16px;">${esc(r.deaths)}</td>
+        <td>${esc(r.by)}</td>
+        <td>
+          <div class="small">${esc(r.date)}</div>
+          <div class="tiny">${esc(r.note)}</div>
+        </td>
+      </tr>
+    `).join("");
+    el("deathsFoot").textContent = "Table anchored to Reuters factbox (Mar 3, 2026). Oman tanker casualty comes from Reuters March 1 manager report and is included in the Reuters factbox rollup.";
+
+    // injuries/displacement KPIs + list
+    const spillKpis = [
+      { label:"Lebanon wounded", value:String(DATA.casualties.selected.lebanonWounded), side:"spill", foot:"Reuters Lebanon report" },
+      { label:"Lebanon shelters", value:`>= ${DATA.casualties.selected.displacedLebanon}`, side:"spill", foot:"Reuters Lebanon report" },
+      { label:"U.S. early wounded", value:"5 (serious)", side:"coal", foot:"Reuters Mar 1 report" }
+    ];
+    el("kpiSpill").innerHTML = spillKpis.map(buildKpi).join("");
+
+    el("spillContext").textContent = "Selected non‑fatal impacts: Reuters reports Lebanon wounded 246 and at least 30,000 people sought shelter; Reuters also reported five U.S. service members seriously wounded early in the war (Mar 1).";
+
+    const injuries = [
+      { k:"Lebanon wounded", v:`${DATA.casualties.selected.lebanonWounded} (Lebanon health ministry via Reuters)` },
+      { k:"Lebanon sheltered/displaced", v:`>= ${DATA.casualties.selected.displacedLebanon} (UN via Reuters)` },
+      { k:"U.S. early serious wounded", v:"5 (Reuters, Mar 1)" }
+    ];
+    el("injuryList").innerHTML = injuries.map(x => `
+      <li class="li"><div class="k">${esc(x.k)}</div><div class="v">${esc(x.v)}</div></li>
+    `).join("");
+
+    // sides
+    el("sideAKpis").innerHTML = DATA.sides.sideA.kpis.map(buildKpi).join("");
+    el("sideAList").innerHTML = DATA.sides.sideA.members.map(x => `
+      <li class="li"><div class="k">${esc(x.k)}</div><div class="v">${esc(x.v)}</div></li>
+    `).join("");
+
+    el("sideBKpis").innerHTML = DATA.sides.sideB.kpis.map(buildKpi).join("");
+    el("sideBList").innerHTML = DATA.sides.sideB.members.map(x => `
+      <li class="li"><div class="k">${esc(x.k)}</div><div class="v">${esc(x.v)}</div></li>
+    `).join("");
+
+    // economy
+    el("econKpis1").innerHTML = DATA.economy.energy.map(buildKpi).join("");
+    el("econFoot1").textContent = "Reuters market report (Mar 3) includes crude +5% and European gas +40%; AAA gasoline average $3.11/gal also cited.";
+
+    el("econKpis2").innerHTML = DATA.economy.shipping.map(buildKpi).join("");
+    el("econFoot2").textContent = "Reuters market report: shipping through Hormuz disrupted; tanker hire cost nearly quadrupled to >$400,000/day; regional air hubs disrupted.";
+
+    // sources table
+    el("sourcesTable").innerHTML = DATA.sources.map(s => `
+      <tr>
+        <td><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)}</a></td>
+        <td>${esc(s.usedFor)}</td>
+        <td>${esc(s.date)}</td>
+      </tr>
+    `).join("");
+
+    // copy key stats button
+    el("copyBtn").addEventListener("click", async () => {
+      const lines = [];
+      lines.push("Iran War (Feb–Mar 2026) — key stats (snapshot)");
+      lines.push(`As of: ${DATA.meta.asOf}`);
+      lines.push("");
+      lines.push(`Reported deaths (sum of locations): ${totalDeaths}`);
+      DATA.casualties.deathsByLocation.forEach(r => lines.push(`- ${r.loc}: ${r.deaths}`));
+      lines.push("");
+      lines.push(`Lebanon wounded (reported): ${DATA.casualties.selected.lebanonWounded}`);
+      lines.push(`Lebanon in shelters (reported): >= ${DATA.casualties.selected.displacedLebanon}`);
+      lines.push(`Recorded attacks (Iranian Red Crescent): ${DATA.casualties.selected.recordedAttacks}`);
+      lines.push(`Sites hit (Iranian Red Crescent): ${DATA.casualties.selected.sitesHit}`);
+      lines.push("");
+      lines.push("Economy/shipping (Reuters): crude +5%, EU gas +40%, tanker hire >$400k/day, U.S. gasoline avg $3.11/gal.");
+
+      const text = lines.join("\n");
+      try{
+        await navigator.clipboard.writeText(text);
+        el("copyBtn").textContent = "Copied";
+        setTimeout(()=> el("copyBtn").textContent = "Copy key stats", 1200);
+      }catch(e){
+        alert("Copy failed (browser permission).");
+      }
+    });
+
+    el("printBtn").addEventListener("click", () => window.print());
+
+    // initial events render
+    renderEvents();
+  }
+
+  function renderEvents(){
+    const side = el("filterSide").value;
+    const type = el("filterType").value;
+    const q = el("searchBox").value.trim().toLowerCase();
+
+    const filtered = DATA.events.filter(ev => {
+      const sideOk = (side === "all") ? true : ev.side === side;
+      const typeOk = (type === "all") ? true : ev.type === type;
+      const text = `${ev.date} ${ev.type} ${ev.where} ${ev.what}`.toLowerCase();
+      const qOk = q ? text.includes(q) : true;
+      return sideOk && typeOk && qOk;
+    });
+
+    el("eventsTable").innerHTML = filtered.map(ev => {
+      const src = DATA.sources.find(s => s.id === ev.sourceId);
+      const sideCls = sideClass(ev.side);
+      const rowCls = rowClass(ev.side);
+      const srcHtml = src ? `<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">Link</a>` : "";
+      return `
+        <tr class="${rowCls}">
+          <td class="mono">${esc(ev.date)}</td>
+          <td><span class="tag ${esc(sideCls)}">${esc(sideLabel(ev.side))}</span></td>
+          <td class="mono">${esc(ev.type)}</td>
+          <td>${esc(ev.where)}</td>
+          <td>${esc(ev.what)}</td>
+          <td>${srcHtml}</td>
+        </tr>
+      `;
+    }).join("");
+
+    if(filtered.length === 0){
+      el("eventsTable").innerHTML = `
+        <tr><td colspan="6" class="small">No events match your filters/search.</td></tr>
+      `;
+    }
+  }
+
+  function wireFilters(){
+    el("filterSide").addEventListener("change", renderEvents);
+    el("filterType").addEventListener("change", renderEvents);
+    el("searchBox").addEventListener("input", renderEvents);
+  }
+
+  render();
+  wireFilters();
+</script>
+</body>
+</html>
