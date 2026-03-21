@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modern Military Weapons Guide</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #182142;
+      --text: #edf1ff;
+      --muted: #b8c2ea;
+      --soft: #93a2d8;
+      --line: #27315d;
+      --accent: #7aa2ff;
+      --accent-2: #a7c4ff;
+      --good: #74d6a5;
+      --warn: #ffd479;
+      --bad: #ff9a9a;
+      --chip: #1e2952;
+      --shadow: 0 16px 40px rgba(0,0,0,.28);
+      --radius: 16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: linear-gradient(180deg, #08101d 0%, #0c1430 100%); color: var(--text); font-family: var(--sans); }
+    body { line-height: 1.5; }
+    a { color: var(--accent-2); }
+    .wrap { width: min(1200px, calc(100% - 28px)); margin: 0 auto; }
+
+    .hero {
+      padding: 30px 0 20px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(122,162,255,.16), transparent 28%),
+        radial-gradient(circle at top left, rgba(255,212,121,.10), transparent 30%);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      margin: 0 0 10px;
+      line-height: 1.05;
+      letter-spacing: -.03em;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: 1.03rem;
+      max-width: 880px;
+      margin: 0 0 12px;
+    }
+    .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .chip {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: var(--accent-2);
+      font-size: .92rem;
+    }
+
+    .sticky-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      background: rgba(8, 13, 29, .82);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .nav-row {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 10px 0;
+      scrollbar-width: thin;
+    }
+    .nav-row a {
+      text-decoration: none;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .nav-row a:hover { color: var(--text); border-color: rgba(255,255,255,.15); }
+
+    main { padding: 28px 0 80px; }
+    section { margin: 0 0 26px; }
+    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin: 0 0 14px; }
+    .section-head h2 { margin: 0; font-size: clamp(1.35rem, 2.5vw, 2rem); letter-spacing: -.02em; }
+    .section-head p { margin: 0; color: var(--soft); max-width: 760px; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card h3, .card h4 { margin: 0 0 8px; }
+    .card p { margin: 0; color: var(--muted); }
+    .label { display: inline-block; padding: 5px 9px; border-radius: 999px; background: var(--chip); color: var(--accent-2); font-size: .8rem; margin-bottom: 10px; }
+    .muted { color: var(--soft); }
+    .tiny { font-size: .86rem; }
+    .mono { font-family: var(--mono); }
+
+    .callout {
+      padding: 14px 16px;
+      border-left: 4px solid var(--accent);
+      background: rgba(122,162,255,.08);
+      border-radius: 10px;
+      color: var(--muted);
+    }
+
+    .decoder {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+    .decode-box {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .decode-title {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .token { display: flex; gap: 8px; align-items: start; margin: 7px 0; }
+    .token b { min-width: 78px; color: var(--warn); }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+    .controls select, .controls input {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    .controls input { min-width: 250px; flex: 1; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    thead { background: rgba(255,255,255,.04); }
+    th, td {
+      text-align: left;
+      padding: 12px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      vertical-align: top;
+      font-size: .95rem;
+    }
+    th { color: var(--accent-2); font-weight: 700; }
+    td { color: var(--muted); }
+    tr:last-child td { border-bottom: 0; }
+
+    .caliber-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 190px;
+    }
+    .caliber-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; margin-bottom: 10px; }
+    .cartridge-figure {
+      margin: 10px 0 8px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    }
+    .cartridge-figure svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .dimension-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0 12px;
+    }
+    .dim-box {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      padding: 9px 10px;
+    }
+    .dim-box .k {
+      display: block;
+      font-size: .72rem;
+      color: var(--soft);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .dim-box .v {
+      display: block;
+      font-weight: 700;
+      color: var(--text);
+      font-size: .98rem;
+    }
+    .figure-caption {
+      color: var(--soft);
+      font-size: .8rem;
+      margin-top: 8px;
+    }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .tag { background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px; padding: 5px 9px; font-size: .78rem; }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+    .timeline .card { position: relative; }
+    .year {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 10px;
+      color: var(--accent-2);
+    }
+
+    .lineage {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .lineage-column {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .lineage-column h3 { margin-top: 0; }
+    .branch {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+      padding-left: 14px;
+      border-left: 2px solid rgba(122,162,255,.35);
+    }
+    .node {
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .node strong { display: block; margin-bottom: 4px; color: var(--text); }
+
+    .role-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .role-grid .card ul {
+      margin: 10px 0 0 18px;
+      padding: 0;
+      color: var(--muted);
+    }
+
+    .faq details {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .faq summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .faq p { color: var(--muted); margin: 10px 0 0; }
+
+    footer {
+      padding: 18px 0 60px;
+      color: var(--soft);
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .source-list { display: grid; gap: 6px; }
+
+    @media (max-width: 900px) {
+      .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 8px; }
+      th, td { font-size: .9rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <h1>Modern Military Weapons Guide</h1>
+    </div>
+  </header>
+
+  <div class="sticky-nav">
+    <div class="wrap nav-row">
+      <a href="#read-names">Read names</a>
+      <a href="#calibers">Calibers</a>
+      <a href="#roles">Role labels</a>
+      <a href="#comparison">Quick comparison</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#lineage">Lineage</a>
+      <a href="#faq">Common confusions</a>
+      <a href="#sources">Sources</a>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <section id="read-names">
+      <div class="section-head">
+        <h2>How to read weapon names</h2>
+        <p>Most names are shorthand. They usually compress some mix of year, factory designation, caliber, or role. Once you learn the naming habits, the labels become much less mysterious.</p>
+      </div>
+      <div class="decoder">
+        <div class="decode-box">
+          <div class="label">U.S. style</div>
+          <div class="decode-title">M16A2</div>
+          <div class="token"><b>M</b><span>Usually means “model.”</span></div>
+          <div class="token"><b>16</b><span>The base model number inside that family.</span></div>
+          <div class="token"><b>A2</b><span>A major standardized revision.</span></div>
+          <div class="token"><b>Meaning</b><span>The second major service revision of the M16 family.</span></div>
+        </div>
+        <div class="decode-box">
+          <div class="label">Soviet style</div>
+          <div class="decode-title">AK-74</div>
+          <div class="token"><b>AK</b><span><span class="mono">Avtomat Kalashnikova</span>: Kalashnikov automatic rifle.</span></div>
+          <div class="token"><b>74</b><span>Year marker: adopted in the 1970s, centered on 1974.</span></div>
+          <div class="token"><b>Meaning</b><span>Kalashnikov family rifle updated for the 5.45×39 cartridge.</span></div>
+        </div>
+        <div class="decode-box">
+          <div class="label">Chinese style</div>
+          <div class="decode-title">Type 56 / QBZ-95</div>
+          <div class="token"><b>Type 56</b><span>Chinese naming often uses the year of adoption: 1956.</span></div>
+          <div class="token"><b>QBZ</b><span><span class="mono">Qingwuqi, Buqiang, Zidong</span>: light weapon, rifle, automatic.</span></div>
+          <div class="token"><b>95</b><span>Type 95: adopted in the 1990s.</span></div>
+          <div class="token"><b>Meaning</b><span>China moved from Soviet-derived names to its own domestic designation system.</span></div>
+        </div>
+      </div>
+      <div class="callout" style="margin-top:16px;">
+        Names do not reliably tell you everything. A carbine can fire the same cartridge as a rifle. A “light machine gun” can look like a big rifle. An “assault rifle” is mainly defined by its role and cartridge class, not by looking scary or having a particular stock.
+      </div>
+    </section>
+
+    <section id="calibers">
+      <div class="section-head">
+        <h2>How caliber labels work</h2>
+        <p>A label like <span class="mono">5.56×45</span> means roughly: bullet diameter by case length, both in millimeters. The first number is not a promise that all cartridges with the same diameter are interchangeable. The second number matters, the case shape matters, the pressure matters, and the chamber matters.</p>
+      </div>
+      <div class="grid grid-3" id="caliberGrid"></div>
+      <div class="card" style="margin-top:16px;">
+        <h3>Fast rule of thumb</h3>
+        <p><span class="mono">9×19</span> is a pistol cartridge. <span class="mono">5.56×45</span>, <span class="mono">5.45×39</span>, and <span class="mono">7.62×39</span> are intermediate rifle cartridges. <span class="mono">7.62×51</span> NATO and <span class="mono">7.62×54R</span> are full-power rifle and machine-gun cartridges. In the cards above, the measurements are the point: bullet diameter, case length, and overall cartridge length.</p>
+      </div>
+    </section>
+
+    <section id="roles">
+      <div class="section-head">
+        <h2>What the role labels mean</h2>
+        <p>These labels describe battlefield role more than they describe one exact shape. The same family can appear in several roles by changing barrel length, stock, feed system, and intended use.</p>
+      </div>
+      <div class="role-grid">
+        <div class="card">
+          <div class="label">Close-range</div>
+          <h3>SMG</h3>
+          <p>Submachine gun. Usually fires pistol ammunition like 9×19 mm. Good for compactness and controllability at short range.</p>
+          <ul>
+            <li>Examples: MP5, Uzi, PPSh-41</li>
+            <li>Main clue: pistol cartridge</li>
+            <li>Modern role shrank once short carbines became common</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label">General infantry</div>
+          <h3>Assault rifle</h3>
+          <p>Select-fire rifle using an intermediate cartridge. This category became the standard infantry weapon class after World War II.</p>
+          <ul>
+            <li>Examples: M16, M4, AK-47, AK-74, QBZ-95</li>
+            <li>Main clue: intermediate rifle round</li>
+            <li>Can fire semi-auto and full-auto or burst</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label">Shorter rifle</div>
+          <h3>Carbine</h3>
+          <p>Usually a shorter, handier version of a rifle. A carbine can use the same ammunition as the longer rifle version.</p>
+          <ul>
+            <li>Example: M4 as a shorter branch of the M16 family</li>
+            <li>Main clue: shorter barrel / compact role</li>
+            <li>Not a separate ammo category by itself</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label">Sustained squad fire</div>
+          <h3>LMG / SAW</h3>
+          <p>Light machine gun, often the squad automatic weapon. Intended to provide longer bursts and suppressive fire for a small unit.</p>
+          <ul>
+            <li>Examples: M249, RPK, QJB-95</li>
+            <li>Often bipod-equipped</li>
+            <li>May be belt-fed or magazine-fed</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label">Heavier support</div>
+          <h3>GPMG</h3>
+          <p>General-purpose machine gun. Usually uses a full-power rifle cartridge and can serve on bipod, tripod, or vehicle mount.</p>
+          <ul>
+            <li>Examples: PKM, M240</li>
+            <li>Longer reach and heavier ammunition</li>
+            <li>Above the squad-rifle class in weight and role</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label">Older standard</div>
+          <h3>Battle rifle</h3>
+          <p>Rifle firing a full-power cartridge instead of an intermediate one. Common before assault rifles took over standard infantry service.</p>
+          <ul>
+            <li>Examples: M14, FN FAL, G3</li>
+            <li>More recoil and weight</li>
+            <li>Better reach, worse controllability in automatic fire</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="comparison">
+      <div class="section-head">
+        <h2>Quick comparison table</h2>
+        <p>This is the “get oriented fast” table. It mixes iconic service weapons with the variants that matter most to understanding U.S. versus Soviet/Chinese development.</p>
+      </div>
+      <div class="controls">
+        <select id="countryFilter">
+          <option value="all">All countries</option>
+          <option value="United States">United States</option>
+          <option value="Soviet Union / Russia">Soviet Union / Russia</option>
+          <option value="China">China</option>
+        </select>
+        <select id="roleFilter">
+          <option value="all">All roles</option>
+          <option value="Assault rifle">Assault rifle</option>
+          <option value="Carbine">Carbine</option>
+          <option value="LMG / SAW">LMG / SAW</option>
+          <option value="GPMG">GPMG</option>
+          <option value="Battle rifle">Battle rifle</option>
+          <option value="Carbine / semi-auto">Carbine / semi-auto</option>
+        </select>
+        <input id="searchBox" type="text" placeholder="Search M4, AK, 7.62, Type 56, QBZ..." />
+      </div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Weapon</th>
+              <th>Country / bloc</th>
+              <th>Role</th>
+              <th>Typical caliber</th>
+              <th>Introduced</th>
+              <th>Why it matters</th>
+            </tr>
+          </thead>
+          <tbody id="weaponTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="timeline">
+      <div class="section-head">
+        <h2>Timeline of the shift to modern infantry weapons</h2>
+        <p>The big story is the move from full-power rifles toward lighter intermediate-cartridge weapons, then toward optics, modular accessories, and shorter carbines without abandoning the assault-rifle role.</p>
+      </div>
+      <div class="timeline">
+        <div class="card">
+          <div class="year">1940s</div>
+          <h3>Intermediate cartridges become central</h3>
+          <p>The late World War II period shows why most infantry fighting happens at ranges that do not demand old full-power rifle ammunition. The Soviet answer eventually becomes the AK-47 in 7.62×39.</p>
+        </div>
+        <div class="card">
+          <div class="year">1950s</div>
+          <h3>China copies and scales Soviet patterns</h3>
+          <p>China begins Type 56 production using Soviet technical help. This matters because it spreads AK- and SKS-type weapons far beyond Soviet borders.</p>
+        </div>
+        <div class="card">
+          <div class="year">1960s</div>
+          <h3>The U.S. commits to 5.56</h3>
+          <p>The M16 family marks the U.S. turn toward a lighter, high-velocity small-caliber service rifle. The Soviets later answer with their own smaller round, 5.45×39.</p>
+        </div>
+        <div class="card">
+          <div class="year">1970s</div>
+          <h3>AK-74 shrinks the bullet, not the concept</h3>
+          <p>The AK-74 keeps the Kalashnikov operating concept but moves to a lighter, faster round. This parallels the broader global trend toward smaller intermediate cartridges.</p>
+        </div>
+        <div class="card">
+          <div class="year">1980s–1990s</div>
+          <h3>Squad automatic weapons and compact carbines</h3>
+          <p>The M249 becomes the U.S. SAW in 1984. The M4 arrives in the 1990s as a shorter carbine branch of the M16 family. China adopts the QBZ-95 in 1997.</p>
+        </div>
+        <div class="card">
+          <div class="year">2000s–today</div>
+          <h3>Modularity and optics dominate</h3>
+          <p>The modern story is less about inventing a completely new class and more about mounting optics, rails, lights, suppressors, improved magazines, and refined ammunition on existing families.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="lineage">
+      <div class="section-head">
+        <h2>Lineage: U.S. versus Soviet/Chinese development</h2>
+        <p>Do not think of these as totally separate guns. Think of them as family trees with branching roles: rifle, carbine, automatic rifle, light machine gun, and sometimes compact special-purpose versions.</p>
+      </div>
+      <div class="lineage">
+        <div class="lineage-column">
+          <div class="label">United States</div>
+          <h3>AR / M16 / M4 branch</h3>
+          <p class="muted tiny">Core pattern: lightweight, small-caliber, magazine-fed service rifle with later emphasis on compactness and modularity.</p>
+          <div class="branch">
+            <div class="node"><strong>AR-15 / early M16 concept</strong><span>Small-caliber, high-velocity direction that breaks from the older full-power battle-rifle idea.</span></div>
+            <div class="node"><strong>M16 (1960s)</strong><span>Standard U.S. service rifle family in 5.56×45.</span></div>
+            <div class="node"><strong>M16A2 / A4</strong><span>Refined service versions with standardized military updates.</span></div>
+            <div class="node"><strong>M4 / M4A1 (1990s)</strong><span>Carbine branch: shorter barrel, collapsible stock, same general family and cartridge.</span></div>
+            <div class="node"><strong>M249 SAW</strong><span>Not a direct M16 derivative, but the squad automatic partner in the same 5.56 infantry ecosystem.</span></div>
+            <div class="node"><strong>M27 IAR / newer trends</strong><span>Shows a partial move away from belt-fed squad fire in some units toward automatic-rifle concepts based on accurate rifles.</span></div>
+          </div>
+        </div>
+        <div class="lineage-column">
+          <div class="label">Soviet Union / Russia</div>
+          <h3>Kalashnikov branch</h3>
+          <p class="muted tiny">Core pattern: rugged gas-piston system, simple controls, huge global spread, and easy manufacturing in many variants.</p>
+          <div class="branch">
+            <div class="node"><strong>SKS</strong><span>Early 7.62×39 semi-auto carbine. Transitional weapon between older rifles and later full assault-rifle dominance.</span></div>
+            <div class="node"><strong>AK-47 / AKM</strong><span>Classic 7.62×39 assault-rifle branch. AKM streamlines production and becomes globally dominant.</span></div>
+            <div class="node"><strong>RPK</strong><span>Squad automatic companion to the AK system, using the same 7.62×39 family but configured for longer bursts.</span></div>
+            <div class="node"><strong>AK-74</strong><span>Smaller 5.45×39 cartridge while keeping the Kalashnikov family concept.</span></div>
+            <div class="node"><strong>PK / PKM</strong><span>Separate but hugely important machine-gun branch using the heavier 7.62×54R cartridge.</span></div>
+          </div>
+        </div>
+        <div class="lineage-column">
+          <div class="label">China</div>
+          <h3>From Soviet copies to domestic family</h3>
+          <p class="muted tiny">China starts by building Soviet-derived weapons, then eventually adopts its own domestic cartridge and rifle series.</p>
+          <div class="branch">
+            <div class="node"><strong>Type 56 rifle</strong><span>Chinese AK-pattern rifle in 7.62×39, initially built with Soviet assistance and then mass-produced for decades.</span></div>
+            <div class="node"><strong>Type 56 carbine (SKS type)</strong><span>Chinese SKS production shows how China scaled both major Soviet small-arms patterns at once.</span></div>
+            <div class="node"><strong>QBZ-95 (1997)</strong><span>Bullpup assault rifle in 5.8×42, showing a major break from simple Kalashnikov copying.</span></div>
+            <div class="node"><strong>QJB-95 support weapon</strong><span>Light support weapon branch within the same 5.8 system.</span></div>
+            <div class="node"><strong>QBZ-191 family</strong><span>Later return toward a more conventional rifle layout while keeping the domestic 5.8 cartridge ecosystem.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>One page mental model</h2>
+        <p>If you only remember a few things, remember these.</p>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>1. Cartridge class usually drives the category</h3>
+          <p>SMGs are usually pistol-caliber. Assault rifles use intermediate cartridges. Battle rifles and GPMGs use full-power cartridges. That one rule explains a lot of seemingly random names.</p>
+        </div>
+        <div class="card">
+          <h3>2. Shorter gun does not automatically mean weaker cartridge</h3>
+          <p>An M4 is shorter than an M16, but both are 5.56×45. “Carbine” often means shorter and handier, not a fundamentally different ammunition family.</p>
+        </div>
+        <div class="card">
+          <h3>3. AK and AR are families, not single frozen objects</h3>
+          <p>Once you stop imagining one iconic picture and start thinking in branches, the history gets easier. There are rifle versions, carbine versions, and support-weapon cousins.</p>
+        </div>
+        <div class="card">
+          <h3>4. China begins inside the Soviet tree, then exits it</h3>
+          <p>Type 56 is the copy era. QBZ-95 is the domestic-system era. That is the simplest way to understand the Chinese side of the story.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="faq">
+      <div class="section-head">
+        <h2>Common beginner confusions</h2>
+        <p>These are the points that trip people up most often.</p>
+      </div>
+      <details open>
+        <summary>Why are both 7.62×39 and 7.62×54R called 7.62 if they are so different?</summary>
+        <p>Because the first number is only the approximate bullet diameter. The case length, case shape, pressure, and overall cartridge design are different. Sharing a diameter number does not make cartridges interchangeable.</p>
+      </details>
+      <details>
+        <summary>Why is the M4 called a carbine if it fires rifle ammo?</summary>
+        <p>Because “carbine” usually describes the weapon format, not the ammunition category. The M4 is a shorter, more compact branch of the M16 family but still uses 5.56×45 rifle ammunition.</p>
+      </details>
+      <details>
+        <summary>Is the RPK just an AK with a longer barrel?</summary>
+        <p>That is the right first approximation. It is a squad automatic branch of the Kalashnikov family: heavier barrel, bipod, and role changes for sustained fire, but still closely tied to the AK system.</p>
+      </details>
+      <details>
+        <summary>Why did both the U.S. and Soviets move toward smaller rounds?</summary>
+        <p>Weight, controllability, and practical combat range. Infantry can carry more ammunition, recoil is easier to manage, and automatic or rapid semi-automatic fire becomes more practical.</p>
+      </details>
+      <details>
+        <summary>Did China keep using Soviet calibers forever?</summary>
+        <p>No. China spent decades with Soviet-derived 7.62×39 weapons, then moved to the indigenous 5.8×42 cartridge with the QBZ-95 family.</p>
+      </details>
+    </section>
+
+    <section id="sources">
+      <div class="section-head">
+        <h2>Sources used for the historical frame</h2>
+        <p>The page is a teaching guide, so the text simplifies some details. These sources anchor the dates, categories, and major family transitions.</p>
+      </div>
+      <div class="card">
+        <div class="source-list tiny">
+          <div>U.S. Army ODIN: M4 Carbine American 5.56mm Assault Rifle</div>
+          <div>U.S. Army ODIN: M16A4 and M16A2 weapon entries</div>
+          <div>U.S. Army ODIN / Army articles: M249 Squad Automatic Weapon / Light Machine Gun</div>
+          <div>Encyclopaedia Britannica: AK-47, AK-74, assault rifle, submachine gun, light machine gun, carbine</div>
+          <div>Small Arms Survey: Kalashnikov-pattern global prevalence</div>
+          <div>Britannica Kids / reference summaries: QBZ-95 adoption in 1997</div>
+          <div>NSSF: rough size of the U.S. modern sporting rifle market for broader civilian AR/AK context</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      This page is a learning scaffold, not a collector database. Its job is to make the naming, cartridge, and role logic understandable first.
+    </div>
+  </footer>
+
+  <script>
+    const calibers = [
+      {
+        name: '9×19 mm',
+        role: 'Pistol / SMG',
+        bulletDiameter: 9.01,
+        caseLength: 19.15,
+        overallLength: 29.69,
+        baseDiameter: 9.93,
+        rimDiameter: 9.96,
+        shoulderDiameter: 9.65,
+        shape: 'straight',
+        description: 'Classic pistol cartridge. When you see it in a shoulder-fired weapon, that usually points toward the SMG category.',
+        examples: ['MP5', 'Uzi', 'Pistol-caliber carbines'],
+        notes: ['Short-range', 'Compact magazines', 'Common in SMGs']
+      },
+      {
+        name: '5.56×45 mm NATO',
+        role: 'Intermediate rifle',
+        bulletDiameter: 5.70,
+        caseLength: 44.70,
+        overallLength: 57.40,
+        baseDiameter: 9.58,
+        rimDiameter: 9.60,
+        shoulderDiameter: 9.00,
+        shape: 'bottleneck',
+        description: 'Standard modern U.S./NATO small-caliber rifle cartridge. Core cartridge for the M16 and M4 families.',
+        examples: ['M16', 'M4', 'M249'],
+        notes: ['Intermediate cartridge', 'NATO standard', 'Common Western service round']
+      },
+      {
+        name: '7.62×39 mm',
+        role: 'Intermediate rifle',
+        bulletDiameter: 7.92,
+        caseLength: 38.70,
+        overallLength: 56.00,
+        baseDiameter: 11.35,
+        rimDiameter: 11.35,
+        shoulderDiameter: 10.07,
+        shape: 'bottleneck',
+        description: 'Classic Soviet intermediate cartridge associated with the AK-47, AKM, SKS, and Chinese Type 56.',
+        examples: ['AK-47', 'AKM', 'SKS', 'Type 56'],
+        notes: ['Intermediate cartridge', 'Huge global spread', 'Classic AK round']
+      },
+      {
+        name: '5.45×39 mm',
+        role: 'Intermediate rifle',
+        bulletDiameter: 5.60,
+        caseLength: 39.82,
+        overallLength: 57.00,
+        baseDiameter: 10.00,
+        rimDiameter: 10.00,
+        shoulderDiameter: 9.25,
+        shape: 'bottleneck',
+        description: 'Soviet move toward a smaller, faster assault-rifle cartridge, centered on the AK-74 family.',
+        examples: ['AK-74', 'RPK-74'],
+        notes: ['Intermediate cartridge', 'Later Soviet standard', 'Comparable class to 5.56']
+      },
+      {
+        name: '7.62×51 mm NATO',
+        role: 'Full-power rifle',
+        bulletDiameter: 7.82,
+        caseLength: 51.18,
+        overallLength: 69.85,
+        baseDiameter: 11.94,
+        rimDiameter: 12.01,
+        shoulderDiameter: 11.53,
+        shape: 'bottleneck',
+        description: 'Full-power rifle and machine-gun cartridge. Typical in battle rifles, GPMGs, and many DMR roles.',
+        examples: ['M14', 'FN FAL', 'M240'],
+        notes: ['Full-power rifle', 'Longer effective range', 'Common GPMG round']
+      },
+      {
+        name: '7.62×54R',
+        role: 'Full-power rifle',
+        bulletDiameter: 7.92,
+        caseLength: 53.72,
+        overallLength: 77.16,
+        baseDiameter: 12.37,
+        rimDiameter: 14.48,
+        shoulderDiameter: 11.61,
+        shape: 'rimmed',
+        description: 'Long-serving Russian full-power cartridge still used in machine guns and designated-marksman roles.',
+        examples: ['PKM', 'SVD'],
+        notes: ['Full-power rifle', 'Rimmed case', 'Long service life']
+      },
+      {
+        name: '5.8×42 mm',
+        role: 'Intermediate rifle',
+        bulletDiameter: 6.00,
+        caseLength: 42.20,
+        overallLength: 58.00,
+        baseDiameter: 10.40,
+        rimDiameter: 10.42,
+        shoulderDiameter: 9.35,
+        shape: 'bottleneck',
+        description: 'China’s indigenous modern service cartridge, associated with the QBZ-95 and later Chinese rifle families.',
+        examples: ['QBZ-95', 'QJB-95', 'QBZ-191'],
+        notes: ['Intermediate cartridge', 'Chinese domestic system', 'Post-Type 56 era']
+      }
+    ];
+
+    const weapons = [
+      { weapon: 'M16', country: 'United States', role: 'Assault rifle', caliber: '5.56×45 mm', year: 1964, why: 'Main U.S. shift toward the modern small-caliber service-rifle model.' },
+      { weapon: 'M16A2', country: 'United States', role: 'Assault rifle', caliber: '5.56×45 mm', year: 1982, why: 'Standardized updated military branch of the M16 family.' },
+      { weapon: 'M4 / M4A1', country: 'United States', role: 'Carbine', caliber: '5.56×45 mm', year: 1994, why: 'Compact carbine branch of the M16 family and now the iconic U.S. service pattern.' },
+      { weapon: 'M14', country: 'United States', role: 'Battle rifle', caliber: '7.62×51 mm', year: 1959, why: 'Good contrast piece: older full-power battle-rifle logic before the 5.56 turn.' },
+      { weapon: 'M249 SAW', country: 'United States', role: 'LMG / SAW', caliber: '5.56×45 mm', year: 1984, why: 'U.S. squad automatic weapon that fits the same 5.56 infantry ecosystem.' },
+      { weapon: 'M240', country: 'United States', role: 'GPMG', caliber: '7.62×51 mm', year: 1977, why: 'Shows the heavier machine-gun side of the U.S. support-weapon system.' },
+      { weapon: 'SKS', country: 'Soviet Union / Russia', role: 'Carbine / semi-auto', caliber: '7.62×39 mm', year: 1945, why: 'Transitional Soviet design that helps explain the move into true assault rifles.' },
+      { weapon: 'AK-47', country: 'Soviet Union / Russia', role: 'Assault rifle', caliber: '7.62×39 mm', year: 1949, why: 'The globally iconic Kalashnikov pattern and one of the defining modern assault rifles.' },
+      { weapon: 'AKM', country: 'Soviet Union / Russia', role: 'Assault rifle', caliber: '7.62×39 mm', year: 1959, why: 'Cheaper, stamped-receiver refinement that greatly expanded the Kalashnikov family.' },
+      { weapon: 'RPK', country: 'Soviet Union / Russia', role: 'LMG / SAW', caliber: '7.62×39 mm', year: 1961, why: 'Squad automatic partner to the AK family.' },
+      { weapon: 'AK-74', country: 'Soviet Union / Russia', role: 'Assault rifle', caliber: '5.45×39 mm', year: 1974, why: 'Soviet answer to the smaller-caliber assault-rifle era.' },
+      { weapon: 'PKM', country: 'Soviet Union / Russia', role: 'GPMG', caliber: '7.62×54R', year: 1969, why: 'One of the most important Soviet/Russian general-purpose machine guns.' },
+      { weapon: 'Type 56 rifle', country: 'China', role: 'Assault rifle', caliber: '7.62×39 mm', year: 1956, why: 'Chinese AK-pattern service rifle and the symbol of the Soviet-copy era.' },
+      { weapon: 'Type 56 carbine', country: 'China', role: 'Carbine / semi-auto', caliber: '7.62×39 mm', year: 1956, why: 'Chinese SKS production, important for understanding how wide the Soviet pattern spread.' },
+      { weapon: 'QBZ-95', country: 'China', role: 'Assault rifle', caliber: '5.8×42 mm', year: 1997, why: 'China’s major break into a domestic bullpup service-rifle family.' },
+      { weapon: 'QJB-95', country: 'China', role: 'LMG / SAW', caliber: '5.8×42 mm', year: 1997, why: 'Support-weapon branch within the QBZ system.' },
+      { weapon: 'QBZ-191', country: 'China', role: 'Assault rifle', caliber: '5.8×42 mm', year: 2019, why: 'Represents China’s later move toward a more conventional rifle layout.' }
+    ];
+
+    const caliberGrid = document.getElementById('caliberGrid');
+    const tbody = document.getElementById('weaponTableBody');
+    const countryFilter = document.getElementById('countryFilter');
+    const roleFilter = document.getElementById('roleFilter');
+    const searchBox = document.getElementById('searchBox');
+
+    function mm(value) {
+      return `${value.toFixed(2).replace(/\.00$/, '')} mm`;
+    }
+
+    function cartridgeSVG(c) {
+      const scale = 3.2;
+      const paddingX = 16;
+      const paddingY = 16;
+      const caseLen = c.caseLength * scale;
+      const overallLen = c.overallLength * scale;
+      const bulletLen = Math.max(overallLen - caseLen, 18);
+      const bodyHalf = (c.baseDiameter * scale) / 2;
+      const shoulderHalf = ((c.shoulderDiameter || c.baseDiameter) * scale) / 2;
+      const bulletHalf = (c.bulletDiameter * scale) / 2;
+      const rimHalf = ((c.rimDiameter || c.baseDiameter) * scale) / 2;
+      const rimInset = c.shape === 'rimmed' ? 6 : 0;
+      const viewW = Math.max(320, overallLen + paddingX * 2 + 8);
+      const viewH = Math.max(110, rimHalf * 2 + paddingY * 2 + 20);
+      const cx = paddingY + rimHalf + 8;
+      const x0 = paddingX + rimInset;
+      const xCaseEnd = x0 + caseLen;
+      const shoulderStart = c.shape === 'straight' ? xCaseEnd - bulletLen * 0.35 : x0 + caseLen * 0.72;
+      const neckStart = c.shape === 'straight' ? xCaseEnd - bulletLen * 0.18 : x0 + caseLen * 0.90;
+      const xTip = x0 + overallLen;
+
+      const top = [];
+      const bottom = [];
+
+      top.push([x0 - rimInset, cx - rimHalf]);
+      top.push([x0, cx - bodyHalf]);
+      if (c.shape === 'straight') {
+        top.push([xCaseEnd, cx - bodyHalf * 0.95]);
+      } else {
+        top.push([shoulderStart, cx - bodyHalf]);
+        top.push([neckStart, cx - shoulderHalf]);
+        top.push([xCaseEnd, cx - bulletHalf]);
+      }
+      top.push([xTip - bulletLen * 0.28, cx - bulletHalf * 0.55]);
+      top.push([xTip, cx]);
+
+      bottom.push([xTip - bulletLen * 0.28, cx + bulletHalf * 0.55]);
+      if (c.shape === 'straight') {
+        bottom.push([xCaseEnd, cx + bodyHalf * 0.95]);
+      } else {
+        bottom.push([xCaseEnd, cx + bulletHalf]);
+        bottom.push([neckStart, cx + shoulderHalf]);
+        bottom.push([shoulderStart, cx + bodyHalf]);
+      }
+      bottom.push([x0, cx + bodyHalf]);
+      bottom.push([x0 - rimInset, cx + rimHalf]);
+
+      const points = [...top, ...bottom].map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+      const caseEndLabelX = x0 + caseLen;
+      const overallLabelX = x0 + overallLen;
+      const bulletX = viewW - 28;
+
+      return `
+        <svg viewBox="0 0 ${viewW} ${viewH}" aria-label="${c.name} scaled by approximate dimensions">
+          <defs>
+            <linearGradient id="metal-${c.name.replace(/[^a-z0-9]/gi, '')}" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stop-color="#b8c2ea" stop-opacity=".55"></stop>
+              <stop offset="55%" stop-color="#dfe7ff" stop-opacity=".82"></stop>
+              <stop offset="100%" stop-color="#7aa2ff" stop-opacity=".58"></stop>
+            </linearGradient>
+          </defs>
+          <line x1="${x0 - rimInset}" y1="${cx}" x2="${xTip}" y2="${cx}" stroke="rgba(255,255,255,.10)" stroke-width="1"></line>
+          <polygon points="${points}" fill="url(#metal-${c.name.replace(/[^a-z0-9]/gi, '')})" stroke="rgba(255,255,255,.22)" stroke-width="1.2"></polygon>
+
+          <line x1="${x0}" y1="${viewH - 26}" x2="${caseEndLabelX}" y2="${viewH - 26}" stroke="#7aa2ff" stroke-width="2"></line>
+          <line x1="${x0}" y1="${viewH - 32}" x2="${x0}" y2="${viewH - 20}" stroke="#7aa2ff" stroke-width="2"></line>
+          <line x1="${caseEndLabelX}" y1="${viewH - 32}" x2="${caseEndLabelX}" y2="${viewH - 20}" stroke="#7aa2ff" stroke-width="2"></line>
+          <text x="${(x0 + caseEndLabelX) / 2}" y="${viewH - 34}" text-anchor="middle" fill="#a7c4ff" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">case ${mm(c.caseLength)}</text>
+
+          <line x1="${x0}" y1="${viewH - 8}" x2="${overallLabelX}" y2="${viewH - 8}" stroke="#ffd479" stroke-width="2"></line>
+          <line x1="${x0}" y1="${viewH - 14}" x2="${x0}" y2="${viewH - 2}" stroke="#ffd479" stroke-width="2"></line>
+          <line x1="${overallLabelX}" y1="${viewH - 14}" x2="${overallLabelX}" y2="${viewH - 2}" stroke="#ffd479" stroke-width="2"></line>
+          <text x="${(x0 + overallLabelX) / 2}" y="${viewH - 16}" text-anchor="middle" fill="#ffd479" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">overall ${mm(c.overallLength)}</text>
+
+          <line x1="${bulletX}" y1="${cx - bulletHalf}" x2="${bulletX}" y2="${cx + bulletHalf}" stroke="#74d6a5" stroke-width="2"></line>
+          <line x1="${bulletX - 5}" y1="${cx - bulletHalf}" x2="${bulletX + 5}" y2="${cx - bulletHalf}" stroke="#74d6a5" stroke-width="2"></line>
+          <line x1="${bulletX - 5}" y1="${cx + bulletHalf}" x2="${bulletX + 5}" y2="${cx + bulletHalf}" stroke="#74d6a5" stroke-width="2"></line>
+          <text x="${bulletX - 8}" y="${cx + 4}" text-anchor="end" fill="#74d6a5" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Ø ${mm(c.bulletDiameter)}</text>
+        </svg>
+      `;
+    }
+
+    function renderCalibers() {
+      caliberGrid.innerHTML = calibers.map(c => `
+        <div class="card caliber-card">
+          <div class="caliber-top">
+            <div>
+              <div class="label">${c.role}</div>
+              <h3>${c.name}</h3>
+            </div>
+            <div class="tiny muted">Scaled dimensions</div>
+          </div>
+          <div class="cartridge-figure">${cartridgeSVG(c)}</div>
+          <div class="figure-caption">Scaled to approximate published dimensions. Numbers below are the actual reference values shown in the diagram.</div>
+          <div class="dimension-grid">
+            <div class="dim-box">
+              <span class="k">Bullet diameter</span>
+              <span class="v">${mm(c.bulletDiameter)}</span>
+            </div>
+            <div class="dim-box">
+              <span class="k">Case length</span>
+              <span class="v">${mm(c.caseLength)}</span>
+            </div>
+            <div class="dim-box">
+              <span class="k">Overall length</span>
+              <span class="v">${mm(c.overallLength)}</span>
+            </div>
+          </div>
+          <p>${c.description}</p>
+          <div class="tag-row">${c.examples.map(e => `<span class="tag">${e}</span>`).join('')}</div>
+          <div class="tag-row">${c.notes.map(n => `<span class="tag">${n}</span>`).join('')}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderTable() {
+      const cVal = countryFilter.value;
+      const rVal = roleFilter.value;
+      const q = searchBox.value.trim().toLowerCase();
+
+      const filtered = weapons.filter(w => {
+        const countryMatch = cVal === 'all' || w.country === cVal;
+        const roleMatch = rVal === 'all' || w.role === rVal;
+        const text = `${w.weapon} ${w.country} ${w.role} ${w.caliber} ${w.why}`.toLowerCase();
+        const queryMatch = !q || text.includes(q);
+        return countryMatch && roleMatch && queryMatch;
+      });
+
+      tbody.innerHTML = filtered.map(w => `
+        <tr>
+          <td><strong style="color:var(--text)">${w.weapon}</strong></td>
+          <td>${w.country}</td>
+          <td>${w.role}</td>
+          <td><span class="mono">${w.caliber}</span></td>
+          <td>${w.year}</td>
+          <td>${w.why}</td>
+        </tr>
+      `).join('');
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="6">No matches. Try clearing a filter or shortening the search.</td></tr>`;
+      }
+    }
+
+    renderCalibers();
+    renderTable();
+    countryFilter.addEventListener('change', renderTable);
+    roleFilter.addEventListener('change', renderTable);
+    searchBox.addEventListener('input', renderTable);
+  </script>
+</body>
+</html>
