@@ -89,6 +89,55 @@
   #resetBtn:active {
     transform: scale(.97);
   }
+
+  #difficultyPanel {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, calc(env(safe-area-inset-right) + 132px));
+    top: max(10px, env(safe-area-inset-top));
+    max-width: 320px;
+    padding: 10px 12px 11px;
+    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(7,9,14,.72);
+    color: white;
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 10;
+    box-sizing: border-box;
+  }
+
+  #difficultyTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    margin-bottom: 7px;
+  }
+
+  #difficultyValue {
+    opacity: .82;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #difficultySlider {
+    width: 100%;
+    margin: 0;
+    accent-color: #7cff89;
+    touch-action: pan-x;
+  }
+
+  #difficultyEnds {
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    font-weight: 700;
+    opacity: .66;
+  }
 </style>
 </head>
 <body>
@@ -101,6 +150,18 @@
 </div>
 
 <button id="resetBtn" type="button">Reset</button>
+
+<div id="difficultyPanel">
+  <div id="difficultyTop">
+    <span>Difficulty</span>
+    <span id="difficultyValue">±0.18s</span>
+  </div>
+  <input id="difficultySlider" type="range" min="0" max="100" step="1" value="50">
+  <div id="difficultyEnds">
+    <span>Hard</span>
+    <span>Easy</span>
+  </div>
+</div>
 
 <div id="bottomHint">
   <div class="main">HOLD ANYWHERE</div>
@@ -118,6 +179,9 @@
   const resultEl = document.getElementById("result");
   const hintEl = document.getElementById("bottomHint");
   const resetBtn = document.getElementById("resetBtn");
+  const difficultyPanel = document.getElementById("difficultyPanel");
+  const difficultySlider = document.getElementById("difficultySlider");
+  const difficultyValueEl = document.getElementById("difficultyValue");
 
   const webglOptions = { antialias: true, alpha: false, preserveDrawingBuffer: false };
   const gl = glCanvas.getContext("webgl", webglOptions) || glCanvas.getContext("experimental-webgl", webglOptions);
@@ -545,6 +609,27 @@
     return createMesh(positions, normals, colors, null, gl.LINES);
   }
 
+  function updateLineMesh(mesh, lines) {
+    const positions = [];
+    const normals = [];
+    const colors = [];
+
+    for (const line of lines) {
+      const [a, b, color] = line;
+      positions.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      normals.push(0, 0, 1, 0, 0, 1);
+      colors.push(color[0], color[1], color[2], color[0], color[1], color[2]);
+    }
+
+    mesh.count = positions.length / 3;
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.position);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normal);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.color);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.DYNAMIC_DRAW);
+  }
+
   function addArc(lines, cx, cy, r, z, start, end, segments, color) {
     let prev = null;
     for (let i = 0; i <= segments; i++) {
@@ -657,37 +742,92 @@
   const netMesh = lineMesh(netLines);
   const boardLineMesh = lineMesh(boardLines);
 
+  function getAnimatedNetLines(now) {
+    const age = state ? (now - state.netKickTime) / 1000 : 99;
+    const active = age >= 0 && age < 1.35;
+    const envelope = active ? Math.pow(1 - age / 1.35, 2.15) : 0;
+    const kick = active ? Math.sin(age * 18.0) * envelope * state.netKickStrength : 0;
+    const side = active ? Math.sin(age * 24.0 + 1.2) * envelope * state.netKickStrength * 0.38 : 0;
+    const dirX = state ? state.netKickDir[0] : 0;
+    const dirY = state ? state.netKickDir[1] : 1;
+    const sideX = -dirY;
+    const sideY = dirX;
+
+    function wobblePoint(p) {
+      const depth = clamp((hoop[2] - p[2]) / 1.55, 0, 1);
+      const bottomWeight = depth * depth;
+      const ringWeight = depth * 0.20;
+      const weight = bottomWeight + ringWeight;
+      const ripple = Math.sin(age * 32.0 + depth * 4.2) * envelope * 0.06 * depth;
+      return [
+        p[0] + (dirX * kick + sideX * side) * weight,
+        p[1] + (dirY * kick + sideY * side) * weight,
+        p[2] + ripple
+      ];
+    }
+
+    const animated = [];
+    for (const line of netLines) {
+      animated.push([wobblePoint(line[0]), wobblePoint(line[1]), line[2]]);
+    }
+    return animated;
+  }
+
   const camera = {
     eye: [0, -10.0, 10.0],
     target: [0, 34.0, 8.5],
     fov: Math.PI / 5.1
   };
 
-  const releaseTargetSeconds = 1.00;
-  const missWindowSeconds = 0.24;
+  const releaseTargetSeconds = 0.50;
+  let missWindowSeconds = 0.18;
   const rackBallSpacing = 1.15;
   const rackFloorZ = 0.42;
   const rackBallScale = 0.32;
   const shotBallScale = 0.40;
   const handBallZ = 6.6;
+  const roundDurationSeconds = 60;
+  const sameRackPickupMs = 240;
+  const rackTransitionMs = 2400;
+  const ballLoadDurationMs = 260;
+
+  function updateDifficultyFromSlider() {
+    const t = Number(difficultySlider.value || 50) / 100;
+    missWindowSeconds = 0.10 + t * 0.16;
+    difficultyValueEl.textContent = `±${missWindowSeconds.toFixed(2)}s`;
+  }
+
+  difficultySlider.addEventListener("input", updateDifficultyFromSlider, { passive: true });
+  difficultySlider.addEventListener("change", updateDifficultyFromSlider, { passive: true });
+  updateDifficultyFromSlider();
 
   function makeRack(name, centerX, centerY, dirX, dirY, moneyPattern) {
     const len = Math.hypot(dirX, dirY) || 1;
     const ux = dirX / len;
     const uy = dirY / len;
     const balls = [];
+    const shooterPos = [centerX, centerY, handBallZ];
+    const loadFromPos = [
+      shooterPos[0] - ux * 1.15,
+      shooterPos[1] - uy * 1.15,
+      shooterPos[2] - 0.28
+    ];
+
     for (let i = 0; i < 5; i++) {
       const offset = (i - 2) * rackBallSpacing;
       const x = centerX + ux * offset;
       const y = centerY + uy * offset;
       balls.push({
         pos: [x, y, rackFloorZ],
-        shotPos: [x, y, handBallZ],
+        // The ball is picked from the rack, but every shot from a rack releases
+        // from the same shooting pocket. This prevents the camera and trajectory
+        // from shifting sideways between balls.
+        shotPos: shooterPos.slice(),
         money: !!moneyPattern[i],
         index: i
       });
     }
-    return { name, balls };
+    return { name, balls, shooterPos, loadFromPos, rackDir: [ux, uy] };
   }
 
   function arcRack(name, angleDeg, allMoney = false) {
@@ -717,18 +857,16 @@
     const len = Math.hypot(dx, dy) || 1;
     const outX = dx / len;
     const outY = dy / len;
-    const sideX = -outY;
-    const sideY = outX;
-    const sideBias = centerX === 0 ? 0.45 : Math.sign(centerX) * 0.65;
+
     return {
       eye: [
-        centerX + outX * 11.6 + sideX * sideBias,
-        centerY + outY * 11.6 + sideY * sideBias,
+        centerX + outX * 11.6,
+        centerY + outY * 11.6,
         8.55
       ],
       target: [
-        lerp(centerX, hoop[0], 0.76) + (centerX === 0 ? 0.10 : 0.05 * Math.sign(centerX)),
-        lerp(centerY, hoop[1], 0.76),
+        lerp(centerX, hoop[0], 0.82),
+        lerp(centerY, hoop[1], 0.82),
         8.15
       ]
     };
@@ -755,6 +893,18 @@
     message: "Hold to shoot",
     subMessage: "",
     shot: null,
+    activeShots: [],
+    roundStarted: false,
+    roundStartTime: 0,
+    nextReadyAt: 0,
+    ballLoadStart: 0,
+    cameraMoveStartAt: 0,
+    cameraMoveEndAt: 0,
+    cameraMoveFromPos: null,
+    cameraMoveToPos: null,
+    netKickTime: -9999,
+    netKickDir: [0, 1],
+    netKickStrength: 0,
     shotResults: Array(25).fill(null)
   };
 
@@ -767,6 +917,15 @@
   function getCurrentBall() {
     const rack = getCurrentRack();
     return rack ? rack.balls[state.currentBall] || null : null;
+  }
+
+  function getDisplayedShotStartPos(now = performance.now()) {
+    if (state.cameraMoveFromPos && state.cameraMoveToPos && now < state.cameraMoveEndAt) {
+      const t = clamp((now - state.cameraMoveStartAt) / Math.max(1, state.cameraMoveEndAt - state.cameraMoveStartAt), 0, 1);
+      return mix3(state.cameraMoveFromPos, state.cameraMoveToPos, easeOut(t));
+    }
+    const ball = getCurrentBall();
+    return ball ? ball.shotPos : [0, court.hoopY - court.threeRadius - 1.0, handBallZ];
   }
 
   function getCurrentShotStartPos() {
@@ -788,10 +947,29 @@
   }
 
   function isBallUsed(rackIndex, ballIndex) {
-    if (state.mode === "flying" && state.shot && rackIndex === state.shot.rackIndex && ballIndex === state.shot.ballIndex) {
-      return true;
-    }
-    return rackIndex < state.currentRack || (rackIndex === state.currentRack && ballIndex < state.currentBall);
+    return state.mode === "done" || rackIndex < state.currentRack || (rackIndex === state.currentRack && ballIndex <= state.currentBall);
+  }
+
+  function getCurrentLoadPos(now) {
+    const rack = getCurrentRack();
+    const ball = getCurrentBall();
+    if (!rack || !ball || now < state.ballLoadStart) return null;
+    const t = clamp((now - state.ballLoadStart) / ballLoadDurationMs, 0, 1);
+    return mix3(rack.loadFromPos, ball.shotPos, easeOut(t));
+  }
+
+  function getRoundTimeLeft(now) {
+    if (!state.roundStarted) return roundDurationSeconds;
+    return Math.max(0, roundDurationSeconds - (now - state.roundStartTime) / 1000);
+  }
+
+  function finishRound(now) {
+    if (state.mode === "done") return;
+    state.mode = "done";
+    state.message = getCurrentBall() ? "time" : "complete";
+    state.subMessage = "";
+    state.nextReadyAt = now || performance.now();
+    setHud();
   }
 
   function drawBallModel(pos, scale, isMoney, spinAxis = null, spinAngle = 0) {
@@ -803,8 +981,8 @@
     drawMesh(ballSeams, model, 1);
   }
 
-  function updateCamera() {
-    const startPos = state.mode === "flying" && state.shot ? state.shot.startPos : getCurrentShotStartPos();
+  function updateCamera(now) {
+    const startPos = getDisplayedShotStartPos(now);
     if (!startPos) return;
 
     const dx = startPos[0] - hoop[0];
@@ -819,8 +997,8 @@
       8.55
     ];
     const desiredTarget = [
-      lerp(startPos[0], hoop[0], 0.76),
-      lerp(startPos[1], hoop[1], 0.76),
+      lerp(startPos[0], hoop[0], 0.82),
+      lerp(startPos[1], hoop[1], 0.82),
       8.15
     ];
     const follow = 0.18;
@@ -891,32 +1069,15 @@
     let impact;
     let notes = [];
 
-    if (outcome.type === "swish") {
-      impact = nearHoop(0.06, hoop[2] + 0.10);
-      notes = simpleDropPoints(0.06, 0.42, 2.05);
-    } else if (outcome.type === "soft-rim") {
-      const rimOffset = 0.34 * aim.y;
-      impact = nearHoop(rimOffset, hoop[2] + 0.07);
+    if (outcome.made) {
+      // Made shots do not use left/right or rim-type offsets. They travel in the
+      // single shooting plane and finish at the center of the hoop, then drop
+      // straight down through the net.
+      impact = [hoop[0], hoop[1], hoop[2] + 0.08];
       notes = [
-        { at: 1.50, p: nearHoop(rimOffset * 0.45, hoop[2] - 0.18) },
-        ...simpleDropPoints(rimOffset * 0.25, 0.45, 2.14)
-      ];
-    } else if (outcome.type === "rattle") {
-      const rimOffset = 0.46 * aim.y;
-      impact = nearHoop(rimOffset, hoop[2] + 0.10);
-      notes = [
-        { at: 1.50, p: nearHoop(rimOffset * 0.55, hoop[2] + 0.03) },
-        { at: 1.66, p: nearHoop(rimOffset * 0.22, hoop[2] - 0.22) },
-        ...simpleDropPoints(rimOffset * 0.12, 0.48, 2.25)
-      ];
-    } else if (outcome.type === "barely") {
-      const frontBack = aim.y >= 0 ? 1 : -1;
-      const rimOffset = frontBack * 0.54;
-      impact = nearHoop(rimOffset, hoop[2] + 0.15);
-      notes = [
-        { at: 1.55, p: nearHoop(rimOffset * 0.42, hoop[2] + 0.02) },
-        { at: 1.73, p: nearHoop(0.05, hoop[2] - 0.30) },
-        ...simpleDropPoints(0.05, 0.52, 2.22)
+        { at: 1.48, p: [hoop[0], hoop[1], hoop[2] - 0.50] },
+        { at: 1.72, p: [hoop[0], hoop[1], 6.80] },
+        { at: 2.05, p: [hoop[0], hoop[1], 0.42] }
       ];
     } else {
       const longShort = aim.y * 2.35;
@@ -943,10 +1104,35 @@
       if (note.at <= flightTime + 0.08) note.at = flightTime + 0.08;
     }
 
+    const shotIndex = state.currentRack * 5 + state.currentBall;
+    const finalNote = notes.length ? notes[notes.length - 1] : { at: flightTime, p: impact };
+    const sideSeed = Math.sin((shotIndex + 1) * 12.9898) * 0.9;
+    const bounceDir = norm([
+      dirX * (outcome.made ? 0.35 : 0.95) + (-dirY) * sideSeed,
+      dirY * (outcome.made ? 0.35 : 0.95) + dirX * sideSeed,
+      0
+    ]);
+
+    const settleAt = finalNote.at + (outcome.made ? 2.0 : 2.4);
+    const settleBounceT = Math.max(0, settleAt - finalNote.at);
+    const settleDamping = Math.exp(-1.55 * settleBounceT);
+    const settleRollDistance = (outcome.made ? 4.0 + Math.abs(sideSeed) * 1.6 : 6.2 + Math.abs(sideSeed) * 2.1) * (1 - settleDamping) / 1.55;
+    const restPos = [
+      clamp(finalNote.p[0] + bounceDir[0] * settleRollDistance, court.minX + 1.0, court.maxX - 1.0),
+      clamp(finalNote.p[1] + bounceDir[1] * settleRollDistance, court.minY + 1.0, court.maxY - 1.0),
+      rackFloorZ
+    ];
+    const postHoopSpinRate = Math.PI * 2 * 2.65 * 0.08;
+    const rollDur = Math.max(0.001, settleAt - finalNote.at);
+    const restSpinAngle =
+      -Math.PI * 2 * 2.65 * flightTime
+      - postHoopSpinRate * Math.max(0, finalNote.at - flightTime)
+      - postHoopSpinRate * (rollDur / 3);
+
     return {
       startTime: now,
       flightTime,
-      endTime: now + (notes.length ? notes[notes.length - 1].at : flightTime + 0.6) * 1000 + 380,
+      endTime: now + 1000000,
       aim,
       outcome,
       gravity,
@@ -954,13 +1140,25 @@
       impact,
       notes,
       startPos,
+      dirX,
+      dirY,
       spinAxis: [dirY, -dirX, 0],
       spinRate: Math.PI * 2 * 2.65,
+      bounceStartAt: finalNote.at,
+      bounceStartPos: finalNote.p,
+      bounceDir,
+      bounceSpeed: outcome.made ? 4.0 + Math.abs(sideSeed) * 1.6 : 6.2 + Math.abs(sideSeed) * 2.1,
+      bounceHeight: outcome.made ? 0.78 : 1.35,
+      bounceFreq: outcome.made ? 8.5 : 9.5,
+      settleAt,
+      restPos,
+      restSpinAngle,
       money: rackBall.money,
       rackIndex: state.currentRack,
       ballIndex: state.currentBall,
       points: outcome.made ? (rackBall.money ? 2 : 1) : 0,
-      rackName: getCurrentRack() ? getCurrentRack().name : ""
+      rackName: getCurrentRack() ? getCurrentRack().name : "",
+      netTriggered: false
     };
   }
 
@@ -986,7 +1184,63 @@
       prev = next;
     }
 
-    return prev.p;
+    if (tSec >= shot.settleAt) {
+      return shot.restPos;
+    }
+
+    const bounceT = Math.max(0, tSec - shot.bounceStartAt);
+    const damping = Math.exp(-1.55 * bounceT);
+    const rollDistance = shot.bounceSpeed * (1 - damping) / 1.55;
+    const x = shot.bounceStartPos[0] + shot.bounceDir[0] * rollDistance;
+    const y = shot.bounceStartPos[1] + shot.bounceDir[1] * rollDistance;
+    const bounce = Math.abs(Math.sin(bounceT * shot.bounceFreq)) * shot.bounceHeight * Math.exp(-2.35 * bounceT);
+    return [
+      clamp(x, court.minX + 1.0, court.maxX - 1.0),
+      clamp(y, court.minY + 1.0, court.maxY - 1.0),
+      rackFloorZ + bounce
+    ];
+  }
+
+  function getShotSpinAngle(shot, now) {
+    const tSec = Math.max(0, (now - shot.startTime) / 1000);
+    const hoopSpinRate = shot.spinRate;
+    const postHoopSpinRate = hoopSpinRate * 0.08;
+
+    if (tSec <= shot.flightTime) {
+      return -hoopSpinRate * tSec;
+    }
+
+    const preAngle = -hoopSpinRate * shot.flightTime;
+    if (tSec <= shot.bounceStartAt) {
+      return preAngle - postHoopSpinRate * (tSec - shot.flightTime);
+    }
+
+    const midAngle = preAngle - postHoopSpinRate * (shot.bounceStartAt - shot.flightTime);
+    if (tSec >= shot.settleAt) {
+      return shot.restSpinAngle;
+    }
+
+    const rollT = tSec - shot.bounceStartAt;
+    const rollDur = Math.max(0.001, shot.settleAt - shot.bounceStartAt);
+    const capped = clamp(rollT, 0, rollDur);
+    const spinDelta = postHoopSpinRate * (capped - (capped * capped) / rollDur + (capped * capped * capped) / (3 * rollDur * rollDur));
+    return midAngle - spinDelta;
+  }
+
+  function triggerNet(now, shot) {
+    state.netKickTime = now;
+    state.netKickDir = [shot.dirX || 0, shot.dirY || 1];
+    state.netKickStrength = shot.outcome.type === "swish" ? 0.42 : 0.56;
+  }
+
+  function updateShotEvents(now) {
+    for (const shot of state.activeShots) {
+      const tSec = (now - shot.startTime) / 1000;
+      if (shot.outcome.made && !shot.netTriggered && tSec >= shot.flightTime + 0.03) {
+        shot.netTriggered = true;
+        triggerNet(now, shot);
+      }
+    }
   }
 
 
@@ -1001,14 +1255,21 @@
     const sub = hintEl.querySelector(".sub");
 
     if (state.mode === "idle") {
-      main.textContent = "HOLD ANYWHERE";
-      sub.textContent = "release when the timing ring hits the center";
+      if (state.shots === 0) {
+        main.textContent = "HOLD ANYWHERE";
+        sub.textContent = "release when the timing ring hits the center";
+      } else {
+        main.textContent = "";
+        sub.textContent = "";
+      }
     } else if (state.mode === "aiming") {
-      main.textContent = "RELEASE ON CENTER";
-      sub.textContent = "same countdown every shot";
-    } else if (state.mode === "flying") {
-      main.textContent = "SHOT UP";
-      sub.textContent = state.shot ? (state.shot.points ? `+${state.shot.points}` : "") : "";
+      if (state.shots === 0) {
+        main.textContent = "RELEASE ON CENTER";
+        sub.textContent = "same countdown every shot";
+      } else {
+        main.textContent = "";
+        sub.textContent = "";
+      }
     } else if (state.mode === "done") {
       main.textContent = "CONTEST COMPLETE";
       sub.textContent = `final score ${state.score} / ${maxScore}`;
@@ -1016,17 +1277,45 @@
   }
 
   function beginHold(now) {
-    if (state.mode === "flying" || state.mode === "done" || !getCurrentBall()) return;
+    if (state.mode === "aiming" || state.mode === "done" || !getCurrentBall()) return;
+
+    if (state.shots === 0) {
+      difficultyPanel.style.display = "none";
+    }
+
+    if (!state.roundStarted) {
+      state.roundStarted = true;
+      state.roundStartTime = now;
+      state.nextReadyAt = now;
+      state.ballLoadStart = now - ballLoadDurationMs;
+      const firstPos = getCurrentShotStartPos();
+      state.cameraMoveStartAt = now;
+      state.cameraMoveEndAt = now;
+      state.cameraMoveFromPos = firstPos ? firstPos.slice() : null;
+      state.cameraMoveToPos = firstPos ? firstPos.slice() : null;
+    }
+
+    if (getRoundTimeLeft(now) <= 0) {
+      finishRound(now);
+      return;
+    }
+
+    if (now < state.nextReadyAt) return;
+
     state.mode = "aiming";
     state.holdStart = now;
     state.message = "Aiming...";
     state.subMessage = "";
-    state.shot = null;
     setHud();
   }
 
   function releaseHold(now) {
     if (state.mode !== "aiming") return;
+
+    if (getRoundTimeLeft(now) <= 0) {
+      finishRound(now);
+      return;
+    }
 
     const currentBall = getCurrentBall();
     if (!currentBall) return;
@@ -1034,8 +1323,8 @@
     const aim = getAim(now);
     const shot = buildShot(now, aim, currentBall);
 
-    state.mode = "flying";
     state.shot = shot;
+    state.activeShots.push(shot);
     state.shots += 1;
 
     const timingLabel =
@@ -1044,7 +1333,7 @@
 
     state.message = shot.outcome.made
       ? `${timingLabel}${shot.points ? ` · +${shot.points}` : ""}${shot.money ? " · money ball" : ""}`
-      : `${shot.outcome.label} · ${timingLabel}`;
+      : `missed · ${timingLabel}`;
 
     if (shot.outcome.made) {
       state.makes += 1;
@@ -1060,11 +1349,36 @@
       money: shot.money
     };
 
+    const previousRack = shot.rackIndex;
+    const previousStartPos = shot.startPos.slice();
+    const contestDone = advanceContest();
+    if (!contestDone) {
+      const changedRack = state.currentRack !== previousRack;
+      const nextStartPos = getCurrentShotStartPos();
+      state.nextReadyAt = now + (changedRack ? rackTransitionMs : sameRackPickupMs + ballLoadDurationMs);
+      state.ballLoadStart = state.nextReadyAt - ballLoadDurationMs;
+      if (changedRack) {
+        state.cameraMoveStartAt = now;
+        state.cameraMoveEndAt = now + rackTransitionMs;
+        state.cameraMoveFromPos = previousStartPos;
+        state.cameraMoveToPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
+      } else {
+        state.cameraMoveStartAt = now;
+        state.cameraMoveEndAt = now;
+        state.cameraMoveFromPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
+        state.cameraMoveToPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
+      }
+    }
+    state.mode = contestDone ? "done" : "idle";
     setHud();
   }
 
+  function isUiControlTarget(target) {
+    return !!(target && (target === resetBtn || (typeof target.closest === "function" && target.closest("#difficultyPanel"))));
+  }
+
   function onPointerDown(e) {
-    if (e.target === resetBtn) return;
+    if (isUiControlTarget(e.target)) return;
     safePreventDefault(e);
     beginHold(performance.now());
   }
@@ -1079,7 +1393,7 @@
   }
 
   function touchStart(e) {
-    if (e.target === resetBtn) return;
+    if (isUiControlTarget(e.target)) return;
     safePreventDefault(e);
     beginHold(performance.now());
   }
@@ -1115,12 +1429,24 @@
     state.message = "Hold to shoot";
     state.subMessage = "";
     state.shot = null;
+    state.activeShots = [];
+    state.roundStarted = false;
+    state.roundStartTime = 0;
+    state.nextReadyAt = performance.now();
+    state.ballLoadStart = performance.now() - ballLoadDurationMs;
+    state.cameraMoveStartAt = 0;
+    state.cameraMoveEndAt = 0;
+    state.cameraMoveFromPos = null;
+    state.cameraMoveToPos = null;
+    difficultyPanel.style.display = "block";
+    state.netKickTime = -9999;
+    state.netKickStrength = 0;
     state.shotResults = Array(25).fill(null);
     setHud();
   });
 
   function draw3D(now) {
-    updateCamera();
+    updateCamera(now);
     gl.viewport(0, 0, glCanvas.width, glCanvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -1131,6 +1457,7 @@
     drawMesh(backboard, m4Translate(0, 43.0, 10.75), 0);
     drawMesh(boardLineMesh, m4Identity(), 1);
 
+    updateLineMesh(netMesh, getAnimatedNetLines(now));
     drawMesh(netMesh, m4Identity(), 1);
     drawMesh(rim, m4Translate(hoop[0], hoop[1], hoop[2]), 0);
 
@@ -1143,24 +1470,18 @@
       }
     }
 
-    let ballPos = null;
-    let ballMoney = false;
-    let ballSpinAxis = null;
-    let ballSpinAngle = 0;
-    if (state.mode === "flying" && state.shot) {
-      ballPos = getBallPos(state.shot, now);
-      ballMoney = state.shot.money;
-      ballSpinAxis = state.shot.spinAxis;
-      ballSpinAngle = -state.shot.spinRate * Math.max(0, (now - state.shot.startTime) / 1000);
-    } else {
-      const currentBall = getCurrentBall();
-      if (currentBall) {
-        ballPos = currentBall.shotPos;
-        ballMoney = currentBall.money;
-      }
+    for (const shot of state.activeShots) {
+      const ballPos = getBallPos(shot, now);
+      const ballSpinAngle = getShotSpinAngle(shot, now);
+      drawBallModel(ballPos, shotBallScale, shot.money, shot.spinAxis, ballSpinAngle);
     }
 
-    if (ballPos) drawBallModel(ballPos, shotBallScale, ballMoney, ballSpinAxis, ballSpinAngle);
+    const currentBall = getCurrentBall();
+    if (currentBall && state.mode !== "done") {
+      const loadPos = getCurrentLoadPos(now);
+      if (loadPos) drawBallModel(loadPos, shotBallScale, currentBall.money);
+    }
+
     drawMesh(rim, m4Translate(hoop[0], hoop[1], hoop[2]), 0);
   }
 
@@ -1271,7 +1592,7 @@
     const margin = 12;
     const resetClearance = W < 560 ? 96 : 118;
     const panelW = Math.max(214, Math.min(460, W - margin * 2 - resetClearance));
-    const panelH = 106;
+    const panelH = 116;
     const x = margin;
     const y = margin;
 
@@ -1313,15 +1634,19 @@
 
     const rackNum = state.mode === 'done' ? 5 : state.currentRack + 1;
     const ballNum = state.mode === 'done' ? 5 : state.currentBall + 1;
-    uictx.fillStyle = 'rgba(255,255,255,0.72)';
-    uictx.font = '850 12px system-ui, sans-serif';
+    const timeLeft = getRoundTimeLeft(now);
+    uictx.fillStyle = timeLeft <= 10 && state.roundStarted && state.mode !== 'done' ? 'rgba(255,93,93,0.92)' : 'rgba(255,255,255,0.86)';
+    uictx.font = '900 16px system-ui, sans-serif';
     uictx.textAlign = 'right';
     uictx.textBaseline = 'top';
-    uictx.fillText(`Rack ${rackNum}/5`, x + panelW - 16, y + 16);
-    uictx.fillText(`Ball ${ballNum}/5`, x + panelW - 16, y + 34);
+    uictx.fillText(`${Math.ceil(timeLeft)}s`, x + panelW - 16, y + 14);
+    uictx.fillStyle = 'rgba(255,255,255,0.72)';
+    uictx.font = '850 11px system-ui, sans-serif';
+    uictx.fillText(`Rack ${rackNum}/5`, x + panelW - 16, y + 35);
+    uictx.fillText(`Ball ${ballNum}/5`, x + panelW - 16, y + 51);
 
     const dotsX = x + Math.max(128, panelW * 0.37);
-    const dotsY = y + 66;
+    const dotsY = y + 74;
     const available = x + panelW - 16 - dotsX;
     const dotGap = Math.max(7.1, Math.min(10.6, available / 24));
     const r = Math.max(2.4, Math.min(4.6, dotGap * 0.35));
@@ -1363,7 +1688,7 @@
     uictx.fillStyle = 'rgba(255,255,255,0.50)';
     uictx.font = '750 10px system-ui, sans-serif';
     uictx.textAlign = 'left';
-    uictx.fillText('shot chart', dotsX, y + 84);
+    uictx.fillText('shot chart', dotsX, y + 94);
 
     uictx.restore();
   }
@@ -1413,7 +1738,8 @@
     const shooterY = shooterPos[1];
     const [playerSX, playerSY] = mapPoint(shooterX, shooterY);
     const [hoopSX, hoopSY] = mapPoint(hoop[0], hoop[1]);
-    const ballMiniPos = state.mode === "flying" && state.shot ? getBallPos(state.shot, now) : null;
+    const latestShot = state.activeShots.length ? state.activeShots[state.activeShots.length - 1] : null;
+    const ballMiniPos = latestShot ? getBallPos(latestShot, now) : null;
 
     uictx.save();
 
@@ -1492,16 +1818,11 @@
   }
 
   function frame(now) {
-    if (state.mode === "flying" && state.shot && now >= state.shot.endTime) {
-      const finishedShot = state.shot;
-      const contestDone = advanceContest();
-      state.shot = null;
-      state.mode = contestDone ? "done" : "idle";
-      state.message = finishedShot.outcome.made
-        ? `+${finishedShot.points}${finishedShot.money ? " money ball" : ""}`
-        : "missed";
-      setHud();
+    if (state.roundStarted && state.mode !== "done" && getRoundTimeLeft(now) <= 0) {
+      finishRound(now);
     }
+
+    updateShotEvents(now);
 
     draw3D(now);
     drawTimingOverlay(now);
@@ -1511,6 +1832,8 @@
     requestAnimationFrame(frame);
   }
 
+  state.nextReadyAt = performance.now();
+  state.ballLoadStart = performance.now() - ballLoadDurationMs;
   setHud();
   requestAnimationFrame(frame);
 })();
