@@ -125,9 +125,46 @@
 
   #difficultySlider {
     width: 100%;
+    height: 34px;
     margin: 0;
     accent-color: #7cff89;
-    touch-action: pan-x;
+    touch-action: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+
+  #difficultySlider::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.22);
+  }
+
+  #difficultySlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    margin-top: -10px;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,.88);
+    background: #7cff89;
+    box-shadow: 0 2px 10px rgba(0,0,0,.45);
+  }
+
+  #difficultySlider::-moz-range-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.22);
+  }
+
+  #difficultySlider::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,.88);
+    background: #7cff89;
+    box-shadow: 0 2px 10px rgba(0,0,0,.45);
   }
 
   #difficultyEnds {
@@ -789,12 +826,13 @@
   const roundDurationSeconds = 60;
   const sameRackPickupMs = 240;
   const rackTransitionMs = 2400;
+  const cameraMoveDelayMs = 350;
   const ballLoadDurationMs = 260;
 
   function updateDifficultyFromSlider() {
     const t = Number(difficultySlider.value || 50) / 100;
-    missWindowSeconds = 0.10 + t * 0.16;
-    difficultyValueEl.textContent = `±${missWindowSeconds.toFixed(2)}s`;
+    missWindowSeconds = 0.01 + t * 0.09;
+    difficultyValueEl.textContent = `±${missWindowSeconds.toFixed(3)}s`;
   }
 
   difficultySlider.addEventListener("input", updateDifficultyFromSlider, { passive: true });
@@ -921,6 +959,7 @@
 
   function getDisplayedShotStartPos(now = performance.now()) {
     if (state.cameraMoveFromPos && state.cameraMoveToPos && now < state.cameraMoveEndAt) {
+      if (now <= state.cameraMoveStartAt) return state.cameraMoveFromPos;
       const t = clamp((now - state.cameraMoveStartAt) / Math.max(1, state.cameraMoveEndAt - state.cameraMoveStartAt), 0, 1);
       return mix3(state.cameraMoveFromPos, state.cameraMoveToPos, easeOut(t));
     }
@@ -1355,11 +1394,11 @@
     if (!contestDone) {
       const changedRack = state.currentRack !== previousRack;
       const nextStartPos = getCurrentShotStartPos();
-      state.nextReadyAt = now + (changedRack ? rackTransitionMs : sameRackPickupMs + ballLoadDurationMs);
+      state.nextReadyAt = now + (changedRack ? cameraMoveDelayMs + rackTransitionMs : sameRackPickupMs + ballLoadDurationMs);
       state.ballLoadStart = state.nextReadyAt - ballLoadDurationMs;
       if (changedRack) {
-        state.cameraMoveStartAt = now;
-        state.cameraMoveEndAt = now + rackTransitionMs;
+        state.cameraMoveStartAt = now + cameraMoveDelayMs;
+        state.cameraMoveEndAt = now + cameraMoveDelayMs + rackTransitionMs;
         state.cameraMoveFromPos = previousStartPos;
         state.cameraMoveToPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
       } else {
@@ -1414,7 +1453,10 @@
     document.addEventListener("mousedown", onPointerDown, { passive: false });
     document.addEventListener("mouseup", onPointerUp, { passive: false });
   }
-  document.addEventListener("touchmove", e => safePreventDefault(e), { passive: false });
+  document.addEventListener("touchmove", e => {
+    if (isUiControlTarget(e.target)) return;
+    safePreventDefault(e);
+  }, { passive: false });
   document.addEventListener("gesturestart", e => safePreventDefault(e), { passive: false });
 
   resetBtn.addEventListener("click", e => {
@@ -1590,8 +1632,8 @@
 
   function drawScoreHud(now) {
     const margin = 12;
-    const resetClearance = W < 560 ? 96 : 118;
-    const panelW = Math.max(214, Math.min(460, W - margin * 2 - resetClearance));
+    const resetClearance = W < 560 ? 86 : 118;
+    const panelW = Math.max(238, Math.min(460, W - margin * 2 - resetClearance));
     const panelH = 116;
     const x = margin;
     const y = margin;
@@ -1645,11 +1687,12 @@
     uictx.fillText(`Rack ${rackNum}/5`, x + panelW - 16, y + 35);
     uictx.fillText(`Ball ${ballNum}/5`, x + panelW - 16, y + 51);
 
-    const dotsX = x + Math.max(128, panelW * 0.37);
+    const dotsX = x + Math.max(112, panelW * 0.35);
     const dotsY = y + 74;
-    const available = x + panelW - 16 - dotsX;
-    const dotGap = Math.max(7.1, Math.min(10.6, available / 24));
-    const r = Math.max(2.4, Math.min(4.6, dotGap * 0.35));
+    const available = x + panelW - 14 - dotsX;
+    const groupGapFactor = 0.55;
+    const dotGap = Math.max(4.2, Math.min(9.4, available / (24 + 4 * groupGapFactor)));
+    const r = Math.max(1.65, Math.min(4.1, dotGap * 0.34));
     const currentIndex = state.currentRack * 5 + state.currentBall;
 
     for (let i = 0; i < 25; i++) {
@@ -1658,7 +1701,7 @@
       const rackInfo = racks[rack];
       const ballInfo = rackInfo ? rackInfo.balls[ball] : null;
       const result = state.shotResults[i];
-      const cx = dotsX + i * dotGap + Math.floor(i / 5) * dotGap * 0.55;
+      const cx = dotsX + i * dotGap + Math.floor(i / 5) * dotGap * groupGapFactor;
       const cy = dotsY;
       const isMoney = ballInfo && ballInfo.money;
       const isCurrent = state.mode !== 'done' && i === currentIndex;
@@ -1672,7 +1715,7 @@
       }
       uictx.fill();
       uictx.strokeStyle = isMoney ? 'rgba(88,176,255,0.95)' : 'rgba(255,255,255,0.43)';
-      uictx.lineWidth = isMoney ? 1.8 : 1.1;
+      uictx.lineWidth = isMoney ? Math.max(1.2, r * 0.42) : Math.max(0.8, r * 0.28);
       uictx.stroke();
 
       if (isCurrent) {
