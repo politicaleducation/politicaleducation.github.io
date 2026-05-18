@@ -1,0 +1,1519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Deterministic WebGL 3D Three-Point Shooter</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #101115;
+    color: white;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  #gl, #ui {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    touch-action: none;
+  }
+
+  #ui {
+    pointer-events: none;
+  }
+
+  #topHud {
+    display: none;
+  }
+
+  #score {
+    font-size: 15px;
+    opacity: .96;
+  }
+
+  #result {
+    text-align: right;
+    font-size: 14px;
+    opacity: .96;
+    max-width: 52vw;
+  }
+
+  #bottomHint {
+    position: fixed;
+    left: max(16px, env(safe-area-inset-left));
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    text-align: center;
+    font-weight: 900;
+    letter-spacing: .02em;
+    text-shadow: 0 2px 7px rgba(0,0,0,.8);
+    pointer-events: none;
+  }
+
+  #bottomHint .main {
+    font-size: clamp(18px, 4.8vw, 28px);
+  }
+
+  #bottomHint .sub {
+    margin-top: 4px;
+    font-size: clamp(12px, 3vw, 15px);
+    font-weight: 700;
+    opacity: .84;
+  }
+
+  #resetBtn {
+    position: fixed;
+    top: max(44px, calc(env(safe-area-inset-top) + 44px));
+    right: max(12px, env(safe-area-inset-right));
+    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.10);
+    color: white;
+    border-radius: 999px;
+    padding: 9px 12px;
+    font: inherit;
+    font-weight: 900;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+
+  #resetBtn:active {
+    transform: scale(.97);
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ui"></canvas>
+
+<div id="topHud">
+  <div id="score">Makes 0 / Shots 0</div>
+  <div id="result">Hold to shoot</div>
+</div>
+
+<button id="resetBtn" type="button">Reset</button>
+
+<div id="bottomHint">
+  <div class="main">HOLD ANYWHERE</div>
+  <div class="sub">release when the timing ring hits the center</div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const glCanvas = document.getElementById("gl");
+  const uiCanvas = document.getElementById("ui");
+  const uictx = uiCanvas.getContext("2d", { alpha: true });
+  const scoreEl = document.getElementById("score");
+  const resultEl = document.getElementById("result");
+  const hintEl = document.getElementById("bottomHint");
+  const resetBtn = document.getElementById("resetBtn");
+
+  const webglOptions = { antialias: true, alpha: false, preserveDrawingBuffer: false };
+  const gl = glCanvas.getContext("webgl", webglOptions) || glCanvas.getContext("experimental-webgl", webglOptions);
+  if (!gl || !uictx) {
+    resultEl.textContent = "This browser could not start the game canvas.";
+    return;
+  }
+
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
+    DPR = Math.max(1, Math.min(mobile ? 2 : 3, window.devicePixelRatio || 1));
+    W = Math.floor(window.innerWidth || document.documentElement.clientWidth || 390);
+    H = Math.floor(window.innerHeight || document.documentElement.clientHeight || 844);
+
+    glCanvas.width = Math.floor(W * DPR);
+    glCanvas.height = Math.floor(H * DPR);
+    glCanvas.style.width = W + "px";
+    glCanvas.style.height = H + "px";
+
+    uiCanvas.width = Math.floor(W * DPR);
+    uiCanvas.height = Math.floor(H * DPR);
+    uiCanvas.style.width = W + "px";
+    uiCanvas.style.height = H + "px";
+    uictx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+  }
+
+  window.addEventListener("resize", resize, { passive: true });
+  window.addEventListener("orientationchange", resize, { passive: true });
+  resize();
+
+  const vertexSource = `
+    attribute vec3 aPosition;
+    attribute vec3 aNormal;
+    attribute vec3 aColor;
+
+    uniform mat4 uMVP;
+    uniform mat4 uModel;
+    uniform float uFlat;
+
+    varying vec3 vColor;
+
+    void main() {
+      vec3 lightDir = normalize(vec3(-0.35, -0.62, 0.86));
+      vec3 normal = normalize(mat3(uModel) * aNormal);
+      float lit = 0.38 + 0.62 * max(dot(normal, lightDir), 0.0);
+      lit = mix(lit, 1.0, uFlat);
+      vColor = aColor * lit;
+      gl_Position = uMVP * vec4(aPosition, 1.0);
+    }
+  `;
+
+  const fragmentSource = `
+    precision mediump float;
+    varying vec3 vColor;
+
+    void main() {
+      gl_FragColor = vec4(vColor, 1.0);
+    }
+  `;
+
+  function compileShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(shader));
+    }
+    return shader;
+  }
+
+  const program = gl.createProgram();
+  gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vertexSource));
+  gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fragmentSource));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(program));
+  }
+  gl.useProgram(program);
+
+  const loc = {
+    position: gl.getAttribLocation(program, "aPosition"),
+    normal: gl.getAttribLocation(program, "aNormal"),
+    color: gl.getAttribLocation(program, "aColor"),
+    mvp: gl.getUniformLocation(program, "uMVP"),
+    model: gl.getUniformLocation(program, "uModel"),
+    flat: gl.getUniformLocation(program, "uFlat")
+  };
+
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
+  gl.clearColor(0.055, 0.06, 0.075, 1);
+
+  function v3(x, y, z) {
+    return [x, y, z];
+  }
+
+  function sub(a, b) {
+    return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  }
+
+  function add(a, b) {
+    return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  }
+
+  function mulv(a, s) {
+    return [a[0] * s, a[1] * s, a[2] * s];
+  }
+
+  function dot(a, b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  }
+
+  function cross(a, b) {
+    return [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0]
+    ];
+  }
+
+  function norm(a) {
+    const m = Math.hypot(a[0], a[1], a[2]) || 1;
+    return [a[0] / m, a[1] / m, a[2] / m];
+  }
+
+  function m4Identity() {
+    return new Float32Array([
+      1,0,0,0,
+      0,1,0,0,
+      0,0,1,0,
+      0,0,0,1
+    ]);
+  }
+
+  function m4Multiply(a, b) {
+    const out = new Float32Array(16);
+    for (let c = 0; c < 4; c++) {
+      for (let r = 0; r < 4; r++) {
+        out[c * 4 + r] =
+          a[0 * 4 + r] * b[c * 4 + 0] +
+          a[1 * 4 + r] * b[c * 4 + 1] +
+          a[2 * 4 + r] * b[c * 4 + 2] +
+          a[3 * 4 + r] * b[c * 4 + 3];
+      }
+    }
+    return out;
+  }
+
+  function m4Translate(x, y, z) {
+    const m = m4Identity();
+    m[12] = x;
+    m[13] = y;
+    m[14] = z;
+    return m;
+  }
+
+  function m4Scale(x, y, z) {
+    const m = m4Identity();
+    m[0] = x;
+    m[5] = y;
+    m[10] = z;
+    return m;
+  }
+
+  function m4RotateAxisAngle(axis, angle) {
+    const [ax, ay, az] = norm(axis);
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const t = 1 - c;
+    return new Float32Array([
+      t * ax * ax + c,        t * ax * ay + s * az,  t * ax * az - s * ay,  0,
+      t * ax * ay - s * az,   t * ay * ay + c,       t * ay * az + s * ax,  0,
+      t * ax * az + s * ay,   t * ay * az - s * ax,  t * az * az + c,       0,
+      0,                      0,                     0,                      1
+    ]);
+  }
+
+  function m4Perspective(fovy, aspect, near, far) {
+    const f = 1 / Math.tan(fovy / 2);
+    const nf = 1 / (near - far);
+    return new Float32Array([
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far + near) * nf, -1,
+      0, 0, (2 * far * near) * nf, 0
+    ]);
+  }
+
+  function m4LookAt(eye, target, up) {
+    const z = norm(sub(eye, target));
+    const x = norm(cross(up, z));
+    const y = cross(z, x);
+
+    return new Float32Array([
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -dot(x, eye), -dot(y, eye), -dot(z, eye), 1
+    ]);
+  }
+
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function easeOut(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function mix3(a, b, t) {
+    return [
+      lerp(a[0], b[0], t),
+      lerp(a[1], b[1], t),
+      lerp(a[2], b[2], t)
+    ];
+  }
+
+  function quadBezier(a, b, c, t) {
+    const u = 1 - t;
+    return [
+      u * u * a[0] + 2 * u * t * b[0] + t * t * c[0],
+      u * u * a[1] + 2 * u * t * b[1] + t * t * c[1],
+      u * u * a[2] + 2 * u * t * b[2] + t * t * c[2]
+    ];
+  }
+
+  function createMesh(positions, normals, colors, indices, mode) {
+    const mesh = {
+      position: gl.createBuffer(),
+      normal: gl.createBuffer(),
+      color: gl.createBuffer(),
+      index: indices ? gl.createBuffer() : null,
+      count: indices ? indices.length : positions.length / 3,
+      mode: mode || gl.TRIANGLES
+    };
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.position);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normal);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.color);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    if (indices) {
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.index);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    }
+
+    return mesh;
+  }
+
+  function drawMesh(mesh, model, flat = 0) {
+    const view = m4LookAt(camera.eye, camera.target, [0, 0, 1]);
+    const proj = m4Perspective(camera.fov, (glCanvas.width || 1) / (glCanvas.height || 1), 0.1, 80);
+    const mvp = m4Multiply(proj, m4Multiply(view, model));
+
+    gl.uniformMatrix4fv(loc.mvp, false, mvp);
+    gl.uniformMatrix4fv(loc.model, false, model);
+    gl.uniform1f(loc.flat, flat);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.position);
+    gl.enableVertexAttribArray(loc.position);
+    gl.vertexAttribPointer(loc.position, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normal);
+    gl.enableVertexAttribArray(loc.normal);
+    gl.vertexAttribPointer(loc.normal, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.color);
+    gl.enableVertexAttribArray(loc.color);
+    gl.vertexAttribPointer(loc.color, 3, gl.FLOAT, false, 0, 0);
+
+    if (mesh.index) {
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.index);
+      gl.drawElements(mesh.mode, mesh.count, gl.UNSIGNED_SHORT, 0);
+    } else {
+      gl.drawArrays(mesh.mode, 0, mesh.count);
+    }
+  }
+
+  function pushColor(colors, color, n) {
+    for (let i = 0; i < n; i++) colors.push(color[0], color[1], color[2]);
+  }
+
+  function planeMesh(x0, y0, x1, y1, z, color) {
+    const positions = [
+      x0,y0,z, x1,y0,z, x1,y1,z,
+      x0,y0,z, x1,y1,z, x0,y1,z
+    ];
+    const normals = [];
+    const colors = [];
+    for (let i = 0; i < 6; i++) normals.push(0, 0, 1);
+    pushColor(colors, color, 6);
+    return createMesh(positions, normals, colors, null, gl.TRIANGLES);
+  }
+
+  function boxMesh(w, d, h, color) {
+    const x = w / 2, y = d / 2, z = h / 2;
+    const faces = [
+      [[-x,-y,-z], [ x,-y,-z], [ x, y,-z], [-x, y,-z], [0,0,-1]],
+      [[-x,-y, z], [-x, y, z], [ x, y, z], [ x,-y, z], [0,0, 1]],
+      [[-x,-y,-z], [-x,-y, z], [ x,-y, z], [ x,-y,-z], [0,-1,0]],
+      [[-x, y,-z], [ x, y,-z], [ x, y, z], [-x, y, z], [0, 1,0]],
+      [[-x,-y,-z], [-x, y,-z], [-x, y, z], [-x,-y, z], [-1,0,0]],
+      [[ x,-y,-z], [ x,-y, z], [ x, y, z], [ x, y,-z], [1,0,0]]
+    ];
+    const positions = [];
+    const normals = [];
+    const colors = [];
+    const indices = [];
+    for (const face of faces) {
+      const base = positions.length / 3;
+      for (let i = 0; i < 4; i++) {
+        positions.push(face[i][0], face[i][1], face[i][2]);
+        normals.push(face[4][0], face[4][1], face[4][2]);
+        colors.push(color[0], color[1], color[2]);
+      }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    return createMesh(positions, normals, colors, indices, gl.TRIANGLES);
+  }
+
+  function sphereMesh(rows, cols, color) {
+    const positions = [];
+    const normals = [];
+    const colors = [];
+    const indices = [];
+
+    for (let r = 0; r <= rows; r++) {
+      const v = r / rows;
+      const theta = v * Math.PI;
+      const st = Math.sin(theta);
+      const ct = Math.cos(theta);
+
+      for (let c = 0; c <= cols; c++) {
+        const u = c / cols;
+        const phi = u * Math.PI * 2;
+        const sp = Math.sin(phi);
+        const cp = Math.cos(phi);
+
+        const x = cp * st;
+        const y = sp * st;
+        const z = ct;
+
+        positions.push(x, y, z);
+        normals.push(x, y, z);
+        colors.push(color[0], color[1], color[2]);
+      }
+    }
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const a = r * (cols + 1) + c;
+        const b = a + cols + 1;
+        indices.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    }
+
+    return createMesh(positions, normals, colors, indices, gl.TRIANGLES);
+  }
+
+  function torusMesh(major, minor, seg, tube, color) {
+    const positions = [];
+    const normals = [];
+    const colors = [];
+    const indices = [];
+
+    for (let i = 0; i <= seg; i++) {
+      const u = i / seg * Math.PI * 2;
+      const cu = Math.cos(u);
+      const su = Math.sin(u);
+
+      for (let j = 0; j <= tube; j++) {
+        const v = j / tube * Math.PI * 2;
+        const cv = Math.cos(v);
+        const sv = Math.sin(v);
+
+        const x = (major + minor * cv) * cu;
+        const y = (major + minor * cv) * su;
+        const z = minor * sv;
+        const nx = cv * cu;
+        const ny = cv * su;
+        const nz = sv;
+
+        positions.push(x, y, z);
+        normals.push(nx, ny, nz);
+        colors.push(color[0], color[1], color[2]);
+      }
+    }
+
+    for (let i = 0; i < seg; i++) {
+      for (let j = 0; j < tube; j++) {
+        const a = i * (tube + 1) + j;
+        const b = a + tube + 1;
+        indices.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    }
+
+    return createMesh(positions, normals, colors, indices, gl.TRIANGLES);
+  }
+
+  function lineMesh(lines) {
+    const positions = [];
+    const normals = [];
+    const colors = [];
+
+    for (const line of lines) {
+      const [a, b, color] = line;
+      positions.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      normals.push(0, 0, 1, 0, 0, 1);
+      colors.push(color[0], color[1], color[2], color[0], color[1], color[2]);
+    }
+
+    return createMesh(positions, normals, colors, null, gl.LINES);
+  }
+
+  function addArc(lines, cx, cy, r, z, start, end, segments, color) {
+    let prev = null;
+    for (let i = 0; i <= segments; i++) {
+      const a = start + (end - start) * i / segments;
+      const p = [cx + Math.cos(a) * r, cy + Math.sin(a) * r, z];
+      if (prev) lines.push([prev, p, color]);
+      prev = p;
+    }
+  }
+
+  function seamMesh() {
+    const lines = [];
+    const black = [0.09, 0.035, 0.01];
+    const seg = 72;
+    for (let i = 0; i < seg; i++) {
+      const a = Math.PI * 2 * i / seg;
+      const b = Math.PI * 2 * (i + 1) / seg;
+      lines.push([[Math.cos(a), Math.sin(a), 0], [Math.cos(b), Math.sin(b), 0], black]);
+      lines.push([[Math.cos(a), 0, Math.sin(a)], [Math.cos(b), 0, Math.sin(b)], black]);
+      lines.push([[0, Math.cos(a), Math.sin(a)], [0, Math.cos(b), Math.sin(b)], black]);
+    }
+    return lineMesh(lines);
+  }
+
+  const colors = {
+    wood: [0.67, 0.39, 0.16],
+    woodDark: [0.50, 0.25, 0.10],
+    white: [0.92, 0.92, 0.88],
+    orange: [0.85, 0.34, 0.10],
+    ball: [0.88, 0.36, 0.10],
+    moneyBall: [0.26, 0.68, 0.96],
+    glass: [0.63, 0.80, 0.92],
+    metal: [0.17, 0.17, 0.17],
+    net: [0.86, 0.86, 0.82]
+  };
+
+  const court = {
+    minX: -25,
+    maxX: 25,
+    minY: 0,
+    maxY: 47,
+    hoopY: 42.5,
+    hoopZ: 10,
+    threeRadius: 23.75,
+    cornerThreeX: 22,
+    laneHalfWidth: 8,
+    freeThrowY: 28,
+    freeThrowRadius: 6,
+    lineZ: 0.03
+  };
+
+  const threeJoinY = court.hoopY - Math.sqrt(court.threeRadius * court.threeRadius - court.cornerThreeX * court.cornerThreeX);
+  const threeStartAngle = Math.atan2(threeJoinY - court.hoopY, -court.cornerThreeX);
+  const threeEndAngle = Math.atan2(threeJoinY - court.hoopY, court.cornerThreeX);
+
+  const floor = planeMesh(court.minX - 1.5, court.minY - 2.0, court.maxX + 1.5, court.maxY + 2.0, 0, colors.wood);
+  const backboard = boxMesh(6.0, 0.18, 3.5, colors.glass);
+  const rim = torusMesh(0.75, 0.06, 56, 12, colors.orange);
+  const ballSphere = sphereMesh(22, 32, colors.ball);
+  const moneyBallSphere = sphereMesh(22, 32, colors.moneyBall);
+  const ballSeams = seamMesh();
+  const support = boxMesh(0.42, 0.42, 13.0, colors.metal);
+
+  const courtLines = [];
+  const white = colors.white;
+
+  courtLines.push([[court.minX, court.minY, 0.025], [court.maxX, court.minY, 0.025], white]);
+  courtLines.push([[court.maxX, court.minY, 0.025], [court.maxX, court.maxY, 0.025], white]);
+  courtLines.push([[court.maxX, court.maxY, 0.025], [court.minX, court.maxY, 0.025], white]);
+  courtLines.push([[court.minX, court.maxY, 0.025], [court.minX, court.minY, 0.025], white]);
+
+  courtLines.push([[-court.laneHalfWidth, court.freeThrowY, court.lineZ], [-court.laneHalfWidth, court.maxY, court.lineZ], white]);
+  courtLines.push([[court.laneHalfWidth, court.freeThrowY, court.lineZ], [court.laneHalfWidth, court.maxY, court.lineZ], white]);
+  courtLines.push([[-court.laneHalfWidth, court.freeThrowY, court.lineZ], [court.laneHalfWidth, court.freeThrowY, court.lineZ], white]);
+  courtLines.push([[-court.laneHalfWidth, court.maxY, court.lineZ], [court.laneHalfWidth, court.maxY, court.lineZ], white]);
+
+  addArc(courtLines, 0, court.freeThrowY, court.freeThrowRadius, 0.035, Math.PI, Math.PI * 2, 48, white);
+  courtLines.push([[-court.cornerThreeX, court.maxY, court.lineZ], [-court.cornerThreeX, threeJoinY, court.lineZ], white]);
+  courtLines.push([[court.cornerThreeX, court.maxY, court.lineZ], [court.cornerThreeX, threeJoinY, court.lineZ], white]);
+  addArc(courtLines, 0, court.hoopY, court.threeRadius, 0.035, threeStartAngle, threeEndAngle, 96, white);
+
+  for (let x = court.minX; x <= court.maxX; x += 5) {
+    courtLines.push([[x, court.minY, 0.015], [x, court.maxY, 0.015], colors.woodDark]);
+  }
+  for (let y = court.minY; y <= court.maxY; y += 5) {
+    courtLines.push([[court.minX, y, 0.015], [court.maxX, y, 0.015], colors.woodDark]);
+  }
+
+  const courtLineMesh = lineMesh(courtLines);
+
+  const hoop = [0, court.hoopY, court.hoopZ];
+  const netLines = [];
+  for (let i = 0; i < 12; i++) {
+    const a = Math.PI * 2 * i / 12;
+    const b = a + 0.24;
+    const top = [Math.cos(a) * 0.75, hoop[1] + Math.sin(a) * 0.75, hoop[2] - 0.03];
+    const bot = [Math.cos(b) * 0.38, hoop[1] + Math.sin(b) * 0.38, hoop[2] - 1.55];
+    netLines.push([top, bot, colors.net]);
+  }
+  addArc(netLines, 0, hoop[1], 0.38, hoop[2] - 1.55, 0, Math.PI * 2, 36, colors.net);
+
+  const boardLines = [];
+  boardLines.push([[-1.0, 43.0, 9.0], [1.0, 43.0, 9.0], white]);
+  boardLines.push([[1.0, 43.0, 9.0], [1.0, 43.0, 10.5], white]);
+  boardLines.push([[1.0, 43.0, 10.5], [-1.0, 43.0, 10.5], white]);
+  boardLines.push([[-1.0, 43.0, 10.5], [-1.0, 43.0, 9.0], white]);
+  boardLines.push([[0, 43.1, 9.85], [0, 46.0, 0.08], colors.metal]);
+  boardLines.push([[-0.55, 43.05, 9.85], [0.55, 43.05, 9.85], colors.metal]);
+
+  const netMesh = lineMesh(netLines);
+  const boardLineMesh = lineMesh(boardLines);
+
+  const camera = {
+    eye: [0, -10.0, 10.0],
+    target: [0, 34.0, 8.5],
+    fov: Math.PI / 5.1
+  };
+
+  const releaseTargetSeconds = 1.00;
+  const missWindowSeconds = 0.24;
+  const rackBallSpacing = 1.15;
+  const rackFloorZ = 0.42;
+  const rackBallScale = 0.32;
+  const shotBallScale = 0.40;
+  const handBallZ = 6.6;
+
+  function makeRack(name, centerX, centerY, dirX, dirY, moneyPattern) {
+    const len = Math.hypot(dirX, dirY) || 1;
+    const ux = dirX / len;
+    const uy = dirY / len;
+    const balls = [];
+    for (let i = 0; i < 5; i++) {
+      const offset = (i - 2) * rackBallSpacing;
+      const x = centerX + ux * offset;
+      const y = centerY + uy * offset;
+      balls.push({
+        pos: [x, y, rackFloorZ],
+        shotPos: [x, y, handBallZ],
+        money: !!moneyPattern[i],
+        index: i
+      });
+    }
+    return { name, balls };
+  }
+
+  function arcRack(name, angleDeg, allMoney = false) {
+    const angle = angleDeg * Math.PI / 180;
+    const radius = court.threeRadius + 1.0;
+    const centerX = Math.cos(angle) * radius;
+    const centerY = court.hoopY + Math.sin(angle) * radius;
+    const tangentX = -Math.sin(angle);
+    const tangentY = Math.cos(angle);
+    return makeRack(name, centerX, centerY, tangentX, tangentY, allMoney ? [1,1,1,1,1] : [0,0,0,0,1]);
+  }
+
+  const racks = [
+    makeRack("Left Corner", -(court.cornerThreeX + 1.0), 39.5, 0, 1, [0,0,0,0,1]),
+    arcRack("Left Wing", 235, false),
+    makeRack("Top", 0, court.hoopY - court.threeRadius - 1.0, 1, 0, [1,1,1,1,1]),
+    arcRack("Right Wing", 305, false),
+    makeRack("Right Corner", court.cornerThreeX + 1.0, 39.5, 0, 1, [0,0,0,0,1])
+  ];
+
+  function makeRackCamera(rack) {
+    const centerBall = rack.balls[2];
+    const centerX = centerBall.shotPos[0];
+    const centerY = centerBall.shotPos[1];
+    const dx = centerX - hoop[0];
+    const dy = centerY - hoop[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const outX = dx / len;
+    const outY = dy / len;
+    const sideX = -outY;
+    const sideY = outX;
+    const sideBias = centerX === 0 ? 0.45 : Math.sign(centerX) * 0.65;
+    return {
+      eye: [
+        centerX + outX * 11.6 + sideX * sideBias,
+        centerY + outY * 11.6 + sideY * sideBias,
+        8.55
+      ],
+      target: [
+        lerp(centerX, hoop[0], 0.76) + (centerX === 0 ? 0.10 : 0.05 * Math.sign(centerX)),
+        lerp(centerY, hoop[1], 0.76),
+        8.15
+      ]
+    };
+  }
+
+  racks.forEach(rack => {
+    rack.camera = makeRackCamera(rack);
+  });
+
+  camera.eye = racks[0].camera.eye.slice();
+  camera.target = racks[0].camera.target.slice();
+
+  const maxScore = racks.reduce((sum, rack) => sum + rack.balls.reduce((s, ball) => s + (ball.money ? 2 : 1), 0), 0);
+
+  const state = {
+    mode: "idle",
+    holdStart: 0,
+    makes: 0,
+    shots: 0,
+    score: 0,
+    streak: 0,
+    currentRack: 0,
+    currentBall: 0,
+    message: "Hold to shoot",
+    subMessage: "",
+    shot: null,
+    shotResults: Array(25).fill(null)
+  };
+
+
+
+  function getCurrentRack() {
+    return racks[state.currentRack] || null;
+  }
+
+  function getCurrentBall() {
+    const rack = getCurrentRack();
+    return rack ? rack.balls[state.currentBall] || null : null;
+  }
+
+  function getCurrentShotStartPos() {
+    const ball = getCurrentBall();
+    return ball ? ball.shotPos : [0, court.hoopY - court.threeRadius - 1.0, handBallZ];
+  }
+
+  function advanceContest() {
+    if (state.currentBall < 4) {
+      state.currentBall += 1;
+      return false;
+    }
+    if (state.currentRack < 4) {
+      state.currentRack += 1;
+      state.currentBall = 0;
+      return false;
+    }
+    return true;
+  }
+
+  function isBallUsed(rackIndex, ballIndex) {
+    if (state.mode === "flying" && state.shot && rackIndex === state.shot.rackIndex && ballIndex === state.shot.ballIndex) {
+      return true;
+    }
+    return rackIndex < state.currentRack || (rackIndex === state.currentRack && ballIndex < state.currentBall);
+  }
+
+  function drawBallModel(pos, scale, isMoney, spinAxis = null, spinAngle = 0) {
+    let model = m4Multiply(m4Translate(pos[0], pos[1], pos[2]), m4Scale(scale, scale, scale));
+    if (spinAxis) {
+      model = m4Multiply(m4Translate(pos[0], pos[1], pos[2]), m4Multiply(m4RotateAxisAngle(spinAxis, spinAngle), m4Scale(scale, scale, scale)));
+    }
+    drawMesh(isMoney ? moneyBallSphere : ballSphere, model, 0);
+    drawMesh(ballSeams, model, 1);
+  }
+
+  function updateCamera() {
+    const startPos = state.mode === "flying" && state.shot ? state.shot.startPos : getCurrentShotStartPos();
+    if (!startPos) return;
+
+    const dx = startPos[0] - hoop[0];
+    const dy = startPos[1] - hoop[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const outX = dx / len;
+    const outY = dy / len;
+
+    const desiredEye = [
+      startPos[0] + outX * 11.6,
+      startPos[1] + outY * 11.6,
+      8.55
+    ];
+    const desiredTarget = [
+      lerp(startPos[0], hoop[0], 0.76),
+      lerp(startPos[1], hoop[1], 0.76),
+      8.15
+    ];
+    const follow = 0.18;
+
+    for (let i = 0; i < 3; i++) {
+      camera.eye[i] = lerp(camera.eye[i], desiredEye[i], follow);
+      camera.target[i] = lerp(camera.target[i], desiredTarget[i], follow);
+    }
+  }
+
+  function getAim(now) {
+    const elapsed = Math.max(0, (now - state.holdStart) / 1000);
+    const delta = elapsed - releaseTargetSeconds;
+    const err = clamp(Math.abs(delta) / missWindowSeconds, 0, 1);
+
+    return {
+      x: 0,
+      y: clamp(delta / missWindowSeconds, -1, 1),
+      err,
+      elapsed,
+      delta,
+      remaining: releaseTargetSeconds - elapsed
+    };
+  }
+
+  function classifyShot(aim) {
+    const e = Math.abs(aim.delta);
+    if (e <= 0.025) return { type: "swish", made: true, label: "" };
+    if (e <= 0.070) return { type: "soft-rim", made: true, label: "" };
+    if (e <= 0.130) return { type: "rattle", made: true, label: "" };
+    if (e <= 0.220) return { type: "barely", made: true, label: "" };
+    return { type: "miss", made: false, label: "missed" };
+  }
+
+  function buildShot(now, aim, rackBall) {
+    const outcome = classifyShot(aim);
+    const startPos = rackBall.shotPos;
+
+    const shotDX = hoop[0] - startPos[0];
+    const shotDY = hoop[1] - startPos[1];
+    const shotLen = Math.hypot(shotDX, shotDY) || 1;
+
+    // Unit vector from the shooter directly toward the hoop. Every flight target
+    // is kept on this line so the ball does not drift sideways or "boomerang."
+    const dirX = shotDX / shotLen;
+    const dirY = shotDY / shotLen;
+
+    // Feet / second^2. The court dimensions are in feet, so this keeps the shot
+    // in the same real-world unit system as the floor, rim, and three-point line.
+    const gravity = 32.174;
+
+    function nearHoop(offset, z) {
+      return [
+        hoop[0] + dirX * offset,
+        hoop[1] + dirY * offset,
+        z
+      ];
+    }
+
+    function simpleDropPoints(startOffset, finalOffset, finalAt) {
+      return [
+        { at: finalAt - 0.46, p: nearHoop(lerp(startOffset, finalOffset, 0.25), hoop[2] - 1.05) },
+        { at: finalAt - 0.22, p: nearHoop(lerp(startOffset, finalOffset, 0.58), 5.25) },
+        { at: finalAt, p: nearHoop(finalOffset, 0.42) }
+      ];
+    }
+
+    let impact;
+    let notes = [];
+
+    if (outcome.type === "swish") {
+      impact = nearHoop(0.06, hoop[2] + 0.10);
+      notes = simpleDropPoints(0.06, 0.42, 2.05);
+    } else if (outcome.type === "soft-rim") {
+      const rimOffset = 0.34 * aim.y;
+      impact = nearHoop(rimOffset, hoop[2] + 0.07);
+      notes = [
+        { at: 1.50, p: nearHoop(rimOffset * 0.45, hoop[2] - 0.18) },
+        ...simpleDropPoints(rimOffset * 0.25, 0.45, 2.14)
+      ];
+    } else if (outcome.type === "rattle") {
+      const rimOffset = 0.46 * aim.y;
+      impact = nearHoop(rimOffset, hoop[2] + 0.10);
+      notes = [
+        { at: 1.50, p: nearHoop(rimOffset * 0.55, hoop[2] + 0.03) },
+        { at: 1.66, p: nearHoop(rimOffset * 0.22, hoop[2] - 0.22) },
+        ...simpleDropPoints(rimOffset * 0.12, 0.48, 2.25)
+      ];
+    } else if (outcome.type === "barely") {
+      const frontBack = aim.y >= 0 ? 1 : -1;
+      const rimOffset = frontBack * 0.54;
+      impact = nearHoop(rimOffset, hoop[2] + 0.15);
+      notes = [
+        { at: 1.55, p: nearHoop(rimOffset * 0.42, hoop[2] + 0.02) },
+        { at: 1.73, p: nearHoop(0.05, hoop[2] - 0.30) },
+        ...simpleDropPoints(0.05, 0.52, 2.22)
+      ];
+    } else {
+      const longShort = aim.y * 2.35;
+      const missSign = Math.sign(longShort || 1);
+      impact = nearHoop(longShort, hoop[2] + 0.18 + Math.abs(aim.y) * 0.28);
+      notes = [
+        { at: 1.58, p: nearHoop(longShort + missSign * 1.05, 7.70) },
+        { at: 1.88, p: nearHoop(longShort + missSign * 2.25, 3.10) },
+        { at: 2.16, p: nearHoop(longShort + missSign * 3.15, 0.42) }
+      ];
+    }
+
+    // Realistic three-point shot timing: longer shots stay in the air a little
+    // longer. The vertical launch speed is solved so gravity brings the ball
+    // exactly to the chosen impact point at flightTime.
+    const flightTime = clamp(1.17 + shotLen * 0.0074, 1.26, 1.39);
+    const velocity = [
+      (impact[0] - startPos[0]) / flightTime,
+      (impact[1] - startPos[1]) / flightTime,
+      (impact[2] - startPos[2] + 0.5 * gravity * flightTime * flightTime) / flightTime
+    ];
+
+    for (const note of notes) {
+      if (note.at <= flightTime + 0.08) note.at = flightTime + 0.08;
+    }
+
+    return {
+      startTime: now,
+      flightTime,
+      endTime: now + (notes.length ? notes[notes.length - 1].at : flightTime + 0.6) * 1000 + 380,
+      aim,
+      outcome,
+      gravity,
+      velocity,
+      impact,
+      notes,
+      startPos,
+      spinAxis: [dirY, -dirX, 0],
+      spinRate: Math.PI * 2 * 2.65,
+      money: rackBall.money,
+      rackIndex: state.currentRack,
+      ballIndex: state.currentBall,
+      points: outcome.made ? (rackBall.money ? 2 : 1) : 0,
+      rackName: getCurrentRack() ? getCurrentRack().name : ""
+    };
+  }
+
+  function getBallPos(shot, now) {
+    const tSec = (now - shot.startTime) / 1000;
+
+    if (tSec <= shot.flightTime) {
+      const t = clamp(tSec, 0, shot.flightTime);
+      return [
+        shot.startPos[0] + shot.velocity[0] * t,
+        shot.startPos[1] + shot.velocity[1] * t,
+        shot.startPos[2] + shot.velocity[2] * t - 0.5 * shot.gravity * t * t
+      ];
+    }
+
+    let prev = { at: shot.flightTime, p: shot.impact };
+    for (let i = 0; i < shot.notes.length; i++) {
+      const next = shot.notes[i];
+      if (tSec <= next.at) {
+        const local = clamp((tSec - prev.at) / (next.at - prev.at), 0, 1);
+        return mix3(prev.p, next.p, local);
+      }
+      prev = next;
+    }
+
+    return prev.p;
+  }
+
+
+  function setHud() {
+    const rack = getCurrentRack();
+    const ballNum = state.mode === "done" ? 5 : state.currentBall + 1;
+    const rackNum = state.mode === "done" ? 5 : state.currentRack + 1;
+    scoreEl.textContent = `Score ${state.score} / ${maxScore} · Makes ${state.makes} / Shots ${state.shots} · Rack ${rackNum}/5 · Ball ${ballNum}/5`;
+    resultEl.textContent = rack ? `${rack.name}${state.message ? ` · ${state.message}` : ""}` : (state.message || "");
+
+    const main = hintEl.querySelector(".main");
+    const sub = hintEl.querySelector(".sub");
+
+    if (state.mode === "idle") {
+      main.textContent = "HOLD ANYWHERE";
+      sub.textContent = "release when the timing ring hits the center";
+    } else if (state.mode === "aiming") {
+      main.textContent = "RELEASE ON CENTER";
+      sub.textContent = "same countdown every shot";
+    } else if (state.mode === "flying") {
+      main.textContent = "SHOT UP";
+      sub.textContent = state.shot ? (state.shot.points ? `+${state.shot.points}` : "") : "";
+    } else if (state.mode === "done") {
+      main.textContent = "CONTEST COMPLETE";
+      sub.textContent = `final score ${state.score} / ${maxScore}`;
+    }
+  }
+
+  function beginHold(now) {
+    if (state.mode === "flying" || state.mode === "done" || !getCurrentBall()) return;
+    state.mode = "aiming";
+    state.holdStart = now;
+    state.message = "Aiming...";
+    state.subMessage = "";
+    state.shot = null;
+    setHud();
+  }
+
+  function releaseHold(now) {
+    if (state.mode !== "aiming") return;
+
+    const currentBall = getCurrentBall();
+    if (!currentBall) return;
+
+    const aim = getAim(now);
+    const shot = buildShot(now, aim, currentBall);
+
+    state.mode = "flying";
+    state.shot = shot;
+    state.shots += 1;
+
+    const timingLabel =
+      Math.abs(aim.delta) <= 0.025 ? "perfect timing" :
+      aim.delta < 0 ? "early release" : "late release";
+
+    state.message = shot.outcome.made
+      ? `${timingLabel}${shot.points ? ` · +${shot.points}` : ""}${shot.money ? " · money ball" : ""}`
+      : `${shot.outcome.label} · ${timingLabel}`;
+
+    if (shot.outcome.made) {
+      state.makes += 1;
+      state.streak += 1;
+      state.score += shot.points;
+    } else {
+      state.streak = 0;
+    }
+
+    state.shotResults[shot.rackIndex * 5 + shot.ballIndex] = {
+      made: shot.outcome.made,
+      points: shot.points,
+      money: shot.money
+    };
+
+    setHud();
+  }
+
+  function onPointerDown(e) {
+    if (e.target === resetBtn) return;
+    safePreventDefault(e);
+    beginHold(performance.now());
+  }
+
+  function onPointerUp(e) {
+    safePreventDefault(e);
+    releaseHold(performance.now());
+  }
+
+  function safePreventDefault(e) {
+    if (e && e.cancelable !== false && typeof e.preventDefault === "function") e.preventDefault();
+  }
+
+  function touchStart(e) {
+    if (e.target === resetBtn) return;
+    safePreventDefault(e);
+    beginHold(performance.now());
+  }
+
+  function touchEnd(e) {
+    safePreventDefault(e);
+    releaseHold(performance.now());
+  }
+
+  if (window.PointerEvent) {
+    document.addEventListener("pointerdown", onPointerDown, { passive: false });
+    document.addEventListener("pointerup", onPointerUp, { passive: false });
+    document.addEventListener("pointercancel", onPointerUp, { passive: false });
+  } else {
+    document.addEventListener("touchstart", touchStart, { passive: false });
+    document.addEventListener("touchend", touchEnd, { passive: false });
+    document.addEventListener("touchcancel", touchEnd, { passive: false });
+    document.addEventListener("mousedown", onPointerDown, { passive: false });
+    document.addEventListener("mouseup", onPointerUp, { passive: false });
+  }
+  document.addEventListener("touchmove", e => safePreventDefault(e), { passive: false });
+  document.addEventListener("gesturestart", e => safePreventDefault(e), { passive: false });
+
+  resetBtn.addEventListener("click", e => {
+    safePreventDefault(e);
+    state.mode = "idle";
+    state.makes = 0;
+    state.shots = 0;
+    state.score = 0;
+    state.streak = 0;
+    state.currentRack = 0;
+    state.currentBall = 0;
+    state.message = "Hold to shoot";
+    state.subMessage = "";
+    state.shot = null;
+    state.shotResults = Array(25).fill(null);
+    setHud();
+  });
+
+  function draw3D(now) {
+    updateCamera();
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    drawMesh(floor, m4Identity(), 0);
+    drawMesh(courtLineMesh, m4Identity(), 1);
+
+    drawMesh(support, m4Translate(0, 46.0, 6.5), 0);
+    drawMesh(backboard, m4Translate(0, 43.0, 10.75), 0);
+    drawMesh(boardLineMesh, m4Identity(), 1);
+
+    drawMesh(netMesh, m4Identity(), 1);
+    drawMesh(rim, m4Translate(hoop[0], hoop[1], hoop[2]), 0);
+
+    for (let r = 0; r < racks.length; r++) {
+      const rack = racks[r];
+      for (let b = 0; b < rack.balls.length; b++) {
+        if (isBallUsed(r, b)) continue;
+        const ball = rack.balls[b];
+        drawBallModel(ball.pos, rackBallScale, ball.money);
+      }
+    }
+
+    let ballPos = null;
+    let ballMoney = false;
+    let ballSpinAxis = null;
+    let ballSpinAngle = 0;
+    if (state.mode === "flying" && state.shot) {
+      ballPos = getBallPos(state.shot, now);
+      ballMoney = state.shot.money;
+      ballSpinAxis = state.shot.spinAxis;
+      ballSpinAngle = -state.shot.spinRate * Math.max(0, (now - state.shot.startTime) / 1000);
+    } else {
+      const currentBall = getCurrentBall();
+      if (currentBall) {
+        ballPos = currentBall.shotPos;
+        ballMoney = currentBall.money;
+      }
+    }
+
+    if (ballPos) drawBallModel(ballPos, shotBallScale, ballMoney, ballSpinAxis, ballSpinAngle);
+    drawMesh(rim, m4Translate(hoop[0], hoop[1], hoop[2]), 0);
+  }
+
+  function drawTimingOverlay(now) {
+    uictx.clearRect(0, 0, W, H);
+
+    if (state.mode !== "aiming") return;
+
+    const aim = getAim(now);
+    const cx = W * 0.5;
+    const cy = H * 0.50;
+    const r = Math.min(W, H) * 0.165;
+    const progress = clamp(aim.elapsed / releaseTargetSeconds, 0, 1);
+    const afterTarget = aim.remaining < 0;
+    const centerRadius = r * 0.16;
+    const movingRadius = afterTarget
+      ? centerRadius + clamp(Math.abs(aim.delta) / missWindowSeconds, 0, 1) * r * 0.74
+      : lerp(r * 0.98, centerRadius, progress);
+
+    const perfectFlash = clamp(1 - Math.abs(aim.delta) / 0.055, 0, 1);
+
+    uictx.save();
+    uictx.globalAlpha = 0.98;
+
+    uictx.fillStyle = "rgba(0,0,0,.25)";
+    uictx.beginPath();
+    uictx.arc(cx, cy, r * 1.20, 0, Math.PI * 2);
+    uictx.fill();
+
+    uictx.strokeStyle = "rgba(255,255,255,.18)";
+    uictx.lineWidth = Math.max(2, r * 0.025);
+    for (const rr of [1.0, 0.72, 0.44]) {
+      uictx.beginPath();
+      uictx.arc(cx, cy, r * rr, 0, Math.PI * 2);
+      uictx.stroke();
+    }
+
+    uictx.strokeStyle = "rgba(255,255,255,.94)";
+    uictx.lineWidth = Math.max(3, r * 0.045);
+    uictx.beginPath();
+    uictx.arc(cx, cy, centerRadius, 0, Math.PI * 2);
+    uictx.stroke();
+
+    uictx.fillStyle = "rgba(255,255,255,.92)";
+    uictx.beginPath();
+    uictx.arc(cx, cy, r * 0.035, 0, Math.PI * 2);
+    uictx.fill();
+
+    uictx.strokeStyle = afterTarget ? "#FF5757" : "#FFD45A";
+    uictx.lineWidth = Math.max(6, r * 0.075);
+    uictx.lineCap = "round";
+    uictx.beginPath();
+    uictx.arc(cx, cy, movingRadius, 0, Math.PI * 2);
+    uictx.stroke();
+
+    if (perfectFlash > 0) {
+      uictx.globalAlpha = perfectFlash * 0.92;
+      uictx.strokeStyle = "#7CFF89";
+      uictx.lineWidth = Math.max(7, r * 0.085);
+      uictx.beginPath();
+      uictx.arc(cx, cy, centerRadius + r * 0.045, 0, Math.PI * 2);
+      uictx.stroke();
+
+      uictx.globalAlpha = perfectFlash * 0.30;
+      uictx.fillStyle = "#7CFF89";
+      uictx.beginPath();
+      uictx.arc(cx, cy, r * 0.46, 0, Math.PI * 2);
+      uictx.fill();
+    }
+
+    let label = "HOLD";
+    const outcome = classifyShot(aim);
+    if (Math.abs(aim.delta) <= 0.055) label = "RELEASE";
+    else if (aim.elapsed > releaseTargetSeconds) label = outcome.made ? "STILL GOOD" : "TOO LATE";
+
+    uictx.globalAlpha = 0.95;
+    uictx.fillStyle = outcome.made ? "rgba(124,255,137,.95)" : "rgba(255,100,100,.95)";
+    uictx.font = "900 16px system-ui, sans-serif";
+    uictx.textAlign = "center";
+    uictx.textBaseline = "middle";
+    uictx.fillText(label, cx, cy - r * 1.38);
+
+    uictx.restore();
+  }
+
+  function drawResultText(now) {
+    // The visible scorecard carries the feedback now; no large result label.
+  }
+
+
+
+  function roundedRectPath(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+  }
+
+  function drawScoreHud(now) {
+    const margin = 12;
+    const resetClearance = W < 560 ? 96 : 118;
+    const panelW = Math.max(214, Math.min(460, W - margin * 2 - resetClearance));
+    const panelH = 106;
+    const x = margin;
+    const y = margin;
+
+    uictx.save();
+    roundedRectPath(uictx, x, y, panelW, panelH, 18);
+    uictx.fillStyle = 'rgba(7, 9, 14, 0.74)';
+    uictx.fill();
+    uictx.strokeStyle = 'rgba(255,255,255,0.16)';
+    uictx.lineWidth = 1.5;
+    uictx.stroke();
+
+    const scoreX = x + 16;
+    const scoreY = y + 17;
+    uictx.fillStyle = 'rgba(255,255,255,0.68)';
+    uictx.font = '800 10px system-ui, sans-serif';
+    uictx.textAlign = 'left';
+    uictx.textBaseline = 'top';
+    uictx.fillText('SCORE', scoreX, scoreY);
+
+    uictx.fillStyle = 'rgba(255,255,255,0.98)';
+    uictx.font = '900 38px system-ui, sans-serif';
+    uictx.textBaseline = 'alphabetic';
+    uictx.fillText(String(state.score), scoreX, y + 61);
+
+    uictx.fillStyle = 'rgba(255,255,255,0.58)';
+    uictx.font = '800 13px system-ui, sans-serif';
+    uictx.fillText(`/ ${maxScore}`, scoreX + 48, y + 59);
+
+    const progressX = scoreX;
+    const progressY = y + 76;
+    const progressW = Math.min(110, panelW * 0.32);
+    const progressH = 8;
+    roundedRectPath(uictx, progressX, progressY, progressW, progressH, 5);
+    uictx.fillStyle = 'rgba(255,255,255,0.16)';
+    uictx.fill();
+    roundedRectPath(uictx, progressX, progressY, progressW * clamp(state.score / maxScore, 0, 1), progressH, 5);
+    uictx.fillStyle = 'rgba(124,255,137,0.82)';
+    uictx.fill();
+
+    const rackNum = state.mode === 'done' ? 5 : state.currentRack + 1;
+    const ballNum = state.mode === 'done' ? 5 : state.currentBall + 1;
+    uictx.fillStyle = 'rgba(255,255,255,0.72)';
+    uictx.font = '850 12px system-ui, sans-serif';
+    uictx.textAlign = 'right';
+    uictx.textBaseline = 'top';
+    uictx.fillText(`Rack ${rackNum}/5`, x + panelW - 16, y + 16);
+    uictx.fillText(`Ball ${ballNum}/5`, x + panelW - 16, y + 34);
+
+    const dotsX = x + Math.max(128, panelW * 0.37);
+    const dotsY = y + 66;
+    const available = x + panelW - 16 - dotsX;
+    const dotGap = Math.max(7.1, Math.min(10.6, available / 24));
+    const r = Math.max(2.4, Math.min(4.6, dotGap * 0.35));
+    const currentIndex = state.currentRack * 5 + state.currentBall;
+
+    for (let i = 0; i < 25; i++) {
+      const rack = Math.floor(i / 5);
+      const ball = i % 5;
+      const rackInfo = racks[rack];
+      const ballInfo = rackInfo ? rackInfo.balls[ball] : null;
+      const result = state.shotResults[i];
+      const cx = dotsX + i * dotGap + Math.floor(i / 5) * dotGap * 0.55;
+      const cy = dotsY;
+      const isMoney = ballInfo && ballInfo.money;
+      const isCurrent = state.mode !== 'done' && i === currentIndex;
+
+      uictx.beginPath();
+      uictx.arc(cx, cy, isMoney ? r * 1.24 : r, 0, Math.PI * 2);
+      if (result) {
+        uictx.fillStyle = result.made ? 'rgba(124,255,137,0.92)' : 'rgba(255,93,93,0.78)';
+      } else {
+        uictx.fillStyle = isMoney ? 'rgba(38,154,255,0.22)' : 'rgba(255,255,255,0.13)';
+      }
+      uictx.fill();
+      uictx.strokeStyle = isMoney ? 'rgba(88,176,255,0.95)' : 'rgba(255,255,255,0.43)';
+      uictx.lineWidth = isMoney ? 1.8 : 1.1;
+      uictx.stroke();
+
+      if (isCurrent) {
+        const pulse = 0.5 + 0.5 * Math.sin(now * 0.008);
+        uictx.beginPath();
+        uictx.arc(cx, cy, r * (1.75 + pulse * 0.35), 0, Math.PI * 2);
+        uictx.strokeStyle = 'rgba(255,212,90,0.88)';
+        uictx.lineWidth = 2;
+        uictx.stroke();
+      }
+    }
+
+    uictx.fillStyle = 'rgba(255,255,255,0.50)';
+    uictx.font = '750 10px system-ui, sans-serif';
+    uictx.textAlign = 'left';
+    uictx.fillText('shot chart', dotsX, y + 84);
+
+    uictx.restore();
+  }
+
+  function drawMinimap(now) {
+    const pad = 14;
+    const panelW = Math.min(180, Math.max(132, W * 0.24));
+    const panelH = panelW * 1.16;
+    const x = pad;
+    const y = H - panelH - pad;
+    const radius = 14;
+
+    const courtMinX = court.minX;
+    const courtMaxX = court.maxX;
+    const courtMinY = court.minY;
+    const courtMaxY = court.maxY;
+
+    const innerPad = 12;
+    const courtX = x + innerPad;
+    const courtY = y + innerPad + 10;
+    const courtW = panelW - innerPad * 2;
+    const courtH = panelH - innerPad * 2 - 10;
+
+    function mapPoint(px, py) {
+      const nx = (px - courtMinX) / (courtMaxX - courtMinX);
+      const ny = (py - courtMinY) / (courtMaxY - courtMinY);
+      return [
+        courtX + nx * courtW,
+        courtY + courtH - ny * courtH
+      ];
+    }
+
+    function drawMiniArc(cx, cy, r, start, end) {
+      const segs = 48;
+      for (let i = 0; i <= segs; i++) {
+        const a = start + (end - start) * i / segs;
+        const worldX = cx + Math.cos(a) * r;
+        const worldY = cy + Math.sin(a) * r;
+        const [sx, sy] = mapPoint(worldX, worldY);
+        if (i === 0) uictx.moveTo(sx, sy);
+        else uictx.lineTo(sx, sy);
+      }
+    }
+
+    const shooterPos = getCurrentShotStartPos();
+    const shooterX = shooterPos[0];
+    const shooterY = shooterPos[1];
+    const [playerSX, playerSY] = mapPoint(shooterX, shooterY);
+    const [hoopSX, hoopSY] = mapPoint(hoop[0], hoop[1]);
+    const ballMiniPos = state.mode === "flying" && state.shot ? getBallPos(state.shot, now) : null;
+
+    uictx.save();
+
+    uictx.fillStyle = 'rgba(8, 10, 15, 0.72)';
+    uictx.strokeStyle = 'rgba(255,255,255,0.16)';
+    uictx.lineWidth = 1.5;
+    uictx.beginPath();
+    uictx.moveTo(x + radius, y);
+    uictx.lineTo(x + panelW - radius, y);
+    uictx.quadraticCurveTo(x + panelW, y, x + panelW, y + radius);
+    uictx.lineTo(x + panelW, y + panelH - radius);
+    uictx.quadraticCurveTo(x + panelW, y + panelH, x + panelW - radius, y + panelH);
+    uictx.lineTo(x + radius, y + panelH);
+    uictx.quadraticCurveTo(x, y + panelH, x, y + panelH - radius);
+    uictx.lineTo(x, y + radius);
+    uictx.quadraticCurveTo(x, y, x + radius, y);
+    uictx.closePath();
+    uictx.fill();
+    uictx.stroke();
+
+    uictx.fillStyle = 'rgba(255,255,255,0.92)';
+    uictx.font = '800 12px system-ui, sans-serif';
+    uictx.textAlign = 'left';
+    uictx.textBaseline = 'top';
+    uictx.fillText('MINIMAP', x + 12, y + 10);
+
+    uictx.strokeStyle = 'rgba(255,255,255,0.9)';
+    uictx.lineWidth = 2;
+    uictx.strokeRect(courtX, courtY, courtW, courtH);
+
+    uictx.lineWidth = 1.5;
+    const [laneBLx, laneBLy] = mapPoint(-court.laneHalfWidth, court.freeThrowY);
+    const [laneTRx, laneTRy] = mapPoint(court.laneHalfWidth, court.maxY);
+    uictx.strokeRect(laneBLx, laneTRy, laneTRx - laneBLx, laneBLy - laneTRy);
+
+    uictx.beginPath();
+    drawMiniArc(0, court.freeThrowY, court.freeThrowRadius, Math.PI, Math.PI * 2);
+    uictx.stroke();
+
+    uictx.strokeStyle = 'rgba(88, 176, 255, 0.95)';
+    uictx.lineWidth = 2.25;
+    const [leftCornerTopX, leftCornerTopY] = mapPoint(-court.cornerThreeX, court.maxY);
+    const [leftCornerJoinX, leftCornerJoinY] = mapPoint(-court.cornerThreeX, threeJoinY);
+    const [rightCornerTopX, rightCornerTopY] = mapPoint(court.cornerThreeX, court.maxY);
+    const [rightCornerJoinX, rightCornerJoinY] = mapPoint(court.cornerThreeX, threeJoinY);
+    uictx.beginPath();
+    uictx.moveTo(leftCornerTopX, leftCornerTopY);
+    uictx.lineTo(leftCornerJoinX, leftCornerJoinY);
+    uictx.moveTo(rightCornerTopX, rightCornerTopY);
+    uictx.lineTo(rightCornerJoinX, rightCornerJoinY);
+    drawMiniArc(0, court.hoopY, court.threeRadius, threeStartAngle, threeEndAngle);
+    uictx.stroke();
+
+    uictx.fillStyle = '#ff8d42';
+    uictx.beginPath();
+    uictx.arc(hoopSX, hoopSY, 4, 0, Math.PI * 2);
+    uictx.fill();
+
+    uictx.strokeStyle = 'rgba(255,255,255,0.95)';
+    uictx.lineWidth = 2;
+    uictx.fillStyle = '#7CFF89';
+    uictx.beginPath();
+    uictx.arc(playerSX, playerSY, 5.5, 0, Math.PI * 2);
+    uictx.fill();
+    uictx.stroke();
+
+    if (ballMiniPos) {
+      const [ballSX, ballSY] = mapPoint(ballMiniPos[0], ballMiniPos[1]);
+      uictx.fillStyle = '#FFD45A';
+      uictx.beginPath();
+      uictx.arc(ballSX, ballSY, 3.25, 0, Math.PI * 2);
+      uictx.fill();
+    }
+
+    uictx.restore();
+  }
+
+  function frame(now) {
+    if (state.mode === "flying" && state.shot && now >= state.shot.endTime) {
+      const finishedShot = state.shot;
+      const contestDone = advanceContest();
+      state.shot = null;
+      state.mode = contestDone ? "done" : "idle";
+      state.message = finishedShot.outcome.made
+        ? `+${finishedShot.points}${finishedShot.money ? " money ball" : ""}`
+        : "missed";
+      setHud();
+    }
+
+    draw3D(now);
+    drawTimingOverlay(now);
+    drawScoreHud(now);
+    drawMinimap(now);
+
+    requestAnimationFrame(frame);
+  }
+
+  setHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
