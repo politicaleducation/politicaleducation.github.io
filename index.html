@@ -49,11 +49,6 @@
       }
     }
     *{box-sizing:border-box}
-    /* Hide scrollbars everywhere (scroll still works) */
-    html, body{ scrollbar-width:none; -ms-overflow-style:none; }
-    *{ scrollbar-width:none; -ms-overflow-style:none; }
-    *::-webkit-scrollbar{ width:0; height:0; }
-
     body{
       margin:0;
       font-family:var(--sans);
@@ -385,7 +380,7 @@
       <div class="viewer" aria-label="PDF viewer">
         <iframe id="pdfFrame" title="PDF viewer"></iframe>
       </div>
-    </div>
+          </div>
     <div class="colStack">
 
 
@@ -400,9 +395,16 @@
 
     <div class="card">
       <h2>Slide deck list</h2>
-         <div id="slidesList" class="list" aria-label="Slides list"></div>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn" id="refreshSlidesBtn" type="button">Refresh list</button>
+        <button class="btn" id="useUrlBtn" type="button">Load from URL…</button>
+      </div>
+      <div id="slidesList" class="list" aria-label="Slides list"></div>
 
       <div class="hr"></div>
+      <div class="notice">
+        Add PDFs to the repo (or open a PR). The site updates when GitHub Pages rebuilds.
+      </div>
     </div>
     </div>
 
@@ -410,15 +412,6 @@
     <div class="resizeTab resizeTabLeft" id="resizeTabSlides" title="Resize slides panel" aria-label="Resize slides panel" role="separator" aria-orientation="vertical" tabindex="0"></div>
     <div class="resizeTab resizeTabRight" id="resizeTabColStack" title="Resize right stack" aria-label="Resize right stack" role="separator" aria-orientation="vertical" tabindex="0"></div>
 </section>
-
-  <!-- TTS (below Slides; scroll down) -->
-  <section id="slidesTtsSection" class="card hidden" aria-label="Text-to-Speech">
-    <div class="viewer" style="height:auto; min-height:720px;">
-      <iframe id="ttsFrame" title="Text-to-Speech" src="TextToSpeecha.html"
-        style="width:100%; height:900px; border:0; background:transparent;"
-        referrerpolicy="strict-origin-when-cross-origin"></iframe>
-    </div>
-  </section>
 
   <!-- DISCUSS -->
   <section id="discussPanel" class="hidden" aria-label="Discuss">
@@ -547,6 +540,8 @@
   </section>
 
   <div class="footer">
+
+
 </div>
 
 <script>
@@ -645,9 +640,6 @@ function showPanel(panelId){
   for (const tab of document.querySelectorAll(".tab")) {
     tab.setAttribute("aria-selected", tab.dataset.panel === panelId ? "true" : "false");
   }
-
-  const ttsSection = document.getElementById("slidesTtsSection");
-  if (ttsSection) ttsSection.classList.toggle("hidden", panelId !== "slidesPanel");
 
   if (panelId === "slidesPanel") {
     try { positionSlidesResizeTabs(); } catch {}
@@ -1136,23 +1128,6 @@ function loadSlidesUtterances(){
   container.appendChild(script);
 }
 
-function wireTtsEmbed(){
-  const frame = document.getElementById("ttsFrame");
-  if (!frame) return;
-
-  const setH = (h) => {
-    const v = Math.max(650, Math.min(4000, Number(h) || 0));
-    if (!Number.isFinite(v) || v <= 0) return;
-    frame.style.height = v + "px";
-  };
-
-  window.addEventListener("message", (e) => {
-    if (!e || e.origin !== location.origin) return;
-    const d = e.data || {};
-    if (d && d.type === "ttsHeight") setH(d.height);
-  });
-}
-
 function wireUI(){
   for (const tab of document.querySelectorAll(".tab")){
     tab.addEventListener("click", () => showPanel(tab.dataset.panel));
@@ -1223,15 +1198,16 @@ function wireUI(){
   if (goBtn) goBtn.addEventListener("click", () => setPdf(currentPdf, $("#pageNum")?.value));
   const pageNumEl = $("#pageNum");
   if (pageNumEl) pageNumEl.addEventListener("keydown", (e) => { if (e.key === "Enter") setPdf(currentPdf, pageNumEl.value); });
-  const useUrlBtn = $("#useUrlBtn");
-  if (useUrlBtn) useUrlBtn.addEventListener("click", () => {
+
+  $("#refreshSlidesBtn").addEventListener("click", refreshSlides);
+
+  $("#useUrlBtn").addEventListener("click", () => {
     const url = prompt("Enter a PDF URL or a relative path (example: slides/week1.pdf):");
     if (!url) return;
     setPdf(url, 1);
   });
 
-  const copyPdfLinkBtn = $("#copyPdfLinkBtn");
-  if (copyPdfLinkBtn) copyPdfLinkBtn.addEventListener("click", async () => {
+  $("#copyPdfLinkBtn").addEventListener("click", async () => {
     if (!currentPdf) return;
     const u = new URL(location.href);
     u.searchParams.set("pdf", currentPdf);
@@ -1315,7 +1291,6 @@ function init(){
   setCalendar();
   showPanel(params.tab || cfg.activePanel || "slidesPanel");
   wireUI();
-  wireTtsEmbed();
   renderSessions();
   renderLinks();
   refreshSlides();
