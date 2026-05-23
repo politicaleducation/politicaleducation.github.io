@@ -1,0 +1,1782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>percolation agitation</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d10;
+    --panel: #11151b;
+    --panel2: #0f1318;
+    --line: rgba(255,255,255,.11);
+    --text: rgba(247,250,255,.88);
+    --muted: rgba(247,250,255,.58);
+    --faint: rgba(247,250,255,.34);
+    --hot: #f5c46c;
+    --cool: #72ddff;
+    --green: #9df2bc;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { overflow-x: hidden; }
+  .shell { width: min(1380px, calc(100vw - 24px)); margin: 0 auto; padding: 12px 0 28px; }
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+    position: sticky;
+    top: 8px;
+    z-index: 3;
+    backdrop-filter: blur(14px);
+  }
+  label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; letter-spacing: .02em; text-transform: lowercase; }
+  input[type="range"] { width: 100%; accent-color: #82e5ff; }
+  button {
+    appearance: none;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.08);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 9px 13px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button:hover { background: rgba(255,255,255,.12); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; margin-top: 12px; }
+  .panel, .textPanel {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .canvasWrap { position: relative; height: 620px; background: #090b0f; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .tag {
+    position: absolute;
+    top: 11px;
+    left: 12px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 999px;
+    background: rgba(10,13,18,.7);
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .05em;
+    text-transform: lowercase;
+    pointer-events: none;
+  }
+  .legend {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 78%;
+    pointer-events: none;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 999px;
+    background: rgba(10,13,18,.68);
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: var(--faint); }
+  .readout { padding: 12px; display: grid; gap: 10px; }
+  .metricRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric { border: 1px solid rgba(255,255,255,.09); border-radius: 14px; padding: 9px; background: rgba(255,255,255,.035); min-height: 62px; }
+  .metric b { display: block; font-size: 11px; color: var(--muted); font-weight: 500; text-transform: lowercase; margin-bottom: 5px; }
+  .metric span { font-size: 20px; letter-spacing: -.03em; }
+  .stateText { color: var(--text); font-size: 14px; line-height: 1.42; }
+  .fineText { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .bar { position: relative; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.035); overflow: hidden; }
+  .barFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, rgba(114,221,255,.2), rgba(245,196,108,.22), rgba(157,242,188,.24)); }
+  .barMark { position: absolute; top: 4px; bottom: 4px; width: 2px; background: rgba(255,255,255,.72); opacity: .7; }
+  .barMark.sat { background: var(--green); }
+  .barLabel { position: absolute; top: 9px; transform: translateX(-50%); color: rgba(255,255,255,.64); font-size: 10px; white-space: nowrap; }
+  .textPanel { padding: 14px; display: grid; align-content: start; gap: 12px; }
+  .mini { color: var(--muted); font-size: 12px; line-height: 1.48; }
+  .mini strong { color: var(--text); font-weight: 650; }
+  .sectorLabels { position: absolute; inset: 0; pointer-events: none; }
+  .sectorLabels span {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 3px 6px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 999px;
+    background: rgba(8,11,15,.62);
+    color: rgba(255,255,255,.68);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .warn { display:none; margin-top: 12px; padding: 12px; border: 1px solid rgba(255,200,100,.24); border-radius: 16px; color: #ffd891; background: rgba(255,180,70,.08); font-size: 13px; line-height: 1.45; }
+  @media (max-width: 980px) {
+    .controls { grid-template-columns: 1fr; position: static; }
+    label { grid-template-columns: 68px 1fr 36px; }
+    .grid { grid-template-columns: 1fr; }
+    .canvasWrap { height: 560px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="controls">
+    <label>time <input id="pTime" type="range" min="0" max="100" value="0" step="0.1" /><span id="pTimeVal">0</span></label>
+    <label>agitation <input id="pAgitation" type="range" min="0" max="100" value="45" step="1" /><span id="pAgVal">45</span></label>
+    <button id="pPlay">play</button>
+    <button id="pReset">reset</button>
+  </div>
+
+  <div id="warn" class="warn">WebGPU is not available in this browser/context. Try current Chrome or Edge with hardware acceleration enabled.</div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="canvasWrap">
+        <canvas id="physicsCanvas"></canvas>
+        <div class="tag">physics field</div>
+        <div class="legend">
+          <span class="pill"><i class="dot" style="background:#3a424d"></i>closed pores</span>
+          <span class="pill"><i class="dot" style="background:#b9c0cc"></i>single open pores</span>
+          <span class="pill"><i class="dot" style="background:#bd7dff"></i>internally connected clusters</span>
+          <span class="pill"><i class="dot" style="background:#ffe11a"></i>current route</span>
+          <span class="pill"><i class="dot" style="background:#ffe11a"></i>previous attempted routes</span>
+          <span class="pill"><i class="dot" style="background:#72ddff"></i>activated flow</span>
+        </div>
+      </div>
+    </section>
+    <aside class="textPanel">
+      <div class="readout">
+        <div class="metricRow">
+          <div class="metric"><b>open pores</b><span id="pOpen">0%</span></div>
+          <div class="metric"><b>largest cluster</b><span id="pCluster">0%</span></div>
+        </div>
+        <div class="metricRow">
+          <div class="metric"><b>spanning path</b><span id="pSpan">no</span></div>
+          <div class="metric"><b>saturation</b><span id="pSat">no</span></div>
+        </div>
+        <div class="bar" aria-hidden="true"><div id="pBarFill" class="barFill"></div><div id="pThresh" class="barMark"></div><div id="pThreshLabel" class="barLabel">threshold</div><div id="pSatMark" class="barMark sat"></div><div id="pSatLabel" class="barLabel">saturation</div></div>
+        <div id="pState" class="stateText"></div>
+        <div class="fineText">Colors mark internally connected pore clusters. Agitation can open weak near-links, while the blue route shows how far passage has actually reached.</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="controls socialControls">
+    <label>time <input id="sTime" type="range" min="0" max="100" value="0" step="0.1" /><span id="sTimeVal">0</span></label>
+    <label>agitation <input id="sAgitation" type="range" min="0" max="100" value="45" step="1" /><span id="sAgVal">45</span></label>
+    <button id="sPlay">play</button>
+    <button id="sReset">reset</button>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="canvasWrap">
+        <canvas id="societyCanvas"></canvas>
+        <div class="tag">organizing field</div>
+        
+        <div class="legend">
+          <span class="pill"><i class="dot" style="background:#3a424d"></i>inactive people</span>
+          <span class="pill"><i class="dot" style="background:#b9c0cc"></i>active individuals</span>
+          <span class="pill"><i class="dot" style="background:#bd7dff"></i>internally connected clusters</span>
+          <span class="pill"><i class="dot" style="background:#ffe11a"></i>current route</span>
+          <span class="pill"><i class="dot" style="background:#ffe11a"></i>previous attempted routes</span>
+        </div>
+      </div>
+    </section>
+    <aside class="textPanel">
+      <div class="readout">
+        <div class="metricRow">
+          <div class="metric"><b>active people</b><span id="sActive">0%</span></div>
+          <div class="metric"><b>largest clump</b><span id="sLargest">0%</span></div>
+        </div>
+        <div class="metricRow">
+          <div class="metric"><b>spanning path</b><span id="sSpan">no</span></div>
+          <div class="metric"><b>rupture</b><span id="sRupture">no</span></div>
+        </div>
+        <div class="bar" aria-hidden="true"><div id="sBarFill" class="barFill"></div><div id="sThresh" class="barMark"></div><div id="sThreshLabel" class="barLabel">threshold</div><div id="sSatMark" class="barMark sat"></div><div id="sSatLabel" class="barLabel">rupture</div></div>
+        <div id="sState" class="stateText"></div>
+        <div class="mini"><strong>Percolation:</strong> active people begin as scattered points, then local clusters form, grow, and connect into a wider social passage.</div>
+        <div class="mini"><strong>Agitation:</strong> meetings, pickets, strikes, papers, assemblies, and shared defense help those clusters expand, run into each other, and hold together across the field.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const pTimeSlider = $('pTime');
+const pAgSlider = $('pAgitation');
+const pTimeVal = $('pTimeVal');
+const pAgVal = $('pAgVal');
+const sTimeSlider = $('sTime');
+const sAgSlider = $('sAgitation');
+const sTimeVal = $('sTimeVal');
+const sAgVal = $('sAgVal');
+let pPlaying = false;
+let sPlaying = false;
+let pRaf = 0;
+let sRaf = 0;
+
+function hash01(n) {
+  n = n | 0;
+  n ^= n >>> 16;
+  n = Math.imul(n, 0x7feb352d);
+  n ^= n >>> 15;
+  n = Math.imul(n, 0x846ca68b);
+  n ^= n >>> 16;
+  return (n >>> 0) / 4294967295;
+}
+function smoothstep(t) { return t * t * (3 - 2 * t); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function countBits(n) { let c = 0; while (n) { n &= n - 1; c++; } return c; }
+function valueNoise(x, y, scale, seed) {
+  const gx = x / scale, gy = y / scale;
+  const x0 = Math.floor(gx), y0 = Math.floor(gy);
+  const tx = smoothstep(gx - x0), ty = smoothstep(gy - y0);
+  const h = (ix, iy) => hash01(Math.imul(ix, 73856093) ^ Math.imul(iy, 19349663) ^ seed);
+  const a = h(x0, y0), b = h(x0 + 1, y0), c = h(x0, y0 + 1), d = h(x0 + 1, y0 + 1);
+  return lerp(lerp(a, b, tx), lerp(c, d, tx), ty);
+}
+function clipX(x) { return -0.965 + x * 1.93; }
+function clipY(y) { return 0.885 - y * 1.77; }
+function pushLine(arr, x1, y1, x2, y2, color) { arr.push(x1, y1, ...color, x2, y2, ...color); }
+function pushThickLine(arr, x1, y1, x2, y2, color, width = 1) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const ox = (-dy / len) * 0.0019 * width;
+  const oy = ( dx / len) * 0.0019 * width;
+  pushLine(arr, x1, y1, x2, y2, color);
+  if (width >= 1.5) {
+    pushLine(arr, x1 + ox, y1 + oy, x2 + ox, y2 + oy, color);
+    pushLine(arr, x1 - ox, y1 - oy, x2 - ox, y2 - oy, color);
+  }
+}
+function pushPoint(arr, x, y, r, color) { arr.push(x, y, r, ...color); }
+function clusterColor(root, alpha = 0.7, boost = 0) {
+  const palette = [
+    [0.77, 0.45, 1.00],
+    [0.42, 0.86, 0.56],
+    [1.00, 0.48, 0.68],
+    [0.54, 0.66, 1.00],
+    [0.98, 0.56, 0.36],
+    [0.48, 0.94, 0.84],
+    [0.88, 0.72, 0.38],
+    [0.70, 0.56, 0.98]
+  ];
+  const base = palette[Math.floor(hash01(root * 104729 + 31337) * palette.length) % palette.length];
+  const shift = (hash01(root * 8191 + 17) - 0.5) * 0.10;
+  return [
+    clamp(base[0] + shift + boost, 0, 1),
+    clamp(base[1] - shift * 0.35 + boost, 0, 1),
+    clamp(base[2] - shift + boost, 0, 1),
+    alpha
+  ];
+}
+function dimClusterColor(root, alpha = 0.42) {
+  const c = clusterColor(root, alpha, 0);
+  return [c[0] * 0.82, c[1] * 0.82, c[2] * 0.82, alpha];
+}
+
+class DSU {
+  constructor(n) {
+    this.parent = new Int32Array(n);
+    this.size = new Int32Array(n);
+    this.left = new Uint8Array(n);
+    this.right = new Uint8Array(n);
+    this.mask = new Int32Array(n);
+    this.active = new Uint8Array(n);
+  }
+  reset() {
+    this.active.fill(0);
+    this.left.fill(0);
+    this.right.fill(0);
+    this.mask.fill(0);
+  }
+  make(i, left = 0, right = 0, mask = 0) {
+    this.parent[i] = i;
+    this.size[i] = 1;
+    this.left[i] = left;
+    this.right[i] = right;
+    this.mask[i] = mask;
+    this.active[i] = 1;
+  }
+  find(a) {
+    let x = a;
+    while (this.parent[x] !== x) x = this.parent[x];
+    while (this.parent[a] !== a) { const p = this.parent[a]; this.parent[a] = x; a = p; }
+    return x;
+  }
+  union(a, b) {
+    let ra = this.find(a), rb = this.find(b);
+    if (ra === rb) return ra;
+    if (this.size[ra] < this.size[rb]) { const t = ra; ra = rb; rb = t; }
+    this.parent[rb] = ra;
+    this.size[ra] += this.size[rb];
+    this.left[ra] |= this.left[rb];
+    this.right[ra] |= this.right[rb];
+    this.mask[ra] |= this.mask[rb];
+    return ra;
+  }
+}
+
+class MinHeap {
+  constructor() { this.a = []; }
+  clear() { this.a.length = 0; }
+  push(d, i) {
+    const a = this.a;
+    let k = a.length;
+    a.push([d, i]);
+    while (k > 0) {
+      const p = (k - 1) >> 1;
+      if (a[p][0] <= d) break;
+      a[k] = a[p]; k = p;
+    }
+    a[k] = [d, i];
+  }
+  pop() {
+    const a = this.a;
+    if (a.length === 0) return null;
+    const root = a[0], last = a.pop();
+    if (a.length > 0) {
+      let k = 0;
+      while (true) {
+        let c = k * 2 + 1;
+        if (c >= a.length) break;
+        if (c + 1 < a.length && a[c + 1][0] < a[c][0]) c++;
+        if (a[c][0] >= last[0]) break;
+        a[k] = a[c]; k = c;
+      }
+      a[k] = last;
+    }
+    return root;
+  }
+}
+
+
+class PhysicsSim {
+  constructor() {
+    this.w = 104;
+    this.h = 60;
+    this.n = this.w * this.h;
+    this.ranks = new Float32Array(this.n);
+    this.open = new Uint8Array(this.n);
+    this.wet = new Uint8Array(this.n);
+    this.dist = new Float32Array(this.n);
+    this.dsu = new DSU(this.n);
+    this.heap = new MinHeap();
+    this.weakEdges = [];
+    this.weakAdj = Array.from({ length: this.n }, () => []);
+    this.makeRanks();
+    this.makeWeakEdges();
+    this.thresholdTime = 100;
+    this.lastAg = -1;
+    this.satMark = 100;
+  }
+  idx(x, y) { return y * this.w + x; }
+  makeRanks() {
+    const raw = [];
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const h = hash01(Math.imul(x, 928371) + Math.imul(y, 689287) + 991);
+        const n1 = valueNoise(x, y, 8.5, 411);
+        const n2 = valueNoise(x, y, 19.0, 712);
+        raw.push({ i: this.idx(x, y), v: h * 0.85 + n1 * 0.10 + n2 * 0.05 });
+      }
+    }
+    raw.sort((a, b) => a.v - b.v);
+    for (let k = 0; k < raw.length; k++) this.ranks[raw[k].i] = k / (raw.length - 1);
+  }
+  makeWeakEdges() {
+    const add = (a, b, mid, vertical) => {
+      const key = Math.imul(a + 17, 92821) ^ Math.imul(b + 29, 68917) ^ Math.imul(mid + 7, 31337);
+      const base = hash01(key ^ 1777);
+      const bias = 0.016 + 0.032 * hash01(key ^ 9199);
+      const e = { a, b, mid, vertical, base, bias };
+      const index = this.weakEdges.length;
+      this.weakEdges.push(e);
+      this.weakAdj[a].push(index);
+      this.weakAdj[b].push(index);
+    };
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const i = this.idx(x, y);
+        if (x + 2 < this.w) add(i, this.idx(x + 2, y), this.idx(x + 1, y), false);
+        if (y + 2 < this.h) add(i, this.idx(x, y + 2), this.idx(x, y + 1), true);
+      }
+    }
+  }
+  pFromTime(t) { return 0.18 + 0.62 * (t / 100); }
+  setOpen(t) {
+    const p = this.pFromTime(t);
+    let count = 0;
+    for (let i = 0; i < this.n; i++) {
+      const o = this.ranks[i] <= p ? 1 : 0;
+      this.open[i] = o;
+      count += o;
+    }
+    return count;
+  }
+  weakEdgeState(edge, p, A, time) {
+    if (!this.open[edge.a] || !this.open[edge.b] || this.open[edge.mid]) return 0;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.18 + edge.base * 6.28318 + (edge.vertical ? 0.8 : 0.0));
+    const drive = p + A * (0.14 + 0.22 * pulse + 0.08 * edge.base) + 0.016 * edge.base;
+    const threshold = this.ranks[edge.mid] + edge.bias;
+    if (drive >= threshold) return 2;
+    if (drive >= threshold - 0.055) return 1;
+    return 0;
+  }
+  getWeakStates(time, agitation, buildArrays = true) {
+    const A = agitation;
+    const p = this.pFromTime(time);
+    const states = buildArrays ? new Uint8Array(this.weakEdges.length) : null;
+    let active = 0, latent = 0;
+    for (let e = 0; e < this.weakEdges.length; e++) {
+      const st = this.weakEdgeState(this.weakEdges[e], p, A, time);
+      if (states) states[e] = st;
+      if (st === 2) active++;
+      else if (st === 1) latent++;
+    }
+    return { states, active, latent };
+  }
+  buildComponents(time, agitation, weakStates = null) {
+    const { w, h, n, open, dsu } = this;
+    dsu.reset();
+    for (let i = 0; i < n; i++) if (open[i]) dsu.make(i, (i % w) === 0 ? 1 : 0, (i % w) === w - 1 ? 1 : 0, 0);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = this.idx(x, y);
+        if (!open[i]) continue;
+        if (x + 1 < w && open[i + 1]) dsu.union(i, i + 1);
+        if (y + 1 < h && open[i + w]) dsu.union(i, i + w);
+      }
+    }
+    const states = weakStates || this.getWeakStates(time, agitation, true).states;
+    let weakCount = 0;
+    for (let e = 0; e < this.weakEdges.length; e++) {
+      if (states[e] !== 2) continue;
+      const edge = this.weakEdges[e];
+      dsu.union(edge.a, edge.b);
+      weakCount++;
+    }
+    let largest = 0, spanRoot = -1, spanSize = 0;
+    for (let i = 0; i < n; i++) {
+      if (!open[i]) continue;
+      const r = dsu.find(i);
+      if (dsu.size[r] > largest) largest = dsu.size[r];
+      if (dsu.left[r] && dsu.right[r] && dsu.size[r] > spanSize) { spanRoot = r; spanSize = dsu.size[r]; }
+    }
+    return { largest, spanRoot, spanSize, spans: spanRoot >= 0, weakCount };
+  }
+  edgeResistance(a, b) {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    return 0.55 + 0.75 * hash01(Math.imul(lo, 1315423911) ^ Math.imul(hi, 2654435761) ^ 12345);
+  }
+  edgeMix(a, b, time) {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    const base = hash01(Math.imul(lo, 92821) ^ Math.imul(hi, 68917) ^ 913);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.17 + base * 6.28318);
+    return 0.42 + 0.38 * base + 0.20 * pulse;
+  }
+  weakEdgeCost(edge, time, A) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.18 + edge.base * 6.28318 + (edge.vertical ? 0.8 : 0.0));
+    let cost = (1.34 + 0.42 * edge.base) * (1.0 - 0.26 * A * (0.55 + 0.45 * pulse));
+    if (edge.vertical) cost *= 0.96;
+    return cost;
+  }
+  computeWet(time, agitation, weakStates = null) {
+    const { w, h, n, open, dist, wet, heap } = this;
+    const A = agitation;
+    const INF = 1e9;
+    dist.fill(INF);
+    wet.fill(0);
+    heap.clear();
+    const states = weakStates || this.getWeakStates(time, A, true).states;
+    for (let y = 0; y < h; y++) {
+      const i = y * w;
+      if (open[i]) { dist[i] = 0; heap.push(0, i); }
+    }
+    while (heap.a.length) {
+      const item = heap.pop();
+      const d = item[0], i = item[1];
+      if (d !== dist[i]) continue;
+      const x = i % w, y = (i / w) | 0;
+      const tryN = (j, vertical) => {
+        if (!open[j]) return;
+        const mix = this.edgeMix(i, j, time);
+        let cost = this.edgeResistance(i, j) * (0.78 + (vertical ? 0.16 : 0.0)) * (1.0 - 0.42 * A * mix);
+        if (vertical) cost *= (1.0 - 0.22 * A * mix);
+        const nd = d + cost;
+        if (nd < dist[j]) { dist[j] = nd; heap.push(nd, j); }
+      };
+      if (x + 1 < w) tryN(i + 1, false);
+      if (x - 1 >= 0) tryN(i - 1, false);
+      if (y + 1 < h) tryN(i + w, true);
+      if (y - 1 >= 0) tryN(i - w, true);
+      const weakList = this.weakAdj[i];
+      for (let k = 0; k < weakList.length; k++) {
+        const eIndex = weakList[k];
+        if (states[eIndex] !== 2) continue;
+        const edge = this.weakEdges[eIndex];
+        const j = edge.a === i ? edge.b : edge.a;
+        if (!open[j]) continue;
+        const nd = d + this.weakEdgeCost(edge, time, A);
+        if (nd < dist[j]) { dist[j] = nd; heap.push(nd, j); }
+      }
+    }
+    const budget = 1.18 * Math.max(0, time - 4);
+    let count = 0, sat = false;
+    for (let i = 0; i < n; i++) {
+      if (dist[i] <= budget) {
+        wet[i] = 1;
+        count++;
+        if (i % w === w - 1) sat = true;
+      }
+    }
+    return { count, sat, budget };
+  }
+  findSpanTime(ag) {
+    for (let t = 0; t <= 100; t += 1) {
+      this.setOpen(t);
+      const weakStates = this.getWeakStates(t, ag, true).states;
+      if (this.buildComponents(t, ag, weakStates).spans) return t;
+    }
+    return 100;
+  }
+  findSaturationTime(ag) {
+    const start = Math.max(0, this.thresholdTime - 2);
+    const forcedDelay = 8;
+    for (let t = start; t <= 100; t += 1) {
+      this.setOpen(t);
+      const weakStates = this.getWeakStates(t, ag, true).states;
+      const comp = this.buildComponents(t, ag, weakStates);
+      if (!comp.spans) continue;
+      if (this.computeWet(t, ag, weakStates).sat) return t;
+      if (t >= this.thresholdTime + forcedDelay) return t;
+    }
+    return 100;
+  }
+  findPath(useWet, weakStates = null, direction = 'ltr') {
+    const { w, h, open, wet, n } = this;
+    const parent = new Int32Array(n);
+    parent.fill(-2);
+    const q = new Int32Array(n);
+    let head = 0, tail = 0, end = -1;
+    const states = weakStates || this.getWeakStates(0, 0, true).states;
+    if (direction === 'rtl') {
+      for (let y = 0; y < h; y++) {
+        const i = y * w + (w - 1);
+        if (open[i] && (!useWet || wet[i])) { parent[i] = -1; q[tail++] = i; }
+      }
+    } else {
+      for (let y = 0; y < h; y++) {
+        const i = y * w;
+        if (open[i] && (!useWet || wet[i])) { parent[i] = -1; q[tail++] = i; }
+      }
+    }
+    while (head < tail) {
+      const i = q[head++];
+      const x = i % w, y = (i / w) | 0;
+      if ((direction === 'rtl' && x === 0) || (direction !== 'rtl' && x === w - 1)) { end = i; break; }
+      const add = (j) => {
+        if (parent[j] !== -2 || !open[j] || (useWet && !wet[j])) return;
+        parent[j] = i; q[tail++] = j;
+      };
+      if (x + 1 < w) add(i + 1);
+      if (x - 1 >= 0) add(i - 1);
+      if (y + 1 < h) add(i + w);
+      if (y - 1 >= 0) add(i - w);
+      const weakList = this.weakAdj[i];
+      for (let k = 0; k < weakList.length; k++) {
+        const eIndex = weakList[k];
+        if (states[eIndex] !== 2) continue;
+        const edge = this.weakEdges[eIndex];
+        const j = edge.a === i ? edge.b : edge.a;
+        add(j);
+      }
+    }
+    if (end < 0) return [];
+    const path = [];
+    let i = end;
+    while (i >= 0) { path.push(i); i = parent[i]; }
+    return path.reverse();
+  }
+  findFrontierPath(useWet, weakStates = null, direction = 'ltr') {
+    const { w, h, open, wet, n } = this;
+    const parent = new Int32Array(n);
+    const depth = new Int32Array(n);
+    parent.fill(-2);
+    depth.fill(0);
+    const q = new Int32Array(n);
+    let head = 0, tail = 0, best = -1;
+    const states = weakStates || this.getWeakStates(0, 0, true).states;
+    const better = (i, b) => {
+      if (b < 0) return true;
+      const ix = i % w, bx = b % w;
+      if (ix !== bx) return direction === 'rtl' ? ix < bx : ix > bx;
+      return depth[i] > depth[b];
+    };
+    if (direction === 'rtl') {
+      for (let y = 0; y < h; y++) {
+        const i = y * w + (w - 1);
+        if (open[i] && (!useWet || wet[i])) {
+          parent[i] = -1;
+          q[tail++] = i;
+          if (better(i, best)) best = i;
+        }
+      }
+    } else {
+      for (let y = 0; y < h; y++) {
+        const i = y * w;
+        if (open[i] && (!useWet || wet[i])) {
+          parent[i] = -1;
+          q[tail++] = i;
+          if (better(i, best)) best = i;
+        }
+      }
+    }
+    while (head < tail) {
+      const i = q[head++];
+      if (better(i, best)) best = i;
+      const x = i % w, y = (i / w) | 0;
+      const add = (j) => {
+        if (parent[j] !== -2 || !open[j] || (useWet && !wet[j])) return;
+        parent[j] = i;
+        depth[j] = depth[i] + 1;
+        q[tail++] = j;
+      };
+      if (x + 1 < w) add(i + 1);
+      if (x - 1 >= 0) add(i - 1);
+      if (y + 1 < h) add(i + w);
+      if (y - 1 >= 0) add(i - w);
+      const weakList = this.weakAdj[i];
+      for (let k = 0; k < weakList.length; k++) {
+        const eIndex = weakList[k];
+        if (states[eIndex] !== 2) continue;
+        const edge = this.weakEdges[eIndex];
+        add(edge.a === i ? edge.b : edge.a);
+      }
+    }
+    if (best < 0 || (direction === 'rtl' ? best % w === w - 1 : best % w === 0)) return [];
+    const path = [];
+    let i = best;
+    while (i >= 0) { path.push(i); i = parent[i]; }
+    return path.reverse();
+  }
+  simulate(time, agitation) {
+    const A = agitation / 100;
+    if (Math.abs(this.lastAg - A) > 0.0001) {
+      this.thresholdTime = this.findSpanTime(A);
+      this.satMark = this.findSaturationTime(A);
+      this.lastAg = A;
+    }
+    const openCount = this.setOpen(time);
+    const weakInfo = this.getWeakStates(time, A, true);
+    const comp = this.buildComponents(time, A, weakInfo.states);
+    const wet = this.computeWet(time, A, weakInfo.states);
+    const points = [];
+    const lines = [];
+    const wetCells = [];
+    const path = this.findPath(wet.sat, weakInfo.states, 'ltr');
+    const pathRight = this.findPath(wet.sat, weakInfo.states, 'rtl');
+    const latentPath = (!wet.sat && comp.spans) ? this.findPath(false, weakInfo.states, 'ltr') : [];
+    const latentPathRight = (!wet.sat && comp.spans) ? this.findPath(false, weakInfo.states, 'rtl') : [];
+    const structuralFrontierPath = (!comp.spans) ? this.findFrontierPath(false, weakInfo.states, 'ltr') : [];
+    const structuralFrontierPathRight = (!comp.spans) ? this.findFrontierPath(false, weakInfo.states, 'rtl') : [];
+    const flowFrontierPath = (!wet.sat) ? this.findFrontierPath(true, weakInfo.states, 'ltr') : [];
+    const flowFrontierPathRight = (!wet.sat) ? this.findFrontierPath(true, weakInfo.states, 'rtl') : [];
+    const spanRoot = comp.spanRoot;
+    if (comp.spans && time >= this.satMark && spanRoot >= 0) {
+      wet.sat = true;
+      let forcedCount = 0;
+      for (let i = 0; i < this.n; i++) {
+        if (this.open[i] && this.dsu.find(i) === spanRoot) {
+          this.wet[i] = 1;
+          forcedCount++;
+        }
+      }
+      wet.count = forcedCount;
+    }
+    const cellX = 1 / (this.w - 1), cellY = 1 / (this.h - 1);
+
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const i = this.idx(x, y);
+        const cx = clipX(x * cellX), cy = clipY(y * cellY);
+        if (!this.open[i]) {
+          if ((x + y) % 2 === 0) pushPoint(points, cx, cy, 0.9, [0.22, 0.25, 0.30, 0.25]);
+          continue;
+        }
+        const r = this.dsu.find(i);
+        const inSpan = r === spanRoot;
+        const isWet = this.wet[i];
+        if (isWet) wetCells.push(i);
+        let color;
+        let radius = 1.75;
+        if (isWet) { color = [0.24, 0.56, 1.0, 0.96]; radius = 2.45; }
+        else if (inSpan) { color = [0.18, 0.42, 0.92, 0.82]; radius = 2.1; }
+        else {
+          const clusterSize = this.dsu.size[r] || 1;
+          if (clusterSize > 1) {
+            color = clusterColor(r, 0.76, 0.02);
+            radius = 1.95;
+          } else {
+            color = [0.64, 0.67, 0.73, 0.56];
+          }
+        }
+        pushPoint(points, cx, cy, radius, color);
+
+        const lineTo = (j, nx, ny) => {
+          if (!this.open[j]) return;
+          const jr = this.dsu.find(j);
+          let c = [0.58, 0.65, 0.76, 0.26];
+          let wLine = 1.45;
+          if (this.wet[i] && this.wet[j]) { c = [0.24, 0.56, 1.0, 0.62]; wLine = 1.85; }
+          else if (r === spanRoot && jr === spanRoot) { c = [0.18, 0.42, 0.92, 0.52]; wLine = 1.75; }
+          else if (r === jr) {
+            const clusterSize = this.dsu.size[r] || 1;
+            if (clusterSize > 1) {
+              c = dimClusterColor(r, 0.64);
+              wLine = 1.85;
+            } else {
+              c = [0.60, 0.63, 0.70, 0.22];
+            }
+          }
+          pushThickLine(lines, cx, cy, clipX(nx * cellX), clipY(ny * cellY), c, wLine);
+        };
+        if (x + 1 < this.w) lineTo(i + 1, x + 1, y);
+        if (y + 1 < this.h) lineTo(i + this.w, x, y + 1);
+
+        if (isWet && hash01(i * 37 + 19) < 0.34) {
+          const base = hash01(i * 1009 + 7);
+          const angle = base * 6.28318 + time * (0.03 + 0.06 * A);
+          const amp = 0.0025 + A * 0.0065;
+          const sx = cx + Math.cos(angle + y * 0.11) * amp + (hash01(i * 277 + 3) - 0.5) * 0.006;
+          const sy = cy + Math.sin(angle + x * 0.07) * amp + (hash01(i * 313 + 11) - 0.5) * 0.006;
+          pushPoint(points, sx, sy, 1.1 + A * 0.3, [0.86, 0.98, 1.0, 0.95]);
+        }
+      }
+    }
+
+    for (let e = 0; e < this.weakEdges.length; e++) {
+      const state = weakInfo.states[e];
+      if (!state) continue;
+      const edge = this.weakEdges[e];
+      if (!this.open[edge.a] || !this.open[edge.b]) continue;
+      const ax = edge.a % this.w, ay = (edge.a / this.w) | 0;
+      const bx = edge.b % this.w, by = (edge.b / this.w) | 0;
+      const x1 = clipX(ax * cellX), y1 = clipY(ay * cellY);
+      const x2 = clipX(bx * cellX), y2 = clipY(by * cellY);
+      const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
+      let c = [0.96, 0.78, 0.36, 0.18 + 0.08 * A];
+      let wLine = 1.0;
+      if (state === 2) {
+        if (this.wet[edge.a] && this.wet[edge.b]) { c = [0.38, 0.95, 1.0, 0.80]; wLine = 1.85; }
+        else { c = [1.0, 0.48, 0.88, 0.72]; wLine = 1.45; }
+        pushPoint(points, mx, my, 1.55, c);
+      }
+      pushThickLine(lines, x1, y1, x2, y2, c, wLine);
+    }
+
+    if (wetCells.length && wet.budget > 0.05) {
+      const tracerCount = Math.min(180, 64 + Math.floor(125 * A) + Math.floor(wetCells.length / 95));
+      const maxBudget = Math.max(0.35, wet.budget);
+      for (let q = 0; q < tracerCount; q++) {
+        const target = (time * (0.18 + 0.92 * A) + q * 0.71 + hash01(q * 787 + 23) * 1.9) % maxBudget;
+        let best = wetCells[Math.min(wetCells.length - 1, (hash01(q * 313 + 9) * wetCells.length) | 0)];
+        let bestScore = Math.abs(this.dist[best] - target) + hash01(best * 17 + q * 101) * 0.018;
+        const stride = wetCells.length > 900 ? 2 : 1;
+        for (let m = q % stride; m < wetCells.length; m += stride) {
+          const i = wetCells[m];
+          const score = Math.abs(this.dist[i] - target) + hash01(i * 17 + q * 101) * 0.018;
+          if (score < bestScore) { best = i; bestScore = score; }
+        }
+        const x = best % this.w, y = (best / this.w) | 0;
+        const cx = clipX(x * cellX), cy = clipY(y * cellY);
+        const candidates = [];
+        if (x + 1 < this.w) candidates.push(best + 1);
+        if (x - 1 >= 0) candidates.push(best - 1);
+        if (y + 1 < this.h) candidates.push(best + this.w);
+        if (y - 1 >= 0) candidates.push(best - this.w);
+        for (const eIndex of this.weakAdj[best]) {
+          if (weakInfo.states[eIndex] !== 2) continue;
+          const edge = this.weakEdges[eIndex];
+          candidates.push(edge.a === best ? edge.b : edge.a);
+        }
+        let nx = 1, ny = 0, bestDelta = 1e9;
+        for (const j of candidates) {
+          if (!this.wet[j]) continue;
+          const d = this.dist[j] - this.dist[best];
+          const prefer = d > 0 ? d : 100 + Math.abs(d);
+          if (prefer < bestDelta) {
+            bestDelta = prefer;
+            nx = (j % this.w) - x;
+            ny = ((j / this.w) | 0) - y;
+          }
+        }
+        const len = Math.hypot(nx, ny) || 1;
+        nx /= len; ny /= len;
+        const swirl = time * (0.16 + A * 0.55) + q * 1.37;
+        const px = -ny, py = nx;
+        const drift = (Math.sin(swirl) * 0.32 + hash01(q * 41 + 5) - 0.5) * 0.006;
+        const sx = cx + px * drift + nx * (Math.sin(swirl * 0.7) * 0.004);
+        const sy = cy + py * drift + ny * (Math.sin(swirl * 0.7) * 0.004);
+        pushThickLine(lines, sx - nx * 0.010, sy - ny * 0.010, sx + nx * 0.013, sy + ny * 0.013, [0.66, 0.96, 1.0, 0.72], 1.8);
+        pushPoint(points, sx, sy, 2.3 + A * 1.05, [0.86, 0.99, 1.0, 0.98]);
+      }
+    }
+
+    const drawPath = (arr, color, widthPoints = 0, lineWidth = 2.2) => {
+      for (let k = 1; k < arr.length; k++) {
+        const a = arr[k - 1], b = arr[k];
+        pushThickLine(lines, clipX((a % this.w) * cellX), clipY(((a / this.w) | 0) * cellY), clipX((b % this.w) * cellX), clipY(((b / this.w) | 0) * cellY), color, lineWidth);
+        if (widthPoints) pushPoint(points, clipX((b % this.w) * cellX), clipY(((b / this.w) | 0) * cellY), widthPoints, color);
+      }
+    };
+
+    const currentRouteColor = [1.0, 0.92, 0.10, 1.0];
+
+    const historicalRoutes = getRouteHistory(this, time, A);
+    for (const entry of historicalRoutes) {
+      for (const oldPath of entry.paths) drawPath(oldPath, currentRouteColor, 0, 2.35);
+    }
+    if (structuralFrontierPath.length) drawPath(structuralFrontierPath, currentRouteColor, 2.35, 2.35);
+    if (structuralFrontierPathRight.length) drawPath(structuralFrontierPathRight, currentRouteColor, 2.35, 2.35);
+    if (flowFrontierPath.length) drawPath(flowFrontierPath, currentRouteColor, 2.75, 2.45);
+    if (flowFrontierPathRight.length) drawPath(flowFrontierPathRight, currentRouteColor, 2.75, 2.45);
+    if (latentPath.length) drawPath(latentPath, currentRouteColor, 2.8, 2.55);
+    if (latentPathRight.length) drawPath(latentPathRight, currentRouteColor, 2.8, 2.55);
+    if (path.length) drawPath(path, currentRouteColor, 3.1, 2.7);
+    if (pathRight.length) drawPath(pathRight, currentRouteColor, 3.1, 2.7);
+    pushThickLine(lines, clipX(0), clipY(0), clipX(0), clipY(1), [0.35, 0.9, 1, 0.72], 2.0);
+    pushThickLine(lines, clipX(1), clipY(0), clipX(1), clipY(1), [0.35, 0.9, 1, 0.72], 2.0);
+
+    return {
+      points: new Float32Array(points),
+      lines: new Float32Array(lines),
+      metrics: {
+        openPct: openCount / this.n,
+        largestPct: comp.largest / this.n,
+        spans: comp.spans,
+        saturated: wet.sat,
+        wetPct: wet.count / this.n,
+        thresholdTime: this.thresholdTime,
+        satMark: this.satMark,
+        weakActive: weakInfo.active,
+        weakLatent: weakInfo.latent
+      }
+    };
+  }
+}
+
+
+
+class SocietySim {
+  constructor() {
+    this.w = 104;
+    this.h = 60;
+    this.n = this.w * this.h;
+    this.sectors = [
+      ['tenant orgs', .14, .22, .090, .070],
+      ['labor unions', .14, .50, .095, .076],
+      ['immigrant orgs', .14, .78, .090, .070],
+      ['students', .35, .18, .083, .065],
+      ['care workers', .35, .43, .087, .069],
+      ['mutual aid', .35, .70, .087, .069],
+      ['transit workers', .58, .24, .088, .070],
+      ['neighborhood defense', .58, .55, .095, .074],
+      ['worker centers', .58, .82, .087, .068],
+      ['hospital unions', .82, .19, .083, .065],
+      ['schools', .82, .48, .087, .069],
+      ['anti-war networks', .82, .76, .087, .069]
+    ];
+    this.ranks = new Float32Array(this.n);
+    this.sector = new Int8Array(this.n);
+    this.open = new Uint8Array(this.n);
+    this.wet = new Uint8Array(this.n);
+    this.dist = new Float32Array(this.n);
+    this.dsu = new DSU(this.n);
+    this.heap = new MinHeap();
+    this.weakEdges = [];
+    this.weakAdj = Array.from({ length: this.n }, () => []);
+    this.makeRanks();
+    this.makeWeakEdges();
+    this.thresholdTime = 100;
+    this.lastAg = -1;
+    this.satMark = 100;
+    this.labelSectors();
+  }
+  idx(x, y) { return y * this.w + x; }
+  makeRanks() {
+    const raw = [];
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const h = hash01(Math.imul(x + 41, 928371) + Math.imul(y + 73, 689287) + 64091);
+        const n1 = valueNoise(x, y, 8.5, 1271);
+        const n2 = valueNoise(x, y, 19.0, 2017);
+
+        // Mostly uncorrelated activation, like the first demo.
+        // The tiny noise terms keep it organic without pre-shaping sectors.
+        const v = h * 0.92 + n1 * 0.05 + n2 * 0.03;
+        raw.push({ i: this.idx(x, y), v });
+      }
+    }
+    raw.sort((a, b) => a.v - b.v);
+    for (let k = 0; k < raw.length; k++) this.ranks[raw[k].i] = k / (raw.length - 1);
+  }
+  makeWeakEdges() {
+    const add = (a, b, mid, vertical) => {
+      const key = Math.imul(a + 17, 92821) ^ Math.imul(b + 29, 68917) ^ Math.imul(mid + 7, 31337);
+      const base = hash01(key ^ 1777);
+      const bias = 0.016 + 0.032 * hash01(key ^ 9199);
+      const e = { a, b, mid, vertical, base, bias };
+      const index = this.weakEdges.length;
+      this.weakEdges.push(e);
+      this.weakAdj[a].push(index);
+      this.weakAdj[b].push(index);
+    };
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const i = this.idx(x, y);
+        if (x + 2 < this.w) add(i, this.idx(x + 2, y), this.idx(x + 1, y), false);
+        if (y + 2 < this.h) add(i, this.idx(x, y + 2), this.idx(x, y + 1), true);
+      }
+    }
+  }
+  pFromTime(t) { return 0.08 + 0.74 * (t / 100); }
+  setOpen(t) {
+    const p = this.pFromTime(t);
+    let count = 0;
+    for (let i = 0; i < this.n; i++) {
+      const o = this.ranks[i] <= p ? 1 : 0;
+      this.open[i] = o;
+      count += o;
+    }
+    return count;
+  }
+  weakEdgeState(edge, p, A, time) {
+    if (!this.open[edge.a] || !this.open[edge.b] || this.open[edge.mid]) return 0;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.18 + edge.base * 6.28318 + (edge.vertical ? 0.8 : 0.0));
+    const drive = p + A * (0.14 + 0.22 * pulse + 0.08 * edge.base) + 0.016 * edge.base;
+    const threshold = this.ranks[edge.mid] + edge.bias;
+    if (drive >= threshold) return 2;
+    if (drive >= threshold - 0.055) return 1;
+    return 0;
+  }
+  getWeakStates(time, agitation, buildArrays = true) {
+    const A = agitation;
+    const p = this.pFromTime(time);
+    const states = buildArrays ? new Uint8Array(this.weakEdges.length) : null;
+    let active = 0, latent = 0;
+    for (let e = 0; e < this.weakEdges.length; e++) {
+      const st = this.weakEdgeState(this.weakEdges[e], p, A, time);
+      if (states) states[e] = st;
+      if (st === 2) active++;
+      else if (st === 1) latent++;
+    }
+    return { states, active, latent };
+  }
+  buildComponents(time, agitation, weakStates = null) {
+    const { w, h, n, open, dsu } = this;
+    dsu.reset();
+    for (let i = 0; i < n; i++) if (open[i]) dsu.make(i, (i % w) === 0 ? 1 : 0, (i % w) === w - 1 ? 1 : 0, 1 << this.sector[i]);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = this.idx(x, y);
+        if (!open[i]) continue;
+        if (x + 1 < w && open[i + 1]) dsu.union(i, i + 1);
+        if (y + 1 < h && open[i + w]) dsu.union(i, i + w);
+      }
+    }
+    const states = weakStates || this.getWeakStates(time, agitation, true).states;
+    let weakCount = 0;
+    for (let e = 0; e < this.weakEdges.length; e++) {
+      if (states[e] !== 2) continue;
+      const edge = this.weakEdges[e];
+      dsu.union(edge.a, edge.b);
+      weakCount++;
+    }
+    const topTouch = new Uint8Array(n);
+    const bottomTouch = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      if (!open[i]) continue;
+      const r = dsu.find(i);
+      const y = (i / w) | 0;
+      if (y === 0) topTouch[r] = 1;
+      if (y === h - 1) bottomTouch[r] = 1;
+    }
+    let largest = 0, spanRoot = -1, spanSize = 0, maxSectors = 0;
+    for (let i = 0; i < n; i++) {
+      if (!open[i]) continue;
+      const r = dsu.find(i);
+      const sectors = countBits(dsu.mask[r]);
+      const crossesLeftRight = dsu.left[r] && dsu.right[r];
+      const crossesTopBottom = topTouch[r] && bottomTouch[r];
+      if (sectors > maxSectors) maxSectors = sectors;
+      if (dsu.size[r] > largest) largest = dsu.size[r];
+      if ((crossesLeftRight || crossesTopBottom) && dsu.size[r] > spanSize) { spanRoot = r; spanSize = dsu.size[r]; }
+    }
+    return { largest, spanRoot, spanSize, spans: spanRoot >= 0, weakCount, maxSectors };
+  }
+  edgeResistance(a, b) {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    return 0.55 + 0.75 * hash01(Math.imul(lo, 1315423911) ^ Math.imul(hi, 2654435761) ^ 12345);
+  }
+  edgeMix(a, b, time) {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    const base = hash01(Math.imul(lo, 92821) ^ Math.imul(hi, 68917) ^ 913);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.17 + base * 6.28318);
+    return 0.42 + 0.38 * base + 0.20 * pulse;
+  }
+  weakEdgeCost(edge, time, A) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.18 + edge.base * 6.28318 + (edge.vertical ? 0.8 : 0.0));
+    let cost = (1.34 + 0.42 * edge.base) * (1.0 - 0.26 * A * (0.55 + 0.45 * pulse));
+    if (edge.vertical) cost *= 0.96;
+    return cost;
+  }
+  computeWet(time, agitation, weakStates = null) {
+    const { w, h, n, open, dist, wet, heap } = this;
+    const A = agitation;
+    const INF = 1e9;
+    dist.fill(INF);
+    wet.fill(0);
+    heap.clear();
+    const states = weakStates || this.getWeakStates(time, A, true).states;
+    const seedFlow = (i) => {
+      if (open[i] && dist[i] > 0) { dist[i] = 0; heap.push(0, i); }
+    };
+    for (let y = 0; y < h; y++) seedFlow(y * w);
+    for (let x = 0; x < w; x++) seedFlow(x);
+    while (heap.a.length) {
+      const item = heap.pop();
+      const d = item[0], i = item[1];
+      if (d !== dist[i]) continue;
+      const x = i % w, y = (i / w) | 0;
+      const tryN = (j, vertical) => {
+        if (!open[j]) return;
+        const mix = this.edgeMix(i, j, time);
+        let cost = this.edgeResistance(i, j) * (0.78 + (vertical ? 0.16 : 0.0)) * (1.0 - 0.42 * A * mix);
+        if (vertical) cost *= (1.0 - 0.22 * A * mix);
+        const nd = d + cost;
+        if (nd < dist[j]) { dist[j] = nd; heap.push(nd, j); }
+      };
+      if (x + 1 < w) tryN(i + 1, false);
+      if (x - 1 >= 0) tryN(i - 1, false);
+      if (y + 1 < h) tryN(i + w, true);
+      if (y - 1 >= 0) tryN(i - w, true);
+      const weakList = this.weakAdj[i];
+      for (let k = 0; k < weakList.length; k++) {
+        const eIndex = weakList[k];
+        if (states[eIndex] !== 2) continue;
+        const edge = this.weakEdges[eIndex];
+        const j = edge.a === i ? edge.b : edge.a;
+        if (!open[j]) continue;
+        const nd = d + this.weakEdgeCost(edge, time, A);
+        if (nd < dist[j]) { dist[j] = nd; heap.push(nd, j); }
+      }
+    }
+    const budget = 1.08 * Math.max(0, time - 5);
+    let count = 0, sat = false;
+    for (let i = 0; i < n; i++) {
+      if (dist[i] <= budget) {
+        wet[i] = 1;
+        count++;
+        const x = i % w, y = (i / w) | 0;
+        if (x === w - 1 || y === h - 1) sat = true;
+      }
+    }
+    return { count, sat, budget };
+  }
+  findSpanTime(ag) {
+    for (let t = 0; t <= 100; t += 1) {
+      this.setOpen(t);
+      const weakStates = this.getWeakStates(t, ag, true).states;
+      if (this.buildComponents(t, ag, weakStates).spans) return t;
+    }
+    return 100;
+  }
+  findSaturationTime(ag) {
+    const start = Math.max(0, this.thresholdTime - 2);
+    const forcedDelay = 7;
+    for (let t = start; t <= 100; t += 1) {
+      this.setOpen(t);
+      const weakStates = this.getWeakStates(t, ag, true).states;
+      const comp = this.buildComponents(t, ag, weakStates);
+      if (!comp.spans) continue;
+      if (this.computeWet(t, ag, weakStates).sat) return t;
+      if (t >= this.thresholdTime + forcedDelay) return t;
+    }
+    return 100;
+  }
+  findPath(useWet, weakStates = null, direction = 'horizontal') {
+    const { w, h, open, wet, n } = this;
+    const parent = new Int32Array(n);
+    parent.fill(-2);
+    const q = new Int32Array(n);
+    let head = 0, tail = 0, end = -1;
+    const states = weakStates || this.getWeakStates(0, 0, true).states;
+    const isHorizontal = direction !== 'vertical';
+    const seedPath = (i) => {
+      if (parent[i] !== -2 || !open[i] || (useWet && !wet[i])) return;
+      parent[i] = -1;
+      q[tail++] = i;
+    };
+    if (isHorizontal) {
+      for (let y = 0; y < h; y++) seedPath(y * w);
+    } else {
+      for (let x = 0; x < w; x++) seedPath(x);
+    }
+    while (head < tail) {
+      const i = q[head++];
+      const x = i % w, y = (i / w) | 0;
+      if ((isHorizontal && x === w - 1) || (!isHorizontal && y === h - 1)) { end = i; break; }
+      const add = (j) => {
+        if (parent[j] !== -2 || !open[j] || (useWet && !wet[j])) return;
+        parent[j] = i;
+        q[tail++] = j;
+      };
+      if (x + 1 < w) add(i + 1);
+      if (x - 1 >= 0) add(i - 1);
+      if (y + 1 < h) add(i + w);
+      if (y - 1 >= 0) add(i - w);
+      const weakList = this.weakAdj[i];
+      for (let k = 0; k < weakList.length; k++) {
+        const eIndex = weakList[k];
+        if (states[eIndex] !== 2) continue;
+        const edge = this.weakEdges[eIndex];
+        add(edge.a === i ? edge.b : edge.a);
+      }
+    }
+    if (end < 0) return [];
+    const path = [];
+    let i = end;
+    while (i >= 0) { path.push(i); i = parent[i]; }
+    return path.reverse();
+  }
+  findFrontierPath(useWet, weakStates = null, direction = 'horizontal') {
+    const { w, h, open, wet, n } = this;
+    const parent = new Int32Array(n);
+    const depth = new Int32Array(n);
+    parent.fill(-2);
+    depth.fill(0);
+    const q = new Int32Array(n);
+    let head = 0, tail = 0, best = -1;
+    const states = weakStates || this.getWeakStates(0, 0, true).states;
+    const isHorizontal = direction !== 'vertical';
+    const progress = (i) => {
+      const x = i % w, y = (i / w) | 0;
+      return isHorizontal ? x / (w - 1) : y / (h - 1);
+    };
+    const better = (i, b) => {
+      if (b < 0) return true;
+      const ip = progress(i), bp = progress(b);
+      if (ip !== bp) return ip > bp;
+      return depth[i] > depth[b];
+    };
+    const seedPath = (i) => {
+      if (parent[i] !== -2 || !open[i] || (useWet && !wet[i])) return;
+      parent[i] = -1;
+      depth[i] = 0;
+      q[tail++] = i;
+      if (better(i, best)) best = i;
+    };
+    if (isHorizontal) {
+      for (let y = 0; y < h; y++) seedPath(y * w);
+    } else {
+      for (let x = 0; x < w; x++) seedPath(x);
+    }
+    while (head < tail) {
+      const i = q[head++];
+      if (better(i, best)) best = i;
+      const x = i % w, y = (i / w) | 0;
+      const add = (j) => {
+        if (parent[j] !== -2 || !open[j] || (useWet && !wet[j])) return;
+        parent[j] = i;
+        depth[j] = depth[i] + 1;
+        q[tail++] = j;
+      };
+      if (x + 1 < w) add(i + 1);
+      if (x - 1 >= 0) add(i - 1);
+      if (y + 1 < h) add(i + w);
+      if (y - 1 >= 0) add(i - w);
+      const weakList = this.weakAdj[i];
+      for (let k = 0; k < weakList.length; k++) {
+        const eIndex = weakList[k];
+        if (states[eIndex] !== 2) continue;
+        const edge = this.weakEdges[eIndex];
+        add(edge.a === i ? edge.b : edge.a);
+      }
+    }
+    if (best < 0 || depth[best] === 0) return [];
+    const path = [];
+    let i = best;
+    while (i >= 0) { path.push(i); i = parent[i]; }
+    return path.reverse();
+  }
+  simulate(time, agitation) {
+    const A = agitation / 100;
+    if (Math.abs(this.lastAg - A) > 0.0001) {
+      this.thresholdTime = this.findSpanTime(A);
+      this.satMark = this.findSaturationTime(A);
+      this.lastAg = A;
+    }
+    const openCount = this.setOpen(time);
+    const weakInfo = this.getWeakStates(time, A, true);
+    const comp = this.buildComponents(time, A, weakInfo.states);
+    const wet = this.computeWet(time, A, weakInfo.states);
+    const points = [];
+    const lines = [];
+    const wetCells = [];
+    const routeDirections = ['horizontal', 'vertical'];
+    const pathRoutes = wet.sat ? routeDirections.map(d => this.findPath(true, weakInfo.states, d)).filter(p => p.length) : [];
+    const latentRoutes = (!wet.sat && comp.spans) ? routeDirections.map(d => this.findPath(false, weakInfo.states, d)).filter(p => p.length) : [];
+    const structuralFrontierRoutes = (!comp.spans) ? routeDirections.map(d => this.findFrontierPath(false, weakInfo.states, d)).filter(p => p.length) : [];
+    const flowFrontierRoutes = (!wet.sat) ? routeDirections.map(d => this.findFrontierPath(true, weakInfo.states, d)).filter(p => p.length) : [];
+    const spanRoot = comp.spanRoot;
+    if (comp.spans && time >= this.satMark && spanRoot >= 0) {
+      wet.sat = true;
+      let forcedCount = 0;
+      for (let i = 0; i < this.n; i++) {
+        if (this.open[i] && this.dsu.find(i) === spanRoot) {
+          this.wet[i] = 1;
+          forcedCount++;
+        }
+      }
+      wet.count = forcedCount;
+    }
+    const cellX = 1 / (this.w - 1), cellY = 1 / (this.h - 1);
+
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const i = this.idx(x, y);
+        const cx = clipX(x * cellX), cy = clipY(y * cellY);
+        if (!this.open[i]) {
+          if ((x + y) % 2 === 0) pushPoint(points, cx, cy, 0.9, [0.22, 0.25, 0.30, 0.25]);
+          continue;
+        }
+        const r = this.dsu.find(i);
+        const inSpan = r === spanRoot;
+        const isWet = this.wet[i];
+        if (isWet) wetCells.push(i);
+        let color;
+        let radius = 1.75;
+        if (isWet) { color = [0.24, 0.56, 1.0, 0.96]; radius = 2.45; }
+        else if (inSpan) { color = [0.18, 0.42, 0.92, 0.82]; radius = 2.1; }
+        else {
+          const clusterSize = this.dsu.size[r] || 1;
+          if (clusterSize > 1) {
+            color = clusterColor(r, 0.76, 0.02);
+            radius = 1.95;
+          } else {
+            color = [0.64, 0.67, 0.73, 0.56];
+          }
+        }
+        pushPoint(points, cx, cy, radius, color);
+
+        const lineTo = (j, nx, ny) => {
+          if (!this.open[j]) return;
+          const jr = this.dsu.find(j);
+          let c = [0.58, 0.65, 0.76, 0.26];
+          let wLine = 1.45;
+          if (this.wet[i] && this.wet[j]) { c = [0.24, 0.56, 1.0, 0.62]; wLine = 1.85; }
+          else if (r === spanRoot && jr === spanRoot) { c = [0.18, 0.42, 0.92, 0.52]; wLine = 1.75; }
+          else if (r === jr) {
+            const clusterSize = this.dsu.size[r] || 1;
+            if (clusterSize > 1) {
+              c = dimClusterColor(r, 0.64);
+              wLine = 1.85;
+            } else {
+              c = [0.60, 0.63, 0.70, 0.22];
+            }
+          }
+          pushThickLine(lines, cx, cy, clipX(nx * cellX), clipY(ny * cellY), c, wLine);
+        };
+        if (x + 1 < this.w) lineTo(i + 1, x + 1, y);
+        if (y + 1 < this.h) lineTo(i + this.w, x, y + 1);
+
+        if (isWet && hash01(i * 37 + 19) < 0.34) {
+          const base = hash01(i * 1009 + 7);
+          const angle = base * 6.28318 + time * (0.03 + 0.06 * A);
+          const amp = 0.0025 + A * 0.0065;
+          const sx = cx + Math.cos(angle + y * 0.11) * amp + (hash01(i * 277 + 3) - 0.5) * 0.006;
+          const sy = cy + Math.sin(angle + x * 0.07) * amp + (hash01(i * 313 + 11) - 0.5) * 0.006;
+          pushPoint(points, sx, sy, 1.1 + A * 0.3, [0.86, 0.98, 1.0, 0.95]);
+        }
+      }
+    }
+
+    for (let e = 0; e < this.weakEdges.length; e++) {
+      const state = weakInfo.states[e];
+      if (!state) continue;
+      const edge = this.weakEdges[e];
+      if (!this.open[edge.a] || !this.open[edge.b]) continue;
+      const ax = edge.a % this.w, ay = (edge.a / this.w) | 0;
+      const bx = edge.b % this.w, by = (edge.b / this.w) | 0;
+      const x1 = clipX(ax * cellX), y1 = clipY(ay * cellY);
+      const x2 = clipX(bx * cellX), y2 = clipY(by * cellY);
+      const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
+      let c = [0.96, 0.78, 0.36, 0.18 + 0.08 * A];
+      let wLine = 1.0;
+      if (state === 2) {
+        if (this.wet[edge.a] && this.wet[edge.b]) { c = [0.38, 0.95, 1.0, 0.80]; wLine = 1.85; }
+        else { c = [1.0, 0.48, 0.88, 0.72]; wLine = 1.45; }
+        pushPoint(points, mx, my, 1.55, c);
+      }
+      pushThickLine(lines, x1, y1, x2, y2, c, wLine);
+    }
+
+    if (wetCells.length && wet.budget > 0.05) {
+      const tracerCount = Math.min(180, 64 + Math.floor(125 * A) + Math.floor(wetCells.length / 95));
+      const maxBudget = Math.max(0.35, wet.budget);
+      for (let q = 0; q < tracerCount; q++) {
+        const target = (time * (0.18 + 0.92 * A) + q * 0.71 + hash01(q * 787 + 23) * 1.9) % maxBudget;
+        let best = wetCells[Math.min(wetCells.length - 1, (hash01(q * 313 + 9) * wetCells.length) | 0)];
+        let bestScore = Math.abs(this.dist[best] - target) + hash01(best * 17 + q * 101) * 0.018;
+        const stride = wetCells.length > 900 ? 2 : 1;
+        for (let m = q % stride; m < wetCells.length; m += stride) {
+          const i = wetCells[m];
+          const score = Math.abs(this.dist[i] - target) + hash01(i * 17 + q * 101) * 0.018;
+          if (score < bestScore) { best = i; bestScore = score; }
+        }
+        const x = best % this.w, y = (best / this.w) | 0;
+        const cx = clipX(x * cellX), cy = clipY(y * cellY);
+        const candidates = [];
+        if (x + 1 < this.w) candidates.push(best + 1);
+        if (x - 1 >= 0) candidates.push(best - 1);
+        if (y + 1 < this.h) candidates.push(best + this.w);
+        if (y - 1 >= 0) candidates.push(best - this.w);
+        for (const eIndex of this.weakAdj[best]) {
+          if (weakInfo.states[eIndex] !== 2) continue;
+          const edge = this.weakEdges[eIndex];
+          candidates.push(edge.a === best ? edge.b : edge.a);
+        }
+        let nx = 1, ny = 0, bestDelta = 1e9;
+        for (const j of candidates) {
+          if (!this.wet[j]) continue;
+          const d = this.dist[j] - this.dist[best];
+          const prefer = d > 0 ? d : 100 + Math.abs(d);
+          if (prefer < bestDelta) {
+            bestDelta = prefer;
+            nx = (j % this.w) - x;
+            ny = ((j / this.w) | 0) - y;
+          }
+        }
+        const len = Math.hypot(nx, ny) || 1;
+        nx /= len; ny /= len;
+        const swirl = time * (0.16 + A * 0.55) + q * 1.37;
+        const px = -ny, py = nx;
+        const drift = (Math.sin(swirl) * 0.32 + hash01(q * 41 + 5) - 0.5) * 0.006;
+        const sx = cx + px * drift + nx * (Math.sin(swirl * 0.7) * 0.004);
+        const sy = cy + py * drift + ny * (Math.sin(swirl * 0.7) * 0.004);
+        pushThickLine(lines, sx - nx * 0.010, sy - ny * 0.010, sx + nx * 0.013, sy + ny * 0.013, [0.66, 0.96, 1.0, 0.72], 1.8);
+        pushPoint(points, sx, sy, 2.3 + A * 1.05, [0.86, 0.99, 1.0, 0.98]);
+      }
+    }
+
+    const drawPath = (arr, color, widthPoints = 0, lineWidth = 2.2) => {
+      for (let k = 1; k < arr.length; k++) {
+        const a = arr[k - 1], b = arr[k];
+        pushThickLine(lines, clipX((a % this.w) * cellX), clipY(((a / this.w) | 0) * cellY), clipX((b % this.w) * cellX), clipY(((b / this.w) | 0) * cellY), color, lineWidth);
+        if (widthPoints) pushPoint(points, clipX((b % this.w) * cellX), clipY(((b / this.w) | 0) * cellY), widthPoints, color);
+      }
+    };
+
+    const currentRouteColor = [1.0, 0.92, 0.10, 1.0];
+
+    const historicalRoutes = getRouteHistory(this, time, A);
+    for (const entry of historicalRoutes) {
+      for (const oldPath of entry.paths) drawPath(oldPath, currentRouteColor, 0, 2.35);
+    }
+    for (const p of structuralFrontierRoutes) drawPath(p, currentRouteColor, 2.35, 2.35);
+    for (const p of flowFrontierRoutes) drawPath(p, currentRouteColor, 2.75, 2.45);
+    for (const p of latentRoutes) drawPath(p, currentRouteColor, 2.8, 2.55);
+    for (const p of pathRoutes) drawPath(p, currentRouteColor, 3.1, 2.7);
+    pushThickLine(lines, clipX(0), clipY(0), clipX(0), clipY(1), [0.35, 0.9, 1, 0.72], 2.0);
+    pushThickLine(lines, clipX(0), clipY(0), clipX(1), clipY(0), [0.35, 0.9, 1, 0.72], 2.0);
+
+    return {
+      points: new Float32Array(points),
+      lines: new Float32Array(lines),
+      metrics: {
+        activePct: openCount / this.n,
+        largestPct: comp.largest / this.n,
+        maxSectors: comp.maxSectors,
+        sectors: this.sectors.length,
+        coordination: comp.spans,
+        rupture: wet.sat,
+        thresholdMark: this.thresholdTime,
+        ruptureMark: this.satMark,
+        weakActive: weakInfo.active,
+        weakLatent: weakInfo.latent
+      }
+    };
+  }
+  labelSectors() {
+    const holder = $('sectorLabels');
+    if (!holder) return;
+    holder.innerHTML = '';
+    for (const [name, x, y] of this.sectors) {
+      const el = document.createElement('span');
+      el.textContent = name;
+      el.style.left = (x * 100) + '%';
+      el.style.top = (y * 100) + '%';
+      holder.appendChild(el);
+    }
+  }
+
+}
+
+
+
+
+
+
+function routePathsAtTime(sim, time, A) {
+  sim.setOpen(time);
+  const weakStates = sim.getWeakStates(time, A, true).states;
+  const comp = sim.buildComponents(time, A, weakStates);
+  const wet = sim.computeWet(time, A, weakStates);
+  const paths = [];
+  const addPath = (path) => { if (path && path.length > 1) paths.push(path); };
+
+  if (sim instanceof SocietySim) {
+    const dirs = ['horizontal', 'vertical'];
+    if (!comp.spans) {
+      for (const d of dirs) addPath(sim.findFrontierPath(false, weakStates, d));
+      for (const d of dirs) addPath(sim.findFrontierPath(true, weakStates, d));
+    } else if (!wet.sat) {
+      for (const d of dirs) addPath(sim.findFrontierPath(true, weakStates, d));
+      for (const d of dirs) addPath(sim.findPath(false, weakStates, d));
+    } else {
+      for (const d of dirs) addPath(sim.findPath(true, weakStates, d));
+    }
+    return paths;
+  }
+
+  if (!comp.spans) {
+    addPath(sim.findFrontierPath(false, weakStates, 'ltr'));
+    addPath(sim.findFrontierPath(false, weakStates, 'rtl'));
+    addPath(sim.findFrontierPath(true, weakStates, 'ltr'));
+    addPath(sim.findFrontierPath(true, weakStates, 'rtl'));
+  } else if (!wet.sat) {
+    addPath(sim.findFrontierPath(true, weakStates, 'ltr'));
+    addPath(sim.findFrontierPath(true, weakStates, 'rtl'));
+    addPath(sim.findPath(false, weakStates, 'ltr'));
+    addPath(sim.findPath(false, weakStates, 'rtl'));
+  } else {
+    addPath(sim.findPath(true, weakStates, 'ltr'));
+    addPath(sim.findPath(true, weakStates, 'rtl'));
+  }
+
+  return paths;
+}
+
+function getRouteHistory(sim, time, A) {
+  const step = 0.25;
+  const cutoff = Math.max(0, time - 0.15);
+
+  const resetHistory = () => {
+    sim.routeHistory = [];
+    sim.routeHistorySeen = new Set();
+    sim.routeHistoryAg = A;
+    sim.routeHistoryBuiltTo = -step;
+    sim.routeHistoryLastTime = time;
+  };
+
+  const addPathsAtTime = (sampleTime) => {
+    const paths = routePathsAtTime(sim, sampleTime, A);
+    for (const path of paths) {
+      if (!path || path.length < 2) continue;
+      const sig = path.join(',');
+      if (sim.routeHistorySeen.has(sig)) continue;
+      sim.routeHistorySeen.add(sig);
+      sim.routeHistory.push({ time: sampleTime, paths: [path] });
+    }
+  };
+
+  const agitationChanged = Math.abs((sim.routeHistoryAg ?? -1) - A) > 0.0001;
+  const timeWentBackward = sim.routeHistoryLastTime != null && time < sim.routeHistoryLastTime - 0.001;
+  if (!sim.routeHistory || !sim.routeHistorySeen || agitationChanged || timeWentBackward) {
+    resetHistory();
+  }
+
+  while (sim.routeHistoryBuiltTo + step <= cutoff + 0.001) {
+    const sampleTime = clamp(sim.routeHistoryBuiltTo + step, 0, 100);
+    addPathsAtTime(sampleTime);
+    sim.routeHistoryBuiltTo = sampleTime;
+    if (sampleTime >= 100) break;
+  }
+
+  sim.routeHistoryLastTime = time;
+  return sim.routeHistory.filter(entry => entry.time < cutoff + 0.001);
+}
+
+class GPURenderer {
+  constructor(device, format, canvas) {
+    this.device = device;
+    this.canvas = canvas;
+    this.context = canvas.getContext('webgpu');
+    this.format = format;
+    this.circleBuffer = null;
+    this.lineBuffer = null;
+    this.circleCapacity = 0;
+    this.lineCapacity = 0;
+    this.uniform = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.quad = device.createBuffer({ size: 48, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+    device.queue.writeBuffer(this.quad, 0, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]));
+    this.bindGroupLayout = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {} }] });
+    this.bindGroup = device.createBindGroup({ layout: this.bindGroupLayout, entries: [{ binding: 0, resource: { buffer: this.uniform } }] });
+    this.makePipelines();
+    this.resize();
+  }
+  makePipelines() {
+    const circleShader = this.device.createShaderModule({ code: `
+      struct VSOut { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) color: vec4f };
+      @group(0) @binding(0) var<uniform> screen: vec4f;
+      @vertex fn vs(@location(0) corner: vec2f, @location(1) center: vec2f, @location(2) radius: f32, @location(3) color: vec4f) -> VSOut {
+        var out: VSOut;
+        let px = vec2f(2.0 * radius / screen.x, 2.0 * radius / screen.y);
+        out.pos = vec4f(center + corner * px, 0.0, 1.0);
+        out.uv = corner;
+        out.color = color;
+        return out;
+      }
+      @fragment fn fs(in: VSOut) -> @location(0) vec4f {
+        let d = dot(in.uv, in.uv);
+        if (d > 1.0) { discard; }
+        let a = in.color.a * (1.0 - smoothstep(0.78, 1.0, d));
+        return vec4f(in.color.rgb, a);
+      }` });
+    const lineShader = this.device.createShaderModule({ code: `
+      struct VSOut { @builtin(position) pos: vec4f, @location(0) color: vec4f };
+      @vertex fn vs(@location(0) pos: vec2f, @location(1) color: vec4f) -> VSOut {
+        var out: VSOut;
+        out.pos = vec4f(pos, 0.0, 1.0);
+        out.color = color;
+        return out;
+      }
+      @fragment fn fs(in: VSOut) -> @location(0) vec4f { return in.color; }` });
+    const blend = { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' } };
+    const layout = this.device.createPipelineLayout({ bindGroupLayouts: [this.bindGroupLayout] });
+    this.circlePipeline = this.device.createRenderPipeline({
+      layout,
+      vertex: { module: circleShader, entryPoint: 'vs', buffers: [
+        { arrayStride: 8, stepMode: 'vertex', attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
+        { arrayStride: 28, stepMode: 'instance', attributes: [
+          { shaderLocation: 1, offset: 0, format: 'float32x2' },
+          { shaderLocation: 2, offset: 8, format: 'float32' },
+          { shaderLocation: 3, offset: 12, format: 'float32x4' }
+        ] }
+      ] },
+      fragment: { module: circleShader, entryPoint: 'fs', targets: [{ format: this.format, blend }] },
+      primitive: { topology: 'triangle-list' }
+    });
+    this.linePipeline = this.device.createRenderPipeline({
+      layout,
+      vertex: { module: lineShader, entryPoint: 'vs', buffers: [
+        { arrayStride: 24, stepMode: 'vertex', attributes: [
+          { shaderLocation: 0, offset: 0, format: 'float32x2' },
+          { shaderLocation: 1, offset: 8, format: 'float32x4' }
+        ] }
+      ] },
+      fragment: { module: lineShader, entryPoint: 'fs', targets: [{ format: this.format, blend }] },
+      primitive: { topology: 'line-list' }
+    });
+  }
+  resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = this.canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(rect.width * dpr));
+    const height = Math.max(1, Math.floor(rect.height * dpr));
+    if (this.canvas.width !== width || this.canvas.height !== height) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.context.configure({ device: this.device, format: this.format, alphaMode: 'opaque' });
+    }
+    this.device.queue.writeBuffer(this.uniform, 0, new Float32Array([this.canvas.width, this.canvas.height, 0, 0]));
+  }
+  ensureBuffer(which, bytes) {
+    if (which === 'circle') {
+      if (!this.circleBuffer || bytes > this.circleCapacity) {
+        this.circleCapacity = Math.max(bytes, this.circleCapacity * 2 || 1024);
+        this.circleBuffer = this.device.createBuffer({ size: this.circleCapacity, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+      }
+      return this.circleBuffer;
+    }
+    if (!this.lineBuffer || bytes > this.lineCapacity) {
+      this.lineCapacity = Math.max(bytes, this.lineCapacity * 2 || 1024);
+      this.lineBuffer = this.device.createBuffer({ size: this.lineCapacity, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+    }
+    return this.lineBuffer;
+  }
+  render(pointData, lineData) {
+    this.resize();
+    const pointCount = pointData.length / 7;
+    const lineCount = lineData.length / 6;
+    if (pointData.length) this.device.queue.writeBuffer(this.ensureBuffer('circle', pointData.byteLength), 0, pointData);
+    if (lineData.length) this.device.queue.writeBuffer(this.ensureBuffer('line', lineData.byteLength), 0, lineData);
+    const encoder = this.device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.context.getCurrentTexture().createView(), clearValue: { r: 0.035, g: 0.043, b: 0.058, a: 1 }, loadOp: 'clear', storeOp: 'store' }] });
+    if (lineCount) {
+      pass.setPipeline(this.linePipeline);
+      pass.setBindGroup(0, this.bindGroup);
+      pass.setVertexBuffer(0, this.lineBuffer);
+      pass.draw(lineCount, 1, 0, 0);
+    }
+    if (pointCount) {
+      pass.setPipeline(this.circlePipeline);
+      pass.setBindGroup(0, this.bindGroup);
+      pass.setVertexBuffer(0, this.quad);
+      pass.setVertexBuffer(1, this.circleBuffer);
+      pass.draw(6, pointCount, 0, 0);
+    }
+    pass.end();
+    this.device.queue.submit([encoder.finish()]);
+  }
+}
+
+function updatePhysicsReadout(m, time) {
+  $('pOpen').textContent = Math.round(m.openPct * 100) + '%';
+  $('pCluster').textContent = Math.round(m.largestPct * 100) + '%';
+  $('pSpan').textContent = m.spans ? 'yes' : 'no';
+  $('pSat').textContent = m.saturated ? 'yes' : 'no';
+  $('pBarFill').style.width = time + '%';
+  $('pThresh').style.left = m.thresholdTime + '%';
+  $('pThreshLabel').style.left = m.thresholdTime + '%';
+  $('pSatMark').style.left = m.satMark + '%';
+  $('pSatLabel').style.left = m.satMark + '%';
+  let text;
+  if (!m.spans && m.openPct < .42) text = 'Open pores exist, but they remain islands. Agitation mostly stirs within each cluster; the yellow route shows the active inlet front and the reachable dead-end structure.';
+  else if (!m.spans) text = 'Clusters are lengthening. The inlet can now run into dead ends before the full crossing exists; agitation opens weak throats that extend those blue partial routes.';
+  else if (!m.saturated) text = 'A left-to-right path exists, and some of it may depend on agitation-opened weak contacts. The yellow route continues to show how far active passage has actually entered before full saturation.';
+  else text = 'The connected path is now activated. Local motion has become system-wide passage: saturation is a new property of the whole field.';
+  $('pState').textContent = text;
+}
+function updateSocietyReadout(m, time) {
+  $('sActive').textContent = Math.round(m.activePct * 100) + '%';
+  $('sLargest').textContent = Math.round(m.largestPct * 100) + '%';
+  $('sSpan').textContent = m.coordination ? 'yes' : 'no';
+  $('sRupture').textContent = m.rupture ? 'yes' : 'no';
+  $('sBarFill').style.width = time + '%';
+  $('sThresh').style.left = m.thresholdMark + '%';
+  $('sThreshLabel').style.left = m.thresholdMark + '%';
+  $('sSatMark').style.left = m.ruptureMark + '%';
+  $('sSatLabel').style.left = m.ruptureMark + '%';
+  let text;
+  if (!m.coordination && m.activePct < .42) text = 'Active people are still scattered. Most groups are tiny and separate; the wider field has not yet organized into stable passages.';
+  else if (!m.coordination) text = 'Many small clusters are forming, lengthening, and merging. The yellow route shows the partial organizing path already reachable before a full crossing exists.';
+  else if (!m.rupture) text = 'A continuous social path now exists across the field, but the activation has not yet saturated it. The structure is present before the whole mass moves through it.';
+  else text = 'The route is activated across the field. Local organization has become a system-wide process; the change is qualitative, not just more isolated growth.';
+  $('sState').textContent = text;
+}
+
+async function main() {
+  if (!navigator.gpu) { $('warn').style.display = 'block'; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { $('warn').style.display = 'block'; return; }
+  const device = await adapter.requestDevice();
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  const physicsRenderer = new GPURenderer(device, format, $('physicsCanvas'));
+  const societyRenderer = new GPURenderer(device, format, $('societyCanvas'));
+  const physics = new PhysicsSim();
+  const society = new SocietySim();
+
+  function renderPhysics() {
+    const time = parseFloat(pTimeSlider.value);
+    const agitation = parseFloat(pAgSlider.value);
+    pTimeVal.textContent = Math.round(time).toString();
+    pAgVal.textContent = Math.round(agitation).toString();
+    const p = physics.simulate(time, agitation);
+    physicsRenderer.render(p.points, p.lines);
+    updatePhysicsReadout(p.metrics, time);
+  }
+
+  function renderSociety() {
+    const time = parseFloat(sTimeSlider.value);
+    const agitation = parseFloat(sAgSlider.value);
+    sTimeVal.textContent = Math.round(time).toString();
+    sAgVal.textContent = Math.round(agitation).toString();
+    const s = society.simulate(time, agitation);
+    societyRenderer.render(s.points, s.lines);
+    updateSocietyReadout(s.metrics, time);
+  }
+
+  function renderAll() {
+    renderPhysics();
+    renderSociety();
+  }
+
+  function loopPhysics() {
+    if (!pPlaying) return;
+    const t = parseFloat(pTimeSlider.value);
+    const next = t >= 100 ? 100 : t + 0.18;
+    pTimeSlider.value = next.toFixed(1);
+    renderPhysics();
+    if (next >= 100) { pPlaying = false; $('pPlay').textContent = 'play'; return; }
+    pRaf = requestAnimationFrame(loopPhysics);
+  }
+
+  function loopSociety() {
+    if (!sPlaying) return;
+    const t = parseFloat(sTimeSlider.value);
+    const next = t >= 100 ? 100 : t + 0.18;
+    sTimeSlider.value = next.toFixed(1);
+    renderSociety();
+    if (next >= 100) { sPlaying = false; $('sPlay').textContent = 'play'; return; }
+    sRaf = requestAnimationFrame(loopSociety);
+  }
+
+  pTimeSlider.addEventListener('input', renderPhysics);
+  pAgSlider.addEventListener('input', renderPhysics);
+  sTimeSlider.addEventListener('input', renderSociety);
+  sAgSlider.addEventListener('input', renderSociety);
+
+  $('pPlay').addEventListener('click', () => {
+    pPlaying = !pPlaying;
+    $('pPlay').textContent = pPlaying ? 'pause' : 'play';
+    cancelAnimationFrame(pRaf);
+    if (pPlaying) pRaf = requestAnimationFrame(loopPhysics);
+  });
+  $('pReset').addEventListener('click', () => {
+    pPlaying = false;
+    $('pPlay').textContent = 'play';
+    cancelAnimationFrame(pRaf);
+    pTimeSlider.value = 0;
+    renderPhysics();
+  });
+
+  $('sPlay').addEventListener('click', () => {
+    sPlaying = !sPlaying;
+    $('sPlay').textContent = sPlaying ? 'pause' : 'play';
+    cancelAnimationFrame(sRaf);
+    if (sPlaying) sRaf = requestAnimationFrame(loopSociety);
+  });
+  $('sReset').addEventListener('click', () => {
+    sPlaying = false;
+    $('sPlay').textContent = 'play';
+    cancelAnimationFrame(sRaf);
+    sTimeSlider.value = 0;
+    renderSociety();
+  });
+
+  window.addEventListener('resize', renderAll);
+  renderAll();
+}
+main();
+</script>
+</body>
+</html>

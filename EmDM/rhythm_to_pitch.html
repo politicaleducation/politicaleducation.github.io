@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rhythm to Pitch</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131a2e;
+      --ink: #ecf2ff;
+      --muted: #aab8d6;
+      --accent: #7cc6ff;
+      --rhythm-color: #7cc6ff;
+      --pitch-color: #ffb066;
+      --transition-gradient: linear-gradient(90deg,
+        rgba(124,198,255,0.95) 0%,
+        rgba(124,198,255,0.90) 38%,
+        rgba(190,187,180,0.92) 50%,
+        rgba(255,176,102,0.90) 62%,
+        rgba(255,176,102,0.95) 100%);
+      --line: #24304f;
+      --thumb-size: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 20% 10%, #122043 0%, var(--bg) 55%);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      padding: 18px;
+    }
+    .app {
+      width: min(1280px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.15rem;
+      letter-spacing: 0.2px;
+    }
+    .controls {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      line-height: 1;
+    }
+    .pill.pitch-pill {
+      background: rgba(255,176,102,0.10);
+      border-color: rgba(255,176,102,0.42);
+      color: #ffd7b3;
+    }
+    .pill.rhythm-pill {
+      background: rgba(124,198,255,0.10);
+      border-color: rgba(124,198,255,0.42);
+      color: #d8efff;
+    }
+    .pill.note-pill {
+      background: rgba(255,176,102,0.14);
+      border-color: rgba(255,176,102,0.52);
+      color: #fff0df;
+    }
+    .pill-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: #1a2440;
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      min-width: 102px;
+    }
+    button:hover { filter: brightness(1.08); }
+    #melodyBtn {
+      --music-progress: 0%;
+      background:
+        linear-gradient(90deg,
+          rgba(255,176,102,0.88) 0%,
+          rgba(255,176,102,0.88) var(--music-progress),
+          #1a2440 var(--music-progress),
+          #1a2440 100%);
+      border-color: rgba(255,176,102,0.38);
+    }
+    .vol-wrap {
+      width: 170px;
+      display: grid;
+      gap: 2px;
+    }
+    .vol-wrap label {
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1;
+    }
+    .slider-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+    .slider-wrap::-webkit-scrollbar {
+      height: 10px;
+    }
+    .slider-wrap::-webkit-scrollbar-thumb {
+      background: rgba(170,184,214,0.25);
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+
+    .note-strip {
+      position: relative;
+      height: 34px;
+      margin-bottom: 10px;
+      margin-left: 0;
+      margin-right: 0;
+      user-select: none;
+      overflow: hidden;
+      border: 0;
+      border-radius: 6px;
+      background: #05080f;
+      box-shadow: inset 0 0 0 1px #8fa3d1;
+    }
+    .note-band {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      overflow: hidden;
+      box-shadow:
+        inset 1px 0 0 rgba(255,255,255,0.6),
+        inset -1px 0 0 rgba(255,255,255,0.6);
+    }
+    .note-grid {
+      position: absolute;
+      inset: 0;
+    }
+    .note-btn {
+      box-sizing: border-box;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-left: 1px solid rgba(0,0,0,0.55);
+      border-right: 1px solid rgba(0,0,0,0.15);
+      border-radius: 0;
+      min-width: 0;
+      background: #ffffff;
+      color: #05070c;
+      font: 700 10px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .note-btn.natural {
+      background: #f8fbff;
+      color: #05070c;
+    }
+    .note-btn.sharp {
+      background: #0f1420;
+      color: #ffffff;
+      border-left-color: rgba(255,255,255,0.18);
+      border-right-color: rgba(255,255,255,0.08);
+    }
+    .note-btn:hover,
+    .note-btn:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px rgba(124,198,255,0.75);
+      z-index: 2;
+    }
+    .note-btn.active {
+      box-shadow: inset 0 0 0 2px rgba(124,198,255,0.95);
+      z-index: 2;
+    }
+    .slider-track-wrap {
+      position: relative;
+      height: 22px;
+    }
+    .slider-track-wrap > input[type="range"] {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+    }
+    .rhythm-knob {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: var(--thumb-size);
+      height: var(--thumb-size);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(0.92);
+      border: 1px solid rgba(124,198,255,0.95);
+      background: rgba(124,198,255,0.20);
+      box-shadow: 0 0 0 1px rgba(124,198,255,0.14) inset, 0 1px 6px rgba(0,0,0,0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease, left 45ms linear;
+    }
+    .rhythm-knob.visible {
+      opacity: 0.92;
+    }
+    .rhythm-knob.blink {
+      animation: rhythmKnobPulse 130ms ease-out;
+    }
+    .rhythm-knob.accent {
+      border-color: rgba(190,231,255,0.98);
+      background: rgba(124,198,255,0.28);
+    }
+    @keyframes rhythmKnobPulse {
+      0%   { transform: translate(-50%, -50%) scale(0.86); opacity: 1; }
+      45%  { transform: translate(-50%, -50%) scale(1.22); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1.00); opacity: 0.92; }
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 22px;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="range"]:focus { outline: none; }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--transition-gradient);
+      border: 1px solid #40517e;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: var(--thumb-size);
+      height: var(--thumb-size);
+      border-radius: 50%;
+      margin-top: calc((6px - var(--thumb-size)) / 2);
+      background: var(--slider-thumb-color, var(--accent));
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--transition-gradient);
+      border: 1px solid #40517e;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: var(--thumb-size);
+      height: var(--thumb-size);
+      border-radius: 50%;
+      background: var(--slider-thumb-color, var(--accent));
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+    }
+    /* Keep the volume slider plain (no blue→orange transition gradient). */
+    #volumeSlider::-webkit-slider-runnable-track {
+      background: #c7cbd6;
+      border: 1px solid #a7adbc;
+      height: 6px;
+      border-radius: 999px;
+    }
+    #volumeSlider::-moz-range-track {
+      background: #c7cbd6;
+      border: 1px solid #a7adbc;
+      height: 6px;
+      border-radius: 999px;
+    }
+    #volumeSlider::-webkit-slider-thumb {
+      background: #eef1f7;
+      border: 1px solid #b9c0cf;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+    }
+    #volumeSlider::-moz-range-thumb {
+      background: #eef1f7;
+      border: 1px solid #b9c0cf;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+    }
+    .labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 6px;
+    }
+    .live-labels {
+      display: none;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      flex-wrap: wrap;
+    }
+    .live-label-chip {
+      border-radius: 999px;
+      padding: 4px 9px;
+      border: 1px solid transparent;
+      background: rgba(255,255,255,0.02);
+      white-space: nowrap;
+    }
+    .live-label-chip.pitch {
+      color: #ffd7b3;
+      border-color: rgba(255,176,102,0.42);
+      background: rgba(255,176,102,0.08);
+    }
+    .live-label-chip.rhythm {
+      color: #d8efff;
+      border-color: rgba(124,198,255,0.42);
+      background: rgba(124,198,255,0.08);
+    }
+    .stage {
+      margin-top: 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .graph-canvas {
+      width: 100%;
+      height: 320px;
+      display: block;
+    }
+    @media (max-width: 900px) {
+      .row { grid-template-columns: 1fr; align-items: stretch; }
+      .vol-wrap { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Rhythm to Pitch</h1>
+    <div class="controls">
+      <div class="row">
+        <div class="status" id="readout"></div>
+        <button id="demoBtn">Sound</button>
+        <button id="melodyBtn">Music</button>
+        <div class="vol-wrap">
+          <label for="volumeSlider">Volume</label>
+          <input id="volumeSlider" type="range" min="0" max="100" step="1" value="86" />
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="note-strip" id="noteStrip"></div>
+        <div class="slider-track-wrap" id="sliderTrackWrap">
+          <input id="rateSlider" type="range" min="0" max="1000" step="0.0001" value="0" />
+          <div id="rhythmKnob" class="rhythm-knob" aria-hidden="true"></div>
+        </div>
+        <div class="labels">
+          <span>60 BPM / 1 Hz</span>
+          <span>523.3 Hz (C5)</span>
+        </div>
+      </div>
+    </div>
+    <div class="stage">
+      <canvas id="dialecticGraph" class="graph-canvas" aria-label="Beats to tones transition graph"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const slider = document.getElementById('rateSlider');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const readout = document.getElementById('readout');
+    const demoBtn = document.getElementById('demoBtn');
+    const melodyBtn = document.getElementById('melodyBtn');
+    const noteStrip = document.getElementById('noteStrip');
+    const sliderTrackWrap = document.getElementById('sliderTrackWrap');
+    const rhythmKnob = document.getElementById('rhythmKnob');
+    const labelsRow = document.querySelector('.labels');
+    const pitchLiveLabel = document.getElementById('pitchLiveLabel');
+    const rhythmLiveLabel = document.getElementById('rhythmLiveLabel');
+    const graphCanvas = document.getElementById('dialecticGraph');
+    const graphCtx = graphCanvas.getContext('2d');
+
+    const F_MIN = 1;
+    const F_MAX = 523.2511306;   // C5
+    const A0_HZ = 27.5;
+    const LOG_RATIO = Math.log(F_MAX / F_MIN);
+    const NOTE_NAMES = ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#'];
+
+    let audioCtx = null;
+    let masterGain = null;
+    let noteGateGain = null;
+    let dynamics = null;
+    let highpass = null;
+    let lowpass = null;
+    let pulseNode = null;
+    let running = false;
+
+    // ScriptProcessor pulse state (true sample-level repetition)
+    let fbPhase = 0;
+    let fbPulseIndex = -1;
+    let fbPulseShape = null;
+    let fbPulseBuffer = null;
+    let currentFreq = sliderToHz(slider.value);
+    let currentRhythmHz = currentFreq;
+    let currentPulseGain = 0.78;
+    let noteButtons = [];
+    let lastSliderValueNum = Number(slider.value);
+    let melodyTimeouts = [];
+    let melodyPlaying = false;
+    let melodyAutoStarted = false;
+    let melodyRunSeq = 0;
+    let melodyLeadInRaf = 0;
+    let melodyProgressRaf = 0;
+    let soundWakeSweepSeq = 0;
+    let soundWakeSweepRaf = 0;
+    let skipNextEntrySnapToA0 = false;
+    let melodyPaused = false;
+    let melodyPausedMs = 0;
+    let melodySongStartPerf = 0;
+    let melodySongTotalMs = 0;
+    let melodyLeadInActive = false;
+    let melodyTimeline = null;
+    let rhythmPulseEvents = [];
+    const RHYTHM_TRACE_MS = 3200;
+
+    const NOTE_COUNT = 52; // A0..C5 inclusive
+    const NOTE_START_POS = hzToSliderPos(A0_HZ); // left edge of the note strip region
+    const NOTE_END_POS = hzToSliderPos(F_MAX);   // right edge (C5 region end)
+    const NOTE_REGION_WIDTH = NOTE_END_POS - NOTE_START_POS;
+    const NOTE_SLOT_POS = NOTE_REGION_WIDTH / NOTE_COUNT;
+
+    const TARGET_NOTE_PX = 12; // near the old note width, with A0 shifted a bit closer to center
+    const GRAPH_CENTER_HZ = 20;
+    const GRAPH_SHARPNESS = 7.5;
+    const RHYTHM_RGB = [124, 198, 255];
+    const PITCH_RGB = [255, 176, 102];
+
+    function clamp01(v) {
+      return Math.max(0, Math.min(1, Number(v) || 0));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function mixRgb(a, b, t) {
+      const u = clamp01(t);
+      return [
+        Math.round(lerp(a[0], b[0], u)),
+        Math.round(lerp(a[1], b[1], u)),
+        Math.round(lerp(a[2], b[2], u))
+      ];
+    }
+
+    function rgbStr(rgb) {
+      return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    function rgbaStr(rgb, a = 1) {
+      return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${Math.max(0, Math.min(1, a))})`;
+    }
+
+    function transitionRatioForHz(hz) {
+      const safeHz = Math.max(F_MIN, Math.min(F_MAX, Number(hz) || F_MIN));
+      const z = (Math.log2(safeHz) - Math.log2(GRAPH_CENTER_HZ)) * GRAPH_SHARPNESS;
+      return 1 / (1 + Math.exp(-z));
+    }
+
+    function colorForHz(hz, alpha = 1) {
+      return rgbaStr(mixRgb(RHYTHM_RGB, PITCH_RGB, transitionRatioForHz(hz)), alpha);
+    }
+
+    function bubbleInlineStyle(role, hz) {
+      const t = transitionRatioForHz(hz);
+      const semanticBias = role === 'rhythm' ? 0.18 : 0.82;
+      const tint = clamp01(0.68 * t + 0.32 * semanticBias);
+      const rgb = mixRgb(RHYTHM_RGB, PITCH_RGB, tint);
+      const textRgb = mixRgb(rgb, [255,255,255], 0.58);
+      return [
+        `border-color:${rgbaStr(rgb, 0.55)}`,
+        `color:${rgbStr(textRgb)}`,
+        `background:linear-gradient(90deg, ${rgbaStr(RHYTHM_RGB, 0.10)}, ${rgbaStr(PITCH_RGB, 0.10)})`,
+        `box-shadow: inset 0 0 0 1px ${rgbaStr(rgb, 0.14)}`
+      ].join(';');
+    }
+
+
+    function isPitchZoneHz(hz) {
+      return Number(hz) >= GRAPH_CENTER_HZ;
+    }
+
+    function updatePitchHandleColor() {
+      if (!slider) return;
+      slider.style.setProperty('--slider-thumb-color', colorForHz(currentFreq, 1));
+    }
+
+    function updateLiveLabels() {
+      if (pitchLiveLabel) {
+        const noteInfo = currentNoteInfoFromFreq(currentFreq);
+        pitchLiveLabel.textContent = `Pitch: ${fmtBPM(currentFreq)} / ${fmtHz(currentFreq)}${noteInfo ? ` (${noteInfo.label})` : ''}`;
+      }
+      if (rhythmLiveLabel) {
+        const hz = Math.max(F_MIN, Math.min(F_MAX, Number(currentRhythmHz) || currentFreq));
+        rhythmLiveLabel.textContent = `Rhythm: ${fmtBPM(hz)} / ${fmtHz(hz)}`;
+      }
+    }
+
+    function getSliderWrapInnerWidth() {
+      const sliderWrap = document.querySelector('.slider-wrap');
+      if (!sliderWrap) return null;
+      const cs = getComputedStyle(sliderWrap);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padR = parseFloat(cs.paddingRight) || 0;
+      return Math.max(200, sliderWrap.clientWidth - padL - padR);
+    }
+
+    function getThumbSizePx() {
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--thumb-size');
+      return parseFloat(v) || 18;
+    }
+
+    function updateRhythmKnobVisual() {
+      if (!rhythmKnob || !sliderTrackWrap) return;
+      const show = !!melodyPlaying;
+      rhythmKnob.classList.toggle('visible', show);
+      if (!show) return;
+
+      const hz = Math.max(F_MIN, Math.min(F_MAX, Number(currentRhythmHz) || F_MIN));
+      const pos = hzToSliderPos(hz); // 0..1000 on the same log slider scale
+      const trackWidth = sliderTrackWrap.clientWidth || slider.clientWidth || 0;
+      const thumb = getThumbSizePx();
+      const usable = Math.max(1, trackWidth - thumb);
+      const x = (thumb / 2) + (pos / 1000) * usable;
+      rhythmKnob.style.left = `${x}px`;
+      const knobColor = colorForHz(hz, 1);
+      const knobColorSoft = colorForHz(hz, 0.22);
+      rhythmKnob.style.borderColor = knobColor;
+      rhythmKnob.style.background = knobColorSoft;
+      rhythmKnob.style.boxShadow = `0 0 0 1px ${colorForHz(hz, 0.14)} inset, 0 1px 6px rgba(0,0,0,0.28)`;
+    }
+
+    function pulseRhythmKnob(accent = false) {
+      if (!rhythmKnob) return;
+      rhythmKnob.classList.toggle('accent', !!accent);
+      rhythmKnob.classList.remove('blink');
+      void rhythmKnob.offsetWidth; // restart animation
+      rhythmKnob.classList.add('blink');
+    }
+
+    if (rhythmKnob) {
+      rhythmKnob.addEventListener('animationend', () => {
+        rhythmKnob.classList.remove('blink');
+      });
+    }
+
+    function updateSliderVisualWidth() {
+      const innerWidth = getSliderWrapInnerWidth();
+      if (!innerWidth) return;
+
+      const noteBandFrac = (hzToPercent(F_MAX) - hzToPercent(A0_HZ)) / 100;
+      // Fit the full slider/keyboard section in view (no horizontal scrolling).
+      // This may compact the note boxes slightly on narrower widths.
+      const trackWidth = innerWidth;
+
+      const thumb = getThumbSizePx();
+      const noteStripWidth = Math.max(200, trackWidth);
+
+      noteStrip.style.width = `${noteStripWidth}px`;
+      if (sliderTrackWrap) sliderTrackWrap.style.width = `${trackWidth}px`;
+      slider.style.width = `${trackWidth}px`;
+      if (labelsRow) labelsRow.style.width = `${trackWidth}px`;
+      const liveLabels = document.getElementById('liveLabels');
+      if (liveLabels) liveLabels.style.width = `${trackWidth}px`;
+      updateRhythmKnobVisual();
+    }
+
+
+    function sliderInNoteTerritory(v = slider.value) {
+      return Number(v) + 1e-6 >= NOTE_START_POS;
+    }
+
+    function sliderToNoteIndex(v = slider.value) {
+      const n = Number(v);
+      if (n + 1e-6 < NOTE_START_POS) return null;
+      const idx = Math.floor((n - NOTE_START_POS) / NOTE_SLOT_POS);
+      return Math.max(0, Math.min(NOTE_COUNT - 1, idx));
+    }
+
+    function noteIndexToSliderPos(idx) {
+      const i = Math.max(0, Math.min(NOTE_COUNT - 1, Number(idx)));
+      return NOTE_START_POS + (i + 0.5) * NOTE_SLOT_POS;
+    }
+
+    function noteIndexToSliderValue(idx) {
+      return String(Number(noteIndexToSliderPos(idx).toFixed(4)));
+    }
+
+    function sliderToHz(v) {
+      const t = Number(v) / 1000;
+      return F_MIN * Math.exp(LOG_RATIO * t);
+    }
+
+    function hzToPercent(f) {
+      const t = Math.log(f / F_MIN) / LOG_RATIO;
+      return Math.max(0, Math.min(100, t * 100));
+    }
+
+    function hzToSliderPos(f) {
+      return (hzToPercent(f) / 100) * 1000;
+    }
+
+    function hzToSliderValue(f) {
+      const pos = Math.max(0, Math.min(1000, hzToSliderPos(f)));
+      return String(Number(pos.toFixed(4)));
+    }
+
+    function semisFromA0(f) {
+      return 12 * (Math.log(f / A0_HZ) / Math.log(2));
+    }
+
+    function noteInfoFromSemi(semi) {
+      const clamped = Math.max(0, Math.min(NOTE_COUNT - 1, Math.round(semi)));
+      const name = NOTE_NAMES[((clamped % 12) + 12) % 12];
+      const octave = Math.floor((clamped + 9) / 12);
+      return { semi: clamped, name, octave, label: `${name}${octave}` };
+    }
+
+    function currentNoteInfoFromFreq(f) {
+      if (f < A0_HZ) return null;
+      return noteInfoFromSemi(Math.round(semisFromA0(f)));
+    }
+
+    function updateActiveNoteButton() {
+      if (!noteButtons.length) return;
+      const info = currentNoteInfoFromFreq(currentFreq);
+      for (const btn of noteButtons) {
+        btn.classList.toggle('active', !!info && Number(btn.dataset.semi) === info.semi);
+      }
+    }
+
+    function setSliderAndRefresh(nextValue) {
+      const n = Math.max(0, Math.min(1000, Number(nextValue)));
+      slider.value = String(Number(n.toFixed(4)));
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function handleArrowKeyStepping(e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        stepSliderByArrow(1, e.shiftKey);
+        slider.focus();
+        return true;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        stepSliderByArrow(-1, e.shiftKey);
+        slider.focus();
+        return true;
+      }
+      return false;
+    }
+
+    function snapSliderToNearestNoteIfNeeded() {
+      const currentSliderNum = Number(slider.value);
+      if (!sliderInNoteTerritory(currentSliderNum)) return;
+
+      // Ensure the first dragged slider step that enters note territory lands on A0.
+      // But allow direct note-button / programmatic note jumps to land on the chosen note.
+      if (lastSliderValueNum + 1e-6 < NOTE_START_POS && currentSliderNum + 1e-6 >= NOTE_START_POS) {
+        if (skipNextEntrySnapToA0) {
+          skipNextEntrySnapToA0 = false;
+        } else {
+          slider.value = noteIndexToSliderValue(0);
+          return;
+        }
+      } else if (skipNextEntrySnapToA0) {
+        skipNextEntrySnapToA0 = false;
+      }
+
+      const idx = sliderToNoteIndex(currentSliderNum);
+      if (idx == null) return;
+      const snappedSlider = noteIndexToSliderValue(idx);
+      if (slider.value !== snappedSlider) slider.value = snappedSlider;
+    }
+
+    function stepSliderByArrow(dir, bigStep = false) {
+      const sliderStep = bigStep ? 32 : 8;
+      const sliderNum = Number(slider.value);
+      const inNoteTerritory = sliderInNoteTerritory(sliderNum);
+
+      // Once we're in note territory, arrow keys move by semitone (Shift = octave).
+      // Also let one step below the note range jump into A0 when moving right.
+      if (inNoteTerritory || (dir > 0 && sliderNum >= NOTE_START_POS - 1)) {
+        let idx = 0;
+        if (inNoteTerritory) idx = sliderToNoteIndex(sliderNum) ?? 0;
+
+        // Allow left-arrow from A0 to drop back into the continuous region.
+        if (dir < 0 && idx <= 0) {
+          setSliderAndRefresh(Math.min(NOTE_START_POS - 0.01, sliderNum - sliderStep));
+          return;
+        }
+
+        idx += dir * (bigStep ? 12 : 1);
+        idx = Math.max(0, Math.min(NOTE_COUNT - 1, idx));
+        setSliderAndRefresh(noteIndexToSliderValue(idx));
+        return;
+      }
+
+      // Below A0, stay continuous but make keyboard stepping useful.
+      setSliderAndRefresh(sliderNum + dir * sliderStep);
+    }
+
+
+    function buildNoteStrip() {
+      noteStrip.innerHTML = '';
+      noteButtons = [];
+
+      const startPct = hzToPercent(A0_HZ);
+      const endPct = hzToPercent(F_MAX);
+      const widthPct = endPct - startPct;
+      const totalNotes = NOTE_COUNT;
+
+      const band = document.createElement('div');
+      band.className = 'note-band';
+      const stripW = noteStrip.clientWidth || 0;
+      const thumb = getThumbSizePx();
+      const usable = Math.max(1, stripW - thumb);
+      const bandLeftPx = (thumb / 2) + (startPct / 100) * usable;
+      const bandWidthPx = (widthPct / 100) * usable;
+      band.style.left = `${bandLeftPx}px`;
+      band.style.width = `${bandWidthPx}px`;
+
+      const grid = document.createElement('div');
+      grid.className = 'note-grid';
+
+      // Use equal-width slots so A0 and A3 match the rest visually.
+      const slotPct = 100 / totalNotes;
+
+      for (let s = 0; s < totalNotes; s++) {
+        const info = noteInfoFromSemi(s);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'note-btn ' + (info.name.includes('#') ? 'sharp' : 'natural');
+        btn.textContent = info.name;
+        btn.title = info.label;
+        btn.setAttribute('aria-label', `Set to ${info.label}`);
+        btn.dataset.semi = String(s);
+
+        btn.style.left = `${s * slotPct}%`;
+        btn.style.width = `${slotPct}%`;
+
+        btn.addEventListener('click', async () => {
+          if (!audioCtx) await initAudio();
+          if (audioCtx.state === 'suspended') await audioCtx.resume();
+          if (!running) {
+            cancelSoundWakeSweep();
+            running = true;
+            demoBtn.textContent = 'Stop';
+            setMasterVolumeFromSlider();
+          }
+          skipNextEntrySnapToA0 = true;
+          setSliderAndRefresh(noteIndexToSliderValue(s));
+          slider.focus();
+        });
+        btn.addEventListener('keydown', handleArrowKeyStepping);
+
+        noteButtons.push(btn);
+        grid.appendChild(btn);
+      }
+
+      band.appendChild(grid);
+      noteStrip.appendChild(band);
+      updateActiveNoteButton();
+      updateRhythmKnobVisual();
+    }
+
+    function noteLabelToSemi(label) {
+      const m = String(label).trim().match(/^([A-G])(#?)(-?\d+)$/);
+      if (!m) return null;
+      const key = m[1] + (m[2] || '');
+      const octave = Number(m[3]);
+      const pcMap = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
+      const pc = pcMap[key];
+      if (pc == null) return null;
+      const midi = 12 * (octave + 1) + pc;
+      return midi - 21; // A0 = MIDI 21
+    }
+
+    function setNoteByLabel(label) {
+      const semi = noteLabelToSemi(label);
+      if (semi == null) return;
+      if (semi < 0 || semi >= NOTE_COUNT) return;
+      skipNextEntrySnapToA0 = true;
+      setSliderAndRefresh(noteIndexToSliderValue(semi));
+    }
+
+    function setSliderVisualNoSnap(nextValue) {
+      const n = Math.max(0, Math.min(1000, Number(nextValue)));
+      slider.value = String(Number(n.toFixed(4)));
+      updateUI();
+      lastSliderValueNum = Number(slider.value);
+    }
+
+    function sleepMs(ms) {
+      return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+    }
+
+    function animateSliderLeadIn(startPos, endPos, durationMs, runId) {
+      return new Promise((resolve) => {
+        const t0 = performance.now();
+        const dur = Math.max(1, Number(durationMs) || 1);
+
+        function step(now) {
+          // Stop immediately if the lead-in was cancelled or the main demo was stopped.
+          if (runId !== melodyRunSeq) {
+            if (melodyLeadInRaf) {
+              cancelAnimationFrame(melodyLeadInRaf);
+              melodyLeadInRaf = 0;
+            }
+            resolve(false);
+            return;
+          }
+
+          const p = Math.max(0, Math.min(1, (now - t0) / dur));
+          const eased = p * p; // ease-in: starts slower, speeds up into the melody
+          const pos = startPos + (endPos - startPos) * eased;
+          setSliderVisualNoSnap(pos);
+
+          if (p < 1) {
+            melodyLeadInRaf = requestAnimationFrame(step);
+          } else {
+            melodyLeadInRaf = 0;
+            resolve(true);
+          }
+        }
+
+        melodyLeadInRaf = requestAnimationFrame(step);
+      });
+    }
+
+    function cancelSoundWakeSweep() {
+      soundWakeSweepSeq += 1;
+      if (soundWakeSweepRaf) {
+        cancelAnimationFrame(soundWakeSweepRaf);
+        soundWakeSweepRaf = 0;
+      }
+    }
+
+    function animateSoundWakeSweep(startPos, endPos, durationMs, runId) {
+      return new Promise((resolve) => {
+        const t0 = performance.now();
+        const dur = Math.max(1, Number(durationMs) || 1);
+
+        function step(now) {
+          if (runId !== soundWakeSweepSeq || !running) {
+            if (soundWakeSweepRaf) {
+              cancelAnimationFrame(soundWakeSweepRaf);
+              soundWakeSweepRaf = 0;
+            }
+            resolve(false);
+            return;
+          }
+
+          const p = Math.max(0, Math.min(1, (now - t0) / dur));
+          const eased = 1 - Math.pow(1 - p, 3); // move quickly at first so the descent feels brisk on loop start
+          const pos = startPos + (endPos - startPos) * eased;
+          setSliderVisualNoSnap(pos);
+
+          if (p < 1) {
+            soundWakeSweepRaf = requestAnimationFrame(step);
+          } else {
+            soundWakeSweepRaf = 0;
+            resolve(true);
+          }
+        }
+
+        soundWakeSweepRaf = requestAnimationFrame(step);
+      });
+    }
+
+    async function runSoundWakeSweep() {
+      if (!running) return false;
+      cancelSoundWakeSweep();
+      const runId = soundWakeSweepSeq;
+      const startPos = noteIndexToSliderPos(NOTE_COUNT - 1);
+      const endPos = hzToSliderPos(60 / 60);
+
+      setSliderVisualNoSnap(startPos);
+      await sleepMs(220);
+      if (!running || runId !== soundWakeSweepSeq) return false;
+
+      const moved = await animateSoundWakeSweep(startPos, endPos, 1800, runId);
+      if (!moved || !running || runId !== soundWakeSweepSeq) return false;
+
+      setSliderAndRefresh(hzToSliderValue(60 / 60));
+      return true;
+    }
+
+    function updateMusicButtonProgress(progress01) {
+      if (!melodyBtn) return;
+      const pct = Math.max(0, Math.min(100, (Number(progress01) || 0) * 100));
+      melodyBtn.style.setProperty('--music-progress', `${pct.toFixed(2)}%`);
+    }
+
+    function stopMusicProgressLoop() {
+      if (melodyProgressRaf) {
+        cancelAnimationFrame(melodyProgressRaf);
+        melodyProgressRaf = 0;
+      }
+    }
+
+    function refreshMusicButtonUI() {
+      if (!melodyBtn) return;
+      if (melodyPlaying || melodyLeadInActive) {
+        melodyBtn.textContent = 'Pause';
+      } else if (melodyPaused) {
+        melodyBtn.textContent = 'Play';
+      } else {
+        melodyBtn.textContent = 'Music';
+      }
+
+      if (melodyPlaying && melodySongTotalMs > 0) {
+        const elapsed = Math.max(0, Math.min(melodySongTotalMs, performance.now() - melodySongStartPerf));
+        updateMusicButtonProgress(elapsed / melodySongTotalMs);
+      } else if (melodyPaused && melodySongTotalMs > 0) {
+        updateMusicButtonProgress(melodyPausedMs / melodySongTotalMs);
+      } else {
+        updateMusicButtonProgress(0);
+      }
+    }
+
+    function startMusicProgressLoop() {
+      stopMusicProgressLoop();
+      const tick = () => {
+        if (!melodyPlaying) {
+          melodyProgressRaf = 0;
+          refreshMusicButtonUI();
+          return;
+        }
+        refreshMusicButtonUI();
+        melodyProgressRaf = requestAnimationFrame(tick);
+      };
+      melodyProgressRaf = requestAnimationFrame(tick);
+    }
+
+    function latestRhythmHzAtOffset(events, offsetMs) {
+      let hz = currentFreq;
+      for (const ev of events) {
+        if (ev.type === 'tempo' && ev.t <= offsetMs) hz = ev.rhythmHz;
+        if (ev.t > offsetMs) break;
+      }
+      return hz;
+    }
+
+    function scheduleMelodyTimeline(timeline, offsetMs, runId) {
+      if (!timeline) return;
+      clearMelodyTimers();
+
+      const offset = Math.max(0, Math.min(timeline.totalMs, Number(offsetMs) || 0));
+      melodySongTotalMs = timeline.totalMs;
+      melodySongStartPerf = performance.now() - offset;
+      currentRhythmHz = latestRhythmHzAtOffset(timeline.events, offset);
+
+      for (const ev of timeline.events) {
+        if (ev.t < offset) continue;
+        const delay = Math.max(0, ev.t - offset);
+
+        if (ev.type === 'tempo') {
+          const id = setTimeout(() => {
+            if (!melodyPlaying || runId !== melodyRunSeq) return;
+            currentRhythmHz = ev.rhythmHz;
+          }, delay);
+          melodyTimeouts.push(id);
+        } else if (ev.type === 'beat') {
+          const id = setTimeout(() => {
+            if (!melodyPlaying || runId !== melodyRunSeq) return;
+            triggerMetronomeClick(ev.accent);
+          }, delay);
+          melodyTimeouts.push(id);
+        } else if (ev.type === 'note') {
+          const id = setTimeout(() => {
+            if (!melodyPlaying || runId !== melodyRunSeq) return;
+            if (ev.note) {
+              setNoteByLabel(ev.note);
+              accentMelodyNote(ev.noteMs);
+            }
+          }, delay);
+          melodyTimeouts.push(id);
+        }
+      }
+
+      const endId = setTimeout(() => {
+        if (runId !== melodyRunSeq) return;
+        clearMelodyTimers();
+        if (timeline.loopLeadInBpm && timeline.firstNoteLabel) {
+          continueMelodyLoop(timeline, runId);
+        } else {
+          finishMelodyPlayback();
+        }
+      }, Math.max(0, timeline.totalMs - offset) + 60);
+      melodyTimeouts.push(endId);
+
+      startMusicProgressLoop();
+      refreshMusicButtonUI();
+    }
+
+    async function runMelodyLeadIn(startBpm, firstNoteLabel, runId, durationMs = 7500) {
+      const startHz = Math.max(F_MIN, Math.min(F_MAX, Number(startBpm) / 60));
+      const firstSemi = noteLabelToSemi(firstNoteLabel);
+      if (firstSemi == null) return false;
+      const startPos = hzToSliderPos(startHz);
+      const endPos = noteIndexToSliderPos(firstSemi);
+
+      setSliderVisualNoSnap(startPos);
+      await sleepMs(180);
+      if (runId !== melodyRunSeq) return false;
+
+      const moved = await animateSliderLeadIn(startPos, endPos, durationMs, runId);
+      if (!moved || runId !== melodyRunSeq) return false;
+
+      // Snap exactly onto the opening B before the preset starts.
+      setNoteByLabel(firstNoteLabel);
+      await sleepMs(120);
+      return runId === melodyRunSeq;
+    }
+
+    function clearMelodyTimers() {
+      for (const id of melodyTimeouts) clearTimeout(id);
+      melodyTimeouts = [];
+    }
+
+    function finishMelodyPlayback() {
+      melodyPlaying = false;
+      melodyPaused = false;
+      melodyLeadInActive = false;
+      melodyPausedMs = 0;
+      currentRhythmHz = currentFreq;
+      resetMelodyArticulation();
+      stopMusicProgressLoop();
+      if (melodyAutoStarted) {
+        running = false;
+        demoBtn.textContent = 'Sound';
+        setMasterVolumeFromSlider();
+      }
+      melodyAutoStarted = false;
+      setMasterVolumeFromSlider();
+      refreshMusicButtonUI();
+      updateRhythmKnobVisual();
+    }
+
+    async function continueMelodyLoop(timeline, runId) {
+      if (!timeline || runId !== melodyRunSeq) return;
+
+      melodyPlaying = false;
+      melodyPaused = false;
+      melodyPausedMs = 0;
+      melodyLeadInActive = true;
+      resetMelodyArticulation();
+      stopMusicProgressLoop();
+      setMasterVolumeFromSlider();
+      refreshMusicButtonUI();
+
+      const leadInOk = await runMelodyLeadIn(
+        timeline.loopLeadInBpm,
+        timeline.firstNoteLabel,
+        runId,
+        timeline.loopLeadInDurationMs || 7500
+      );
+
+      melodyLeadInActive = false;
+      if (!leadInOk || runId !== melodyRunSeq) {
+        setMasterVolumeFromSlider();
+        refreshMusicButtonUI();
+        return;
+      }
+
+      melodyPlaying = true;
+      melodyPaused = false;
+      melodyPausedMs = 0;
+      currentRhythmHz = timeline.startBpm / 60;
+      setMasterVolumeFromSlider();
+      refreshMusicButtonUI();
+      resetMelodyArticulation();
+      scheduleMelodyTimeline(timeline, 0, runId);
+      updateUI();
+    }
+
+    function resetMelodyArticulation() {
+      if (!noteGateGain || !audioCtx) return;
+      const now = audioCtx.currentTime;
+      noteGateGain.gain.cancelScheduledValues(now);
+      noteGateGain.gain.setTargetAtTime(1, now, 0.01);
+    }
+
+    function accentMelodyNote(noteMs) {
+      if (!noteGateGain || !audioCtx) return;
+      const dur = Math.max(35, Number(noteMs) || 0) / 1000;
+      const now = audioCtx.currentTime;
+      const g = noteGateGain.gain;
+
+      const attack = Math.min(0.006, dur * 0.22);
+      const decay = Math.min(0.028, Math.max(0.008, dur * 0.24));
+      const sustain = 0.30;
+      const gateRatio = 0.80; // shorten notes a bit so fast notes separate clearly
+      const release = Math.min(0.02, Math.max(0.006, dur * 0.18));
+      const noteOff = now + Math.max(attack + decay + 0.004, dur * gateRatio);
+      const endTime = Math.min(now + dur, noteOff + release);
+
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(0.03, now);
+      g.linearRampToValueAtTime(0.58, now + attack);
+      g.linearRampToValueAtTime(sustain, now + attack + decay);
+      g.setValueAtTime(sustain, Math.max(now + attack + decay, noteOff));
+      g.linearRampToValueAtTime(0.05, endTime);
+    }
+
+    function recordRhythmPulse(accent = false) {
+      const nowMs = performance.now();
+      rhythmPulseEvents.push({ t: nowMs, a: accent ? 1.0 : 0.72 });
+      const cutoff = nowMs - RHYTHM_TRACE_MS - 500;
+      while (rhythmPulseEvents.length && rhythmPulseEvents[0].t < cutoff) {
+        rhythmPulseEvents.shift();
+      }
+    }
+
+    function triggerMetronomeClick(accent = false) {
+      if (!audioCtx || !highpass) return;
+      const now = audioCtx.currentTime;
+
+      // Use the same pulse shape / filter path as the main demo clicks so the timbre matches.
+      if (fbPulseBuffer) {
+        const src = audioCtx.createBufferSource();
+        const gain = audioCtx.createGain();
+        src.buffer = fbPulseBuffer;
+
+        const amp = (accent ? 1.68 : 1.30) * currentPulseGain;
+        gain.gain.setValueAtTime(Math.max(0.0001, amp), now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+
+        src.connect(gain);
+        gain.connect(highpass); // same path as the main demo pulse
+        src.start(now);
+        src.stop(now + 0.04);
+      } else {
+        // Fallback if audio isn't initialized yet.
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(accent ? 1700 : 1400, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(accent ? 0.18 : 0.13, now + 0.0015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+        osc.connect(gain);
+        gain.connect(highpass);
+        osc.start(now);
+        osc.stop(now + 0.04);
+      }
+
+      pulseRhythmKnob(accent);
+      recordRhythmPulse(accent);
+    }
+
+    
+    async function playMegalovaniaMelody() {
+      // Pause if currently active (song or lead-in)
+      if (melodyPlaying || melodyLeadInActive) {
+        melodyRunSeq++;
+        if (melodyLeadInRaf) {
+          cancelAnimationFrame(melodyLeadInRaf);
+          melodyLeadInRaf = 0;
+        }
+        melodyLeadInActive = false;
+
+        if (melodyPlaying) {
+          melodyPausedMs = Math.max(0, Math.min(melodySongTotalMs, performance.now() - melodySongStartPerf));
+          clearMelodyTimers();
+        }
+        melodyPlaying = false;
+        melodyPaused = melodySongTotalMs > 0 && melodyPausedMs > 0 && melodyPausedMs < melodySongTotalMs;
+        resetMelodyArticulation();
+        stopMusicProgressLoop();
+
+        if (melodyAutoStarted) {
+          running = false;
+          demoBtn.textContent = 'Sound';
+          setMasterVolumeFromSlider();
+        }
+        refreshMusicButtonUI();
+        updateUI();
+        return;
+      }
+
+      const runId = ++melodyRunSeq;
+      clearMelodyTimers();
+
+      if (!audioCtx) await initAudio();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      const wasRunning = running;
+
+      // Resume from pause (no lead-in)
+      if (melodyPaused && melodyTimeline) {
+        if (!running) {
+          running = true;
+          demoBtn.textContent = 'Stop';
+          setMasterVolumeFromSlider();
+        }
+        melodyPlaying = true;
+        melodyPaused = false;
+        setMasterVolumeFromSlider();
+        resetMelodyArticulation();
+        refreshMusicButtonUI();
+        scheduleMelodyTimeline(melodyTimeline, melodyPausedMs, runId);
+        updateUI();
+        return;
+      }
+
+      if (!running) {
+        running = true;
+        melodyAutoStarted = true;
+        demoBtn.textContent = 'Stop';
+        setMasterVolumeFromSlider();
+      } else {
+        melodyAutoStarted = false;
+      }
+
+      // "In the Hall of the Mountain King" (public-domain) — more faithful single-line preset.
+      // Kept within the current A0..C5 keyboard, with an extreme full-song tempo ramp.
+      const startBpm = 100;
+      const endBpm = 600;
+
+      const transposePhrase = (phrase, semis) => phrase.map(([note, beats]) => {
+        if (!note) return [null, beats];
+        const src = noteLabelToSemi(note);
+        if (src == null) return [note, beats];
+        const dst = src + semis; // keep internal transpositions unbounded; final preset transpose lands in displayed range
+        const name = NOTE_NAMES[((dst % 12) + 12) % 12];
+        const octave = Math.floor((dst + 9) / 12);
+        return [`${name}${octave}`, beats];
+      });
+
+      const phraseB = [
+        ['B3',0.5], ['C#4',0.5], ['D4',0.5], ['E4',0.5],
+        ['F#4',0.5], ['D4',0.5], ['F#4',1.0],
+        ['F4',0.5], ['C#4',0.5], ['F4',1.0],
+        ['E4',0.5], ['C4',0.5], ['E4',1.0],
+        ['B3',0.5], ['C#4',0.5], ['D4',0.5], ['E4',0.5],
+        ['F#4',0.5], ['D4',0.5], ['F#4',0.5], ['B4',0.5],
+        ['A4',0.5], ['F#4',0.5], ['D4',0.5], ['F#4',0.5],
+        ['A4',2.0]
+      ];
+
+      const phraseFs = [
+        ['F#4',0.5], ['G#4',0.5], ['A#4',0.5], ['B4',0.5],
+        ['C#5',0.5], ['A#4',0.5], ['C#5',1.0],
+        ['D5',0.5], ['A#4',0.5], ['D5',1.0],
+        ['C#5',0.5], ['A#4',0.5], ['C#5',1.0],
+        ['F#4',0.5], ['G#4',0.5], ['A#4',0.5], ['B4',0.5],
+        ['C#5',0.5], ['A#4',0.5], ['C#5',1.0],
+        ['D5',0.5], ['A#4',0.5], ['D5',1.0],
+        ['C#5',2.0]
+      ];
+
+      const phraseBHigh = transposePhrase(phraseB, 12);
+
+      const codaTag = [
+        ['B4',0.5], ['C#5',0.5], ['D5',0.5], ['E5',0.5],
+        ['F#5',0.5], ['D5',0.5], ['F#5',0.5], ['B5',0.5],
+        ['A5',0.5], ['F#5',0.5], ['D5',0.5], ['F#5',0.5],
+        ['A5',1.0],
+        ['B5',0.25], ['B5',0.25], ['B5',0.25], ['B5',0.25],
+        ['A#5',0.25], ['B5',0.25], ['A#5',0.25], ['B5',0.25],
+        ['F#5',0.5], ['D5',0.5], ['B4',2.0]
+      ];
+
+      const rawPhrases = [
+        phraseB, phraseB, phraseFs, phraseFs, phraseB, phraseB,
+        phraseBHigh, phraseBHigh, phraseFs, phraseBHigh, codaTag
+      ];
+      const phrases = rawPhrases.map((phrase) => transposePhrase(phrase, -12));
+      const firstSongNote = (() => {
+        for (const phrase of phrases) {
+          for (const item of phrase) {
+            if (item && item[0]) return item[0];
+          }
+        }
+        return 'B2';
+      })();
+
+      // Build a deterministic event timeline so we can pause/resume cleanly.
+      // Tempo ramps linearly from startBpm to endBpm across the song's total beat-count.
+      const events = [];
+      const totalBeats = phrases.reduce(
+        (phraseSum, phrase) => phraseSum + phrase.reduce((sum, item) => sum + (Number(item[1]) || 0), 0),
+        0
+      );
+
+      const bpmSlopePerBeat = totalBeats > 0 ? (endBpm - startBpm) / totalBeats : 0;
+
+      function bpmAtBeat(beatPos) {
+        const b = Math.max(0, Math.min(totalBeats, Number(beatPos) || 0));
+        return startBpm + bpmSlopePerBeat * b;
+      }
+
+      function msAtBeat(beatPos) {
+        const b = Math.max(0, Math.min(totalBeats, Number(beatPos) || 0));
+        if (Math.abs(bpmSlopePerBeat) < 1e-9) {
+          return (b * 60000) / Math.max(1e-6, startBpm);
+        }
+        // Integrate dt = (60000 / bpm(beat)) d(beat), with bpm linear in beat.
+        return (60000 / bpmSlopePerBeat) * Math.log((startBpm + bpmSlopePerBeat * b) / startBpm);
+      }
+
+      // Tempo events at each quarter-note beat so the rhythm readout updates throughout the ramp.
+      for (let beat = 0; beat < totalBeats - 1e-9; beat += 1) {
+        const t = msAtBeat(beat);
+        events.push({ type: 'tempo', t, rhythmHz: bpmAtBeat(beat) / 60 });
+      }
+
+      // Metronome clicks on each quarter beat, accenting the first beat of each phrase.
+      let beatCursor = 0;
+      for (const phrase of phrases) {
+        const phraseBeats = phrase.reduce((sum, item) => sum + (Number(item[1]) || 0), 0);
+        for (let localBeat = 0; localBeat < phraseBeats - 1e-9; localBeat += 1) {
+          const t = msAtBeat(beatCursor + localBeat);
+          events.push({ type: 'beat', t, accent: localBeat < 0.5 });
+        }
+        beatCursor += phraseBeats;
+      }
+
+      // Note onsets/durations computed from the same continuous tempo ramp.
+      beatCursor = 0;
+      for (const phrase of phrases) {
+        for (const [note, beats] of phrase) {
+          const b0 = beatCursor;
+          const b1 = beatCursor + (Number(beats) || 0);
+          const noteStartMs = msAtBeat(b0);
+          const noteMs = msAtBeat(b1) - noteStartMs;
+          events.push({ type: 'note', t: noteStartMs, note, noteMs });
+          beatCursor = b1;
+        }
+      }
+
+      const totalMs = msAtBeat(totalBeats);
+
+      // Keep event order deterministic for pause/resume state lookup.
+      const eventOrder = { tempo: 0, beat: 1, note: 2 };
+      events.sort((a, b) => (a.t - b.t) || ((eventOrder[a.type] ?? 9) - (eventOrder[b.type] ?? 9)));
+
+      melodyTimeline = {
+        events,
+        totalMs,
+        startBpm,
+        loopLeadInBpm: endBpm,
+        loopLeadInDurationMs: 3000,
+        firstNoteLabel: firstSongNote
+      };
+      melodySongTotalMs = totalMs;
+      melodyPausedMs = 0;
+
+      melodyLeadInActive = true;
+      setMasterVolumeFromSlider();
+      refreshMusicButtonUI();
+      const leadInOk = await runMelodyLeadIn(startBpm, firstSongNote, runId);
+      melodyLeadInActive = false;
+      if (!leadInOk || runId !== melodyRunSeq) {
+        setMasterVolumeFromSlider();
+        refreshMusicButtonUI();
+        return;
+      }
+
+      melodyPlaying = true;
+      melodyPaused = false;
+      rhythmPulseEvents = [];
+      resetMelodyArticulation();
+      scheduleMelodyTimeline(melodyTimeline, 0, runId);
+
+      if (!wasRunning) {
+        setMasterVolumeFromSlider();
+      }
+      updateUI();
+    }
+
+    function fmtHz(f) {
+      return f < 10 ? `${f.toFixed(2)} Hz` : `${f.toFixed(1)} Hz`;
+    }
+
+    function fmtBPM(f) {
+      return `${Math.round(f * 60).toLocaleString()} BPM`;
+    }
+
+
+    function noteHint(f) { return ''; }
+
+    function makeReadoutHtml(f) {
+      const rHz = Math.max(F_MIN, Math.min(F_MAX, Number(currentRhythmHz) || f));
+      const noteInfo = currentNoteInfoFromFreq(f);
+      const noteBubble = (melodyPlaying && noteInfo)
+        ? `<span class="pill note-pill" style="${bubbleInlineStyle('pitch', f)}">${noteInfo.name}</span>`
+        : '';
+
+      if (melodyPlaying) {
+        return `
+          <span class="pill pitch-pill" style="${bubbleInlineStyle('pitch', f)}">${fmtBPM(f)}</span>
+          <span class="pill pitch-pill" style="${bubbleInlineStyle('pitch', f)}">${fmtHz(f)}</span>
+          ${noteBubble}
+          <span class="pill rhythm-pill" style="${bubbleInlineStyle('rhythm', rHz)}">${fmtBPM(rHz)}</span>
+          <span class="pill rhythm-pill" style="${bubbleInlineStyle('rhythm', rHz)}">${fmtHz(rHz)}</span>
+        `;
+      }
+
+      return `
+        <span class="pill rhythm-pill" style="${bubbleInlineStyle('rhythm', f)}">${fmtBPM(f)}</span>
+        <span class="pill pitch-pill" style="${bubbleInlineStyle('pitch', f)}">${fmtHz(f)}</span>
+      `;
+    }
+
+    function effectiveFreqFromSlider() {
+      const raw = sliderToHz(slider.value);
+      if (!sliderInNoteTerritory()) return raw;
+      const idx = sliderToNoteIndex(slider.value);
+      if (idx == null) return raw;
+      return A0_HZ * Math.pow(2, idx / 12);
+    }
+
+    function updateUI() {
+      const f = effectiveFreqFromSlider();
+      currentFreq = f;
+      if (!melodyPlaying) currentRhythmHz = f;
+      readout.innerHTML = makeReadoutHtml(f);
+      updateActiveNoteButton();
+      updatePitchHandleColor();
+      updateLiveLabels();
+    }
+
+    function setMasterVolumeFromSlider() {
+      if (!masterGain || !audioCtx) return;
+      const userV = Number(volumeSlider.value) / 100;
+      const audioActive = running || melodyPlaying || melodyLeadInActive;
+      const target = audioActive ? Math.pow(userV, 1.2) * 1.05 : 0.0001;
+      const now = audioCtx.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setTargetAtTime(target, now, 0.012);
+    }
+
+    function makePulseShape(sampleRate) {
+      // Prioritize a clear top-end tone at the current max note using one smooth cycle-shaped hit.
+      const cycleSec = 1 / F_MAX;                    // one top-note cycle
+      const len = Math.max(24, Math.round(sampleRate * cycleSec));
+      const arr = new Float32Array(len);
+      let sum = 0;
+      let peak = 0;
+
+      for (let i = 0; i < len; i++) {
+        const u = i / (len - 1);                     // 0..1
+        const carrier = Math.sin(2 * Math.PI * u);   // one cycle
+        const env = Math.pow(Math.sin(Math.PI * u), 1.05); // slightly tapered burst
+        const v = carrier * env;
+        arr[i] = v;
+        sum += v;
+      }
+
+      const mean = sum / len;
+      for (let i = 0; i < len; i++) {
+        arr[i] -= mean;
+        peak = Math.max(peak, Math.abs(arr[i]));
+      }
+      const norm = peak > 0 ? 1 / peak : 1;
+      for (let i = 0; i < len; i++) arr[i] *= norm;
+      return arr;
+    }
+
+    async function initAudio() {
+      if (audioCtx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.0001;
+
+      noteGateGain = audioCtx.createGain();
+      noteGateGain.gain.value = 1;
+
+      dynamics = audioCtx.createDynamicsCompressor();
+      dynamics.threshold.value = -22;
+      dynamics.knee.value = 18;
+      dynamics.ratio.value = 4;
+      dynamics.attack.value = 0.003;
+      dynamics.release.value = 0.08;
+
+      highpass = audioCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 22;
+
+      lowpass = audioCtx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = 1200;
+
+      fbPulseShape = makePulseShape(audioCtx.sampleRate);
+      fbPulseBuffer = audioCtx.createBuffer(1, fbPulseShape.length, audioCtx.sampleRate);
+      fbPulseBuffer.getChannelData(0).set(fbPulseShape);
+      pulseNode = audioCtx.createScriptProcessor(512, 0, 1);
+      pulseNode.onaudioprocess = (e) => {
+        const out = e.outputBuffer.getChannelData(0);
+        const sr = audioCtx.sampleRate;
+
+        for (let i = 0; i < out.length; i++) {
+          fbPhase += currentFreq / sr;
+          if (fbPhase >= 1) {
+            fbPhase -= 1;
+            fbPulseIndex = 0;
+          }
+
+          let v = 0;
+          if (fbPulseIndex >= 0) {
+            v = fbPulseShape[fbPulseIndex] || 0;
+            fbPulseIndex++;
+            if (fbPulseIndex >= fbPulseShape.length) fbPulseIndex = -1;
+          }
+
+          out[i] = v * currentPulseGain;
+        }
+      };
+
+      pulseNode.connect(noteGateGain);
+      noteGateGain.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(dynamics);
+      dynamics.connect(masterGain);
+      masterGain.connect(audioCtx.destination);
+
+      setMasterVolumeFromSlider();
+      updateUI();
+    }
+
+
+    function drawDialecticGraph() {
+      if (!graphCanvas || !graphCtx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = Math.max(300, Math.round(graphCanvas.clientWidth || 300));
+      const cssH = Math.max(220, Math.round(graphCanvas.clientHeight || 320));
+      const needResize = graphCanvas.width !== Math.round(cssW * dpr) || graphCanvas.height !== Math.round(cssH * dpr);
+
+      if (needResize) {
+        graphCanvas.width = Math.round(cssW * dpr);
+        graphCanvas.height = Math.round(cssH * dpr);
+      }
+
+      graphCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      graphCtx.clearRect(0, 0, cssW, cssH);
+
+      const padT = 18;
+      const padB = 34;
+
+      const thumbPx = getThumbSizePx();
+      let padL = 52;
+      let padR = 16;
+
+      // Align graph x-range to the slider's actual usable travel (thumb center to thumb center).
+      if (slider && graphCanvas) {
+        const sliderRect = slider.getBoundingClientRect();
+        const canvasRect = graphCanvas.getBoundingClientRect();
+        const startX = (sliderRect.left - canvasRect.left) + (thumbPx / 2);
+        const endX = (sliderRect.right - canvasRect.left) - (thumbPx / 2);
+        if (Number.isFinite(startX) && Number.isFinite(endX) && endX > startX + 40) {
+          padL = Math.round(startX);
+          padR = Math.round(cssW - endX);
+        }
+      }
+      const plotW = cssW - padL - padR;
+      const plotH = cssH - padT - padB;
+
+      const xForHz = (f) => padL + (Math.log(Math.max(F_MIN, Math.min(F_MAX, f)) / F_MIN) / LOG_RATIO) * plotW;
+      const yForUnit = (u) => padT + (1 - Math.max(0, Math.min(1, u))) * plotH;
+
+      graphCtx.strokeStyle = 'rgba(170,184,214,0.35)';
+      graphCtx.lineWidth = 1;
+      graphCtx.beginPath();
+      graphCtx.moveTo(padL, padT);
+      graphCtx.lineTo(padL, padT + plotH);
+      graphCtx.lineTo(padL + plotW, padT + plotH);
+      graphCtx.stroke();
+
+      graphCtx.setLineDash([5, 4]);
+      graphCtx.strokeStyle = 'rgba(170,184,214,0.18)';
+      graphCtx.beginPath();
+      graphCtx.moveTo(padL, yForUnit(0.14));
+      graphCtx.lineTo(padL + plotW, yForUnit(0.14));
+      graphCtx.moveTo(padL, yForUnit(0.86));
+      graphCtx.lineTo(padL + plotW, yForUnit(0.86));
+      graphCtx.stroke();
+      graphCtx.setLineDash([]);
+
+      graphCtx.fillStyle = 'rgba(236,242,255,0.92)';
+      graphCtx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+
+
+      const steps = Math.max(240, Math.floor(plotW));
+      const curvePts = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const hz = F_MIN * Math.exp(LOG_RATIO * t);
+        const tone = transitionRatioForHz(hz);
+        const modeY = 0.14 + tone * 0.72;
+        curvePts.push([padL + t * plotW, yForUnit(modeY)]);
+      }
+
+      const centerT = Math.log(GRAPH_CENTER_HZ / F_MIN) / LOG_RATIO;
+      const centerStop = Math.max(0, Math.min(1, centerT));
+      const curveGrad = graphCtx.createLinearGradient(padL, 0, padL + plotW, 0);
+      curveGrad.addColorStop(0, rgbaStr(RHYTHM_RGB, 0.95));
+      curveGrad.addColorStop(Math.max(0, centerStop - 0.06), rgbaStr(RHYTHM_RGB, 0.95));
+      curveGrad.addColorStop(centerStop, rgbaStr(mixRgb(RHYTHM_RGB, PITCH_RGB, 0.5), 0.95));
+      curveGrad.addColorStop(Math.min(1, centerStop + 0.06), rgbaStr(PITCH_RGB, 0.95));
+      curveGrad.addColorStop(1, rgbaStr(PITCH_RGB, 0.95));
+
+      graphCtx.lineWidth = 2;
+      graphCtx.strokeStyle = curveGrad;
+      graphCtx.beginPath();
+      curvePts.forEach(([x, y], i) => {
+        if (i === 0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
+      });
+      graphCtx.stroke();
+
+      // Rhythm marker and pitch marker share the same log x-axis, with gradient-aware colors.
+      const rhythmHz = Math.max(F_MIN, Math.min(F_MAX, Number(currentRhythmHz) || currentFreq));
+      const rhythmX = xForHz(rhythmHz);
+      const rhythmLineGrad = graphCtx.createLinearGradient(0, padT, 0, padT + plotH);
+      rhythmLineGrad.addColorStop(0, colorForHz(rhythmHz, 0.18));
+      rhythmLineGrad.addColorStop(0.5, colorForHz(rhythmHz, 0.95));
+      rhythmLineGrad.addColorStop(1, colorForHz(rhythmHz, 0.18));
+      graphCtx.strokeStyle = rhythmLineGrad;
+      graphCtx.lineWidth = 1;
+      graphCtx.beginPath();
+      graphCtx.moveTo(rhythmX, padT);
+      graphCtx.lineTo(rhythmX, padT + plotH);
+      graphCtx.stroke();
+
+      graphCtx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      graphCtx.fillStyle = colorForHz(rhythmHz, 0.98);
+      graphCtx.fillText('Rhythm', padL + 8, yForUnit(0.22) - 2);
+
+      const markerX = xForHz(currentFreq);
+      const pitchLineGrad = graphCtx.createLinearGradient(0, padT, 0, padT + plotH);
+      pitchLineGrad.addColorStop(0, colorForHz(currentFreq, 0.18));
+      pitchLineGrad.addColorStop(0.5, colorForHz(currentFreq, 0.95));
+      pitchLineGrad.addColorStop(1, colorForHz(currentFreq, 0.18));
+      graphCtx.strokeStyle = pitchLineGrad;
+      graphCtx.lineWidth = 1;
+      graphCtx.beginPath();
+      graphCtx.moveTo(markerX, padT);
+      graphCtx.lineTo(markerX, padT + plotH);
+      graphCtx.stroke();
+
+      graphCtx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      graphCtx.fillStyle = colorForHz(currentFreq, 0.98);
+      graphCtx.fillText('Pitch', padL + 8, yForUnit(0.94) - 2);
+
+      graphCtx.fillStyle = 'rgba(170,184,214,0.9)';
+      graphCtx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      graphCtx.fillText('Quantity (frequency / pulse rate, log scale)', padL, cssH - 10);
+      graphCtx.fillText('1 Hz', padL, padT + plotH + 16);
+      const rightLabel = `${F_MAX >= 100 ? F_MAX.toFixed(1) : F_MAX.toFixed(2)} Hz`;
+      const widthRight = graphCtx.measureText(rightLabel).width;
+      graphCtx.fillText(rightLabel, padL + plotW - widthRight, padT + plotH + 16);
+    }
+
+    function applyStaticVisual() {
+      drawDialecticGraph();
+      updateRhythmKnobVisual();
+    }
+
+    function animate() {
+      drawDialecticGraph();
+      updateRhythmKnobVisual();
+      requestAnimationFrame(animate);
+    }
+    slider.addEventListener('input', () => {
+      snapSliderToNearestNoteIfNeeded();
+      updateUI();
+      lastSliderValueNum = Number(slider.value);
+    });
+
+    slider.addEventListener('change', () => {
+      snapSliderToNearestNoteIfNeeded();
+      updateUI();
+      lastSliderValueNum = Number(slider.value);
+    });
+
+    slider.addEventListener('keydown', handleArrowKeyStepping);
+    noteStrip.addEventListener('keydown', handleArrowKeyStepping);
+
+    volumeSlider.addEventListener('input', setMasterVolumeFromSlider);
+
+    demoBtn.addEventListener('click', async () => {
+      if (!audioCtx) await initAudio();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      const willStop = running;
+
+      if (willStop) {
+        cancelSoundWakeSweep();
+        // "Sound" only toggles the base continuous demo pulse now.
+        // Do not cancel Music (song/lead-in), and do not reset song state.
+        if (!melodyPlaying && !melodyLeadInActive) {
+          currentRhythmHz = currentFreq;
+          rhythmPulseEvents = [];
+          updateRhythmKnobVisual();
+        }
+        running = false;
+        demoBtn.textContent = 'Sound';
+        setMasterVolumeFromSlider();
+        updateUI();
+        return;
+      }
+
+      cancelSoundWakeSweep();
+      running = true;
+      demoBtn.textContent = 'Stop';
+      setSliderAndRefresh(hzToSliderValue(60 / 60));
+      setMasterVolumeFromSlider();
+      updateUI();
+    });
+
+    melodyBtn.addEventListener('click', async () => {
+      await playMegalovaniaMelody();
+    });
+
+    window.setPresetHz = (f) => {
+      const clamped = Math.min(F_MAX, Math.max(F_MIN, f));
+      setSliderAndRefresh(hzToSliderValue(clamped));
+    };
+
+    refreshMusicButtonUI();
+    buildNoteStrip();
+    updateSliderVisualWidth();
+    updateUI();
+    applyStaticVisual();
+    window.addEventListener('resize', () => {
+      updateSliderVisualWidth();
+      drawDialecticGraph();
+    });
+    requestAnimationFrame(updateSliderVisualWidth);
+    animate();
+  </script>
+</body>
+</html>

@@ -1,0 +1,5075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bird / Flock Dialectic</title>
+<style>
+  :root {
+    --bg: #071016;
+    --panel: #0d1b24;
+    --panel-2: #102634;
+    --text: #e8f3f7;
+    --muted: #9eb3bc;
+    --line: rgba(255,255,255,0.12);
+    --green: #58e09a;
+    --red: #ff5f6d;
+    --blue: #67c7ff;
+    --soft: rgba(255,255,255,0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(103,199,255,0.10), transparent 34rem),
+      radial-gradient(circle at 90% 15%, rgba(88,224,154,0.08), transparent 30rem),
+      var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.4;
+  }
+
+  header {
+    padding: 18px clamp(14px, 3vw, 28px) 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(24px, 4vw, 44px);
+    line-height: 1.03;
+    letter-spacing: -0.04em;
+  }
+
+  .subtitle {
+    max-width: 1100px;
+    color: var(--muted);
+    font-size: clamp(14px, 1.4vw, 18px);
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px;
+    min-height: 100vh;
+  }
+
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)), var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+  }
+
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    backdrop-filter: blur(12px);
+  }
+
+  .controls h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .controlsRows {
+    display: grid;
+    grid-template-columns: auto minmax(280px, 1.6fr) minmax(140px, 0.8fr) minmax(180px, 1fr) minmax(165px, 0.9fr) minmax(315px, auto);
+    align-items: stretch;
+    gap: 6px;
+    min-width: 1240px;
+  }
+
+  .controlRow {
+    display: contents;
+  }
+
+  .control {
+    min-width: 0;
+    margin: 0;
+    padding: 5px 7px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.035);
+  }
+
+  .control.compact { min-width: 0; }
+  .control.wide { min-width: 0; }
+  .control.buttons { min-width: 0; }
+  .control.checks { min-width: 315px; }
+
+  .rangeControl {
+    display: grid;
+    grid-template-rows: auto 15px;
+    align-content: center;
+  }
+
+  .rangeControl.hasStepper {
+    grid-template-rows: auto 15px auto;
+  }
+
+  .stepperButtons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 3px;
+  }
+
+  .stepperButtons button {
+    min-width: 0;
+    padding: 2px 5px;
+    border-radius: 8px;
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+
+  label {
+    color: var(--text);
+    font-weight: 650;
+    font-size: 11px;
+    line-height: 1.05;
+  }
+
+  .value {
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    font-size: 11px;
+    line-height: 1.05;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 15px;
+    margin: 0;
+  }
+
+
+  .poleControl {
+    grid-template-rows: auto auto 15px;
+  }
+
+  .poleLabels {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 1px 2px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  input[type="range"].poleRange {
+    appearance: none;
+    height: 15px;
+    background: transparent;
+  }
+
+  input[type="range"].poleRange::-webkit-slider-runnable-track {
+    height: 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.13);
+    background:
+      linear-gradient(90deg, rgba(103,199,255,0.54), rgba(255,255,255,0.10) 50%, rgba(88,224,154,0.54));
+  }
+
+  input[type="range"].poleRange::-webkit-slider-thumb {
+    appearance: none;
+    width: 17px;
+    height: 17px;
+    margin-top: -5px;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,0.82);
+    background: var(--panel-2);
+    box-shadow: 0 0 0 3px rgba(103,199,255,0.16);
+  }
+
+  input[type="range"].poleRange::-moz-range-track {
+    height: 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.13);
+    background:
+      linear-gradient(90deg, rgba(103,199,255,0.54), rgba(255,255,255,0.10) 50%, rgba(88,224,154,0.54));
+  }
+
+  input[type="range"].poleRange::-moz-range-thumb {
+    width: 17px;
+    height: 17px;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,0.82);
+    background: var(--panel-2);
+    box-shadow: 0 0 0 3px rgba(103,199,255,0.16);
+  }
+
+  .segmented {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .segmented button { flex: 0 0 auto; white-space: nowrap; }
+
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 5px 7px;
+    font-size: 11px;
+    line-height: 1.05;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: rgba(255,255,255,0.25); }
+  button.active { background: rgba(88,224,154,0.12); border-color: rgba(88,224,154,0.55); color: #dfffea; }
+
+  .checks {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .checks label {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 550;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .checks input { margin: 0; width: 12px; height: 12px; }
+
+  .stageWrap {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .viewGrid {
+    display: grid;
+    grid-template-columns: minmax(260px, 50fr) 14px minmax(260px, 50fr);
+    gap: 0;
+    min-height: 360px;
+    height: clamp(500px, 61vh, 780px);
+  }
+
+  .splitHandle {
+    position: relative;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    min-width: 14px;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.035);
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .splitHandle::before {
+    content: "";
+    width: 4px;
+    height: 74px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(103,199,255,0.70), rgba(88,224,154,0.70));
+    box-shadow: 0 0 16px rgba(103,199,255,0.22);
+  }
+
+  .splitHandle:hover,
+  .splitHandle:focus-visible,
+  .viewGrid.dragging .splitHandle {
+    background: rgba(103,199,255,0.10);
+    outline: none;
+  }
+
+  .viewGrid.dragging,
+  .viewGrid.dragging canvas {
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  .viewGrid.dragging canvas {
+    pointer-events: none;
+  }
+
+  .heightHandle {
+    position: relative;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 14px;
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.035);
+    cursor: row-resize;
+    touch-action: none;
+  }
+
+  .heightHandle::before {
+    content: "";
+    width: 74px;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(103,199,255,0.70), rgba(88,224,154,0.70));
+    box-shadow: 0 0 16px rgba(103,199,255,0.22);
+  }
+
+  .heightHandle:hover,
+  .heightHandle:focus-visible,
+  .viewGrid.heightDragging + .heightHandle {
+    background: rgba(103,199,255,0.10);
+    outline: none;
+  }
+
+  .viewGrid.heightDragging,
+  .viewGrid.heightDragging canvas {
+    cursor: row-resize;
+    user-select: none;
+  }
+
+  .viewGrid.heightDragging canvas {
+    pointer-events: none;
+  }
+
+  .view {
+    position: relative;
+    min-height: 360px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at center, rgba(255,255,255,0.06), transparent 30rem),
+      #050b10;
+  }
+
+  .view canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: default;
+  }
+
+
+  .view.hiddenBySplit,
+  .desirePanel.hiddenBySplit {
+    display: none;
+  }
+
+  .viewGrid.microHidden {
+    grid-template-columns: 0 14px minmax(260px, 1fr);
+  }
+
+  .viewGrid.macroHidden {
+    grid-template-columns: minmax(260px, 1fr) 14px 0;
+  }
+
+  .viewLabel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none;
+  }
+
+  .viewTitle {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.46);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(8px);
+  }
+
+  .viewTitle.tightLabel { padding: 6px 9px; }
+  .viewTitle strong { display: block; font-size: 14px; line-height: 1; }
+  .viewTitle span { display: block; color: var(--muted); font-size: 12px; max-width: 34ch; }
+
+  .legend {
+    display: grid;
+    gap: 5px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.46);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+    min-width: 156px;
+  }
+
+  .legend i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+
+
+
+
+  .desireGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .desirePanel {
+    padding: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02)), var(--panel);
+  }
+
+  .desireHead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .desireHead h2,
+  .dialecticsPanel h2 {
+    margin: 0 0 4px;
+    font-size: clamp(17px, 1.8vw, 23px);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+
+  .desireHead p,
+  .dialecticsPanel p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .desireBadge {
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(103,199,255,0.35);
+    background: rgba(103,199,255,0.10);
+    color: #d9f3ff;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+
+  .desireHeadActions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .sectionCollapseToggle {
+    flex: 0 0 auto;
+    width: 31px;
+    height: 31px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.055);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .sectionCollapseToggle:hover,
+  .sectionCollapseToggle:focus-visible {
+    background: rgba(103,199,255,0.12);
+    border-color: rgba(103,199,255,0.35);
+    outline: none;
+  }
+
+  .sectionCollapseToggle span {
+    display: block;
+    transform: rotate(0deg);
+    transition: transform 160ms ease;
+  }
+
+  .collapsiblePanel.isCollapsed > :not(.desireHead) {
+    display: none !important;
+  }
+
+  .collapsiblePanel.isCollapsed .desireHead {
+    margin-bottom: 0;
+  }
+
+  .collapsiblePanel.isCollapsed .sectionCollapseToggle span {
+    transform: rotate(-90deg);
+  }
+
+  .dialecticStack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .dialecticBlock.tendencies {
+    grid-column: 1 / -1;
+  }
+
+  .breakdownPanel {
+    padding: 14px;
+    background:
+      radial-gradient(circle at 88% 0%, rgba(103,199,255,0.10), transparent 26rem),
+      linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02)),
+      var(--panel);
+  }
+
+  .breakdownGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .breakdownGrid .dialecticBlockTitle {
+    min-height: 28px;
+  }
+
+  .dialecticBlock.localField .desireFill {
+    background: linear-gradient(90deg, rgba(103,199,255,0.44), rgba(255,225,123,0.82));
+  }
+
+  .dialecticBlock.microChildren .desireFill {
+    background: linear-gradient(90deg, rgba(255,95,109,0.42), rgba(255,175,103,0.84));
+  }
+
+  .dialecticBlock {
+    padding: 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(0,0,0,0.14);
+  }
+
+  .dialecticBlockTitle {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.1;
+    font-weight: 850;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+
+  .dialecticBlockTitle span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 650;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .desireList {
+    display: grid;
+    gap: 7px;
+  }
+
+  .capabilityBlock {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(0,0,0,0.14);
+  }
+
+  .capabilityList {
+    display: grid;
+    gap: 7px;
+  }
+
+  .capabilityItem {
+    display: grid;
+    grid-template-columns: minmax(148px, 0.58fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 7px 8px;
+    border-radius: 11px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.035);
+  }
+
+  .capabilityItem.qualitativeLeap {
+    background: rgba(103,199,255,0.075);
+    border-color: rgba(103,199,255,0.18);
+  }
+
+  .capabilityName {
+    min-width: 0;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+
+  .capabilityValue {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .capabilityValue strong {
+    color: var(--green);
+    font-weight: 850;
+  }
+
+  .desireItem {
+    display: grid;
+    grid-template-columns: minmax(118px, 168px) 1fr 48px;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+
+  .desireName {
+    min-width: 0;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .desireTrack {
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .desireFill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(103,199,255,0.55), rgba(88,224,154,0.88));
+    transition: width 160ms linear;
+  }
+
+  .dialecticBlock.constraints .desireFill {
+    background: linear-gradient(90deg, rgba(255,95,109,0.42), rgba(255,175,103,0.84));
+  }
+
+  .dialecticBlock.tendencies .desireFill {
+    background: linear-gradient(90deg, rgba(103,199,255,0.42), rgba(103,199,255,0.88));
+  }
+
+
+  .dialecticStack .desireItem {
+    grid-template-columns: minmax(84px, 120px) 1fr 42px;
+    gap: 7px;
+  }
+
+  .dialecticStack .desireName {
+    font-size: 12px;
+  }
+
+  .desireScore {
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .desireSummary {
+    margin-top: 13px;
+    padding: 10px 11px;
+    border-radius: 13px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(0,0,0,0.18);
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .desireSummary strong {
+    color: var(--text);
+  }
+
+  .dialecticsPanel {
+    padding: 16px;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(88,224,154,0.10), transparent 26rem),
+      linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)),
+      var(--panel);
+  }
+
+  .dialecticsPanel p {
+    max-width: 1180px;
+    font-size: clamp(13px, 1.3vw, 16px);
+    line-height: 1.55;
+  }
+
+  .error {
+    display: none;
+    margin-top: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,95,109,0.45);
+    color: #ffd5d9;
+    background: rgba(255,95,109,0.10);
+  }
+
+
+  .capabilityComparePanel {
+    padding: 16px;
+    background:
+      radial-gradient(circle at 90% 0%, rgba(103,199,255,0.10), transparent 26rem),
+      linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)),
+      var(--panel);
+  }
+
+  .capabilityCompareTable {
+    display: grid;
+    gap: 10px;
+  }
+
+  .capabilityCompareTableHead {
+    display: none;
+  }
+
+  .capabilityCompareList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .capabilityCompareRow {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(0,0,0,0.16);
+    min-width: 0;
+  }
+
+  .capabilityCompareName {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.2;
+    font-weight: 850;
+    letter-spacing: -0.01em;
+  }
+
+  .capabilityCompareName::after {
+    content: attr(data-summary);
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(88,224,154,0.24);
+    background: rgba(88,224,154,0.10);
+    color: #dfffea;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+
+  .capabilitySides {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .capabilitySide {
+    padding: 11px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.035);
+    min-width: 0;
+  }
+
+  .capabilitySide.collective {
+    background:
+      linear-gradient(180deg, rgba(103,199,255,0.095), rgba(88,224,154,0.045)),
+      rgba(255,255,255,0.03);
+    border-color: rgba(103,199,255,0.18);
+  }
+
+  .capabilitySideHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 7px;
+  }
+
+  .capabilitySideLabel {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .capabilityPlainMetric {
+    margin: 0 0 7px;
+    color: var(--text);
+    font-size: clamp(22px, 2.4vw, 34px);
+    line-height: 0.98;
+    font-weight: 950;
+    letter-spacing: -0.055em;
+  }
+
+  .capabilitySide.collective .capabilityPlainMetric {
+    color: #dfffea;
+  }
+
+  .capabilitySideDetail {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .capabilitySideDetail strong {
+    color: var(--green);
+    font-weight: 850;
+  }
+
+  .capabilityLeapTag {
+    display: block;
+    margin-top: 9px;
+    padding: 8px 9px;
+    border-radius: 12px;
+    background: rgba(103,199,255,0.13);
+    border: 1px solid rgba(103,199,255,0.24);
+    color: #d9f3ff;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 750;
+  }
+
+  .capabilityLeapTag strong {
+    color: var(--text);
+    font-weight: 900;
+  }
+
+
+  @media (max-width: 760px) {
+    .controlsRows { min-width: 1220px; }
+    .viewGrid {
+      grid-template-columns: 1fr !important;
+      min-height: 720px;
+      height: auto;
+    }
+    .splitHandle { display: none; }
+    .heightHandle { display: none; }
+    .desireGrid { grid-template-columns: 1fr; }
+    .dialecticStack { grid-template-columns: 1fr; }
+    .breakdownGrid { grid-template-columns: 1fr; }
+    .capabilityCompareList { grid-template-columns: 1fr; }
+    .capabilitySides { grid-template-columns: 1fr; }
+    .dialecticBlock.tendencies { grid-column: auto; }
+    .desireItem { grid-template-columns: minmax(94px, 128px) 1fr 44px; }
+    .capabilityItem { grid-template-columns: 1fr; gap: 4px; }
+    .view { min-height: 360px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="panel controls" aria-label="controls">
+    <h2>Controls</h2>
+
+    <div class="controlsRows">
+      <div class="controlRow">
+        <div class="control segmented compact" aria-label="simulation actions">
+          <button id="pauseBtn" type="button">Pause</button>
+          <button id="resetBtn" type="button">Reset</button>
+        </div>
+
+        <div class="control rangeControl hasStepper birdCountControl">
+          <div class="row"><label for="birdCount">Birds</label><span class="value" id="birdCountValue">1</span></div>
+          <input id="birdCount" type="range" min="1" max="400" step="1" value="150" />
+          <div class="stepperButtons" aria-label="bird count fine control">
+            <button id="birdCountDown" type="button" title="Decrease bird count by 1">◀</button>
+            <button id="birdCountUp" type="button" title="Increase bird count by 1">▶</button>
+          </div>
+        </div>
+
+        <div class="control rangeControl">
+          <div class="row"><label for="selectedBird">Selected bird</label><span class="value" id="selectedBirdValue">1</span></div>
+          <input id="selectedBird" type="range" min="1" max="240" step="1" value="75" />
+        </div>
+
+        <div class="control rangeControl wide poleControl">
+          <div class="row"><label for="noise">Micro Dialectic</label><span class="value" id="noiseValue">0%</span></div>
+          <div class="poleLabels" aria-hidden="true"><span>Coordination</span><span>Autonomy</span></div>
+          <input id="noise" class="poleRange" type="range" min="0" max="100" step="1" value="28" />
+        </div>
+
+
+        <div class="control rangeControl wide poleControl">
+          <div class="row"><label for="constraint">Macro Dialectic</label><span class="value" id="constraintValue">0%</span></div>
+          <div class="poleLabels" aria-hidden="true"><span>Anarchy</span><span>Authority</span></div>
+          <input id="constraint" class="poleRange" type="range" min="0" max="100" step="1" value="76" />
+        </div>
+
+        
+
+        <div class="control checks" aria-label="display toggles">
+          <label><input id="showTrails" type="checkbox" checked /> Trails</label>
+          <label><input id="showMacro" type="checkbox" checked /> Macro overlay</label>
+          <label><input id="showMicro" type="checkbox" checked /> Micro constraints</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="error" id="webglError">WebGL is not available in this browser. The simulation needs WebGL to draw the birds.</div>
+  </section>
+
+  <section class="stageWrap">
+    <div class="viewGrid" id="viewGrid">
+      <div class="panel view" id="microViewPanel">
+        <canvas id="microCanvas"></canvas>
+        <div class="viewLabel">
+          <div class="viewTitle tightLabel"><strong>Micro view</strong></div>
+          <div class="legend"><span><i style="background: var(--blue)"></i>wants</span><span><i style="background: var(--red)"></i>constraints</span></div>
+        </div>
+      </div>
+
+      <div class="splitHandle" id="splitHandle" role="separator" aria-orientation="vertical" aria-label="Resize micro and macro views" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0" title="Drag to resize micro and macro views. Drag fully left or right to hide one view."></div>
+
+      <div class="panel view" id="macroViewPanel">
+        <canvas id="macroCanvas"></canvas>
+        <div class="viewLabel">
+          <div class="viewTitle tightLabel"><strong>Macro view</strong></div>
+          <div class="legend"><span><i style="background: var(--green)"></i>centroid path</span><span><i style="background: var(--blue)"></i>average flock density</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="heightHandle" id="heightHandle" role="separator" aria-orientation="horizontal" aria-label="Resize both view heights" aria-valuemin="360" aria-valuemax="1050" aria-valuenow="620" tabindex="0" title="Drag to resize both views vertically"></div>
+
+
+    <div class="desireGrid" aria-label="micro and macro wants and constraints analysis">
+      <section class="panel desirePanel collapsiblePanel" id="microReadingPanel" data-collapse-key="microReading">
+        <div class="desireHead">
+          <div>
+            <h2>Micro reading: selected bird</h2>
+            <p>Dynamic interpretation only. This dashboard reads the sim; it does not steer it.</p>
+          </div>
+          <div class="desireHeadActions">
+            <div class="desireBadge" id="microDesireBadge">Bird 1</div>
+            <button class="sectionCollapseToggle" type="button" aria-expanded="true" aria-label="Collapse Micro reading: selected bird" title="Collapse section"><span aria-hidden="true">▾</span></button>
+          </div>
+        </div>
+
+        <div class="dialecticStack">
+          <div class="dialecticBlock wants">
+            <div class="dialecticBlockTitle">Wants <span>positive pulls</span></div>
+            <div class="desireList" id="microWantList"></div>
+          </div>
+          <div class="dialecticBlock constraints">
+            <div class="dialecticBlockTitle">Constraints <span>material pressures</span></div>
+            <div class="desireList" id="microConstraintList"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <section class="panel desirePanel collapsiblePanel" id="macroReadingPanel" data-collapse-key="macroReading">
+        <div class="desireHead">
+          <div>
+            <h2>Macro reading: flock average</h2>
+            <p>The collective pattern reorganizes individual pulls into shared conditions.</p>
+          </div>
+          <div class="desireHeadActions">
+            <div class="desireBadge" id="macroDesireBadge">Flock average</div>
+            <button class="sectionCollapseToggle" type="button" aria-expanded="true" aria-label="Collapse Macro reading: flock average" title="Collapse section"><span aria-hidden="true">▾</span></button>
+          </div>
+        </div>
+
+        <div class="dialecticStack">
+          <div class="dialecticBlock wants">
+            <div class="dialecticBlockTitle">Shared wants <span>consolidated pulls</span></div>
+            <div class="desireList" id="macroWantList"></div>
+          </div>
+          <div class="dialecticBlock constraints">
+            <div class="dialecticBlockTitle">Shared constraints <span>common conditions</span></div>
+            <div class="desireList" id="macroConstraintList"></div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+
+    <section class="panel capabilityComparePanel collapsiblePanel" aria-label="individual and collective capability comparison" data-collapse-key="capabilityCompare">
+      <div class="desireHead">
+        <div>
+          <h2>Individual ↔ collective capabilities</h2>
+          <p>Plain comparison. The individual side stays fixed; only the flock side changes with collective size.</p>
+        </div>
+        <div class="desireHeadActions">
+          <div class="desireBadge" id="capabilityCompareBadge">Capabilities</div>
+          <button class="sectionCollapseToggle" type="button" aria-expanded="true" aria-label="Collapse Individual and collective capabilities" title="Collapse section"><span aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+
+      <div class="capabilityCompareTable">
+        <div class="capabilityCompareList" id="capabilityComparisonList"></div>
+      </div>
+    </section>
+
+    <section class="panel breakdownPanel collapsiblePanel" aria-label="micro to macro constraint breakdown" data-collapse-key="breakdown">
+      <div class="desireHead">
+        <div>
+          <h2>Micro → local → macro breakdown</h2>
+          <p>Selected bird constraints appear within local weather and route fields, which are shaped by parent conditions.</p>
+        </div>
+        <div class="desireHeadActions">
+          <div class="desireBadge" id="breakdownBadge">Breakdown</div>
+          <button class="sectionCollapseToggle" type="button" aria-expanded="true" aria-label="Collapse Micro to local to macro breakdown" title="Collapse section"><span aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+
+      <div class="breakdownGrid">
+        <div class="dialecticBlock microChildren">
+          <div class="dialecticBlockTitle">Micro child constraints <span>selected bird effects</span></div>
+          <div class="desireList" id="microBreakdownList"></div>
+        </div>
+        <div class="dialecticBlock localField">
+          <div class="dialecticBlockTitle">Local field <span>weather / terrain now</span></div>
+          <div class="desireList" id="localFieldList"></div>
+        </div>
+        <div class="dialecticBlock constraints">
+          <div class="dialecticBlockTitle">Macro parent pressures <span>climate / route regime</span></div>
+          <div class="desireList" id="macroParentList"></div>
+        </div>
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const els = {
+    birdCount: document.getElementById('birdCount'),
+    birdCountDown: document.getElementById('birdCountDown'),
+    birdCountUp: document.getElementById('birdCountUp'),
+    birdCountValue: document.getElementById('birdCountValue'),
+    constraint: document.getElementById('constraint'),
+    constraintValue: document.getElementById('constraintValue'),
+    noise: document.getElementById('noise'),
+    noiseValue: document.getElementById('noiseValue'),
+    selectedBird: document.getElementById('selectedBird'),
+    selectedBirdValue: document.getElementById('selectedBirdValue'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    showTrails: document.getElementById('showTrails'),
+    showMacro: document.getElementById('showMacro'),
+    showMicro: document.getElementById('showMicro'),
+    webglError: document.getElementById('webglError'),
+    microDesireBadge: document.getElementById('microDesireBadge'),
+    macroDesireBadge: document.getElementById('macroDesireBadge'),
+    microViewPanel: document.getElementById('microViewPanel'),
+    macroViewPanel: document.getElementById('macroViewPanel'),
+    microReadingPanel: document.getElementById('microReadingPanel'),
+    macroReadingPanel: document.getElementById('macroReadingPanel'),
+    viewGrid: document.getElementById('viewGrid'),
+    desireGrid: document.querySelector('.desireGrid'),
+    splitHandle: document.getElementById('splitHandle'),
+    heightHandle: document.getElementById('heightHandle'),
+    microWantList: document.getElementById('microWantList'),
+    microConstraintList: document.getElementById('microConstraintList'),
+    microCapabilityList: document.getElementById('microCapabilityList'),
+    macroWantList: document.getElementById('macroWantList'),
+    macroConstraintList: document.getElementById('macroConstraintList'),
+    macroCapabilityList: document.getElementById('macroCapabilityList'),
+    capabilityCompareBadge: document.getElementById('capabilityCompareBadge'),
+    capabilityComparisonList: document.getElementById('capabilityComparisonList'),
+    qualitativeLeapList: document.getElementById('qualitativeLeapList'),
+    breakdownBadge: document.getElementById('breakdownBadge'),
+    macroParentList: document.getElementById('macroParentList'),
+    localFieldList: document.getElementById('localFieldList'),
+    microBreakdownList: document.getElementById('microBreakdownList'),
+    microDesireSummary: document.getElementById('microDesireSummary'),
+    macroDesireSummary: document.getElementById('macroDesireSummary'),
+  };
+
+  const STORAGE_KEY = 'emergenceWebglFlockSettings.v1';
+  const restoredSettings = restoreSettings();
+
+  const microRenderer = new Renderer(document.getElementById('microCanvas'));
+  const macroRenderer = new Renderer(document.getElementById('macroCanvas'));
+
+  if (!microRenderer.ok || !macroRenderer.ok) {
+    els.webglError.style.display = 'block';
+    return;
+  }
+
+  const TAU = Math.PI * 2;
+
+  const WANT_DEFS = [
+    { key: 'continuedFlight', label: 'continued flight' },
+    { key: 'warmth', label: 'warmth' },
+    { key: 'safeFlight', label: 'safe flight' },
+    { key: 'stableAir', label: 'stable air' },
+    { key: 'energyConservation', label: 'energy conservation' },
+    { key: 'food', label: 'food' },
+    { key: 'rest', label: 'rest' },
+    { key: 'visibility', label: 'visibility' },
+    { key: 'orientation', label: 'orientation' },
+    { key: 'flockCohesion', label: 'flock cohesion' },
+    { key: 'migrationProgress', label: 'migration progress' },
+    { key: 'reproduction', label: 'reproduction' },
+    { key: 'protectionYoung', label: 'protection of young' },
+    { key: 'exploration', label: 'exploration' }
+  ];
+
+  const CONSTRAINT_DEFS = [
+    { key: 'cold', label: 'cold' },
+    { key: 'badWeather', label: 'bad weather' },
+    { key: 'turbulence', label: 'turbulence' },
+    { key: 'exhaustion', label: 'exhaustion' },
+    { key: 'hunger', label: 'hunger' },
+    { key: 'poorVisibility', label: 'poor visibility' },
+    { key: 'routeUncertainty', label: 'route uncertainty' },
+    { key: 'isolation', label: 'isolation' },
+    { key: 'crowding', label: 'crowding' },
+    { key: 'windResistance', label: 'wind resistance' },
+    { key: 'offspringVulnerability', label: 'offspring vulnerability' },
+    { key: 'distanceRemaining', label: 'distance remaining' }
+  ];
+
+  const TENDENCY_DEFS = [
+    { key: 'southwardMovement', label: 'southward movement' },
+    { key: 'northwardDrift', label: 'northward drift' },
+    { key: 'eastwardDrift', label: 'eastward drift' },
+    { key: 'westwardDrift', label: 'westward drift' },
+    { key: 'followRoute', label: 'follow route' },
+    { key: 'tightenFlock', label: 'tighten flock' },
+    { key: 'spreadOut', label: 'spread out' },
+    { key: 'formV', label: 'form V' },
+    { key: 'draftBehindFlock', label: 'draft behind flock' },
+    { key: 'keepFlying', label: 'keep flying' },
+    { key: 'landAndRest', label: 'land and rest' },
+    { key: 'forage', label: 'forage' },
+    { key: 'detourWeather', label: 'detour weather' },
+    { key: 'explore', label: 'explore' },
+    { key: 'returnKnownPlace', label: 'return known place' }
+  ];
+
+  const MACRO_PARENT_DEFS = [
+    { key: 'seasonalClimatePath', label: 'climate path' },
+    { key: 'stormRegime', label: 'storm regime' },
+    { key: 'windCorridorShift', label: 'wind corridor shift' },
+    { key: 'foodScarcity', label: 'food scarcity' },
+    { key: 'safeLandingScarcity', label: 'safe landing scarcity' },
+    { key: 'flockDensity', label: 'flock density' },
+    { key: 'routeInstability', label: 'route instability' },
+    { key: 'collectiveOrder', label: 'collective order' }
+  ];
+
+  const PROFILE_DISPLAY_UPDATE_MS = 2000;
+
+  const LOCAL_FIELD_DEFS = [
+    { key: 'temperatureStress', label: 'temperature stress' },
+    { key: 'stormRisk', label: 'storm risk' },
+    { key: 'gustTurbulence', label: 'gust turbulence' },
+    { key: 'visibilityLoss', label: 'visibility loss' },
+    { key: 'windShear', label: 'wind shear' },
+    { key: 'foodPatchiness', label: 'food patchiness' },
+    { key: 'landingPressure', label: 'landing pressure' },
+    { key: 'routeSignalLoss', label: 'route signal loss' },
+    { key: 'neighborCompression', label: 'neighbor compression' }
+  ];
+
+
+  function sliderToBirdCount(rawValue) {
+    return clamp(Math.round(Number(rawValue) || 1), 1, 400);
+  }
+
+  function birdCountToSlider(countValue) {
+    return clamp(Math.round(Number(countValue) || 1), 1, 400);
+  }
+
+  function getBirdCountFromSlider() {
+    return sliderToBirdCount(els.birdCount.value);
+  }
+
+  function setBirdCountSlider(countValue) {
+    els.birdCount.value = String(birdCountToSlider(countValue));
+  }
+
+  function restoreSettings() {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    } catch (err) {
+      saved = null;
+    }
+    if (!saved || typeof saved !== 'object') return {};
+    restoreBirdCount(saved.birdCount);
+    restoreRange(els.constraint, saved.constraint);
+    restoreRange(els.noise, saved.noise);
+    restoreRange(els.selectedBird, saved.selectedBird);
+    restoreCheckbox(els.showTrails, saved.showTrails);
+    restoreCheckbox(els.showMacro, saved.showMacro);
+    restoreCheckbox(els.showMicro, saved.showMicro);
+    return saved;
+  }
+
+  function restoreBirdCount(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    setBirdCountSlider(n);
+  }
+
+  function restoreRange(input, value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    const min = Number(input.min);
+    const max = Number(input.max);
+    input.value = String(clamp(Math.round(n), min, max));
+  }
+
+  function restoreCheckbox(input, value) {
+    if (typeof value === 'boolean') input.checked = value;
+  }
+
+  function saveSettings() {
+    const settings = {
+      birdCount: getBirdCountFromSlider(),
+      constraint: parseInt(els.constraint.value, 10),
+      noise: parseInt(els.noise.value, 10),
+      microViewHeight: Math.round(state.microViewHeight),
+      macroViewZoom: Number(state.macroViewZoom.toFixed(3)),
+      viewSplit: Math.round(state.viewSplit),
+      viewHeight: Math.round(state.viewHeight || currentViewGridHeight()),
+      selectedBird: parseInt(els.selectedBird.value, 10),
+      showTrails: els.showTrails.checked,
+      showMacro: els.showMacro.checked,
+      showMicro: els.showMicro.checked,
+      collapsedPanels: getCollapsedPanelSettings()
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (err) {
+      // Some privacy modes block localStorage. The demo keeps running normally.
+    }
+  }
+
+  const state = {
+    birds: [],
+    lastForces: [],
+    targetCount: getBirdCountFromSlider(),
+    microViewHeight: savedNumber(restoredSettings.microViewHeight ?? restoredSettings.zoom, 170, 40, 900),
+    macroViewZoom: savedNumber(restoredSettings.macroViewZoom, 1, 0.35, 5),
+    viewSplit: savedNumber(restoredSettings.viewSplit, 50, 0, 100),
+    viewHeight: savedNumber(restoredSettings.viewHeight, 0, 0, 1200),
+    paused: false,
+    lastTime: performance.now(),
+    leaderAngle: -0.05,
+    leaderSpeed: 58,
+    t: 0,
+    centroidTrail: [],
+    selectedTrail: [],
+    leaderTrail: [],
+    metrics: {
+      cx: 0,
+      cy: 0,
+      alignment: 0,
+      vScore: 0,
+      spread: 0,
+      headingX: 1,
+      headingY: 0,
+      macroUse: 0,
+      microUse: 0,
+      effectiveDof: 0
+    },
+    optionCone: {
+      selected: -1,
+      angle: 0,
+      halfAngle: Math.PI,
+      initialized: false
+    },
+    optionNavigator: {
+      selected: -1,
+      angle: 0,
+      initialized: false
+    },
+    profileDisplay: {
+      lastUpdate: 0,
+      signature: ''
+    },
+    collectiveVShape: {
+      initialized: false,
+      count: 0,
+      apexX: 0,
+      apexY: 0,
+      headingX: 1,
+      headingY: 0,
+      back: 120,
+      leftSide: 80,
+      rightSide: 80,
+      leftBack: 120,
+      rightBack: 120,
+      bandWidth: 22,
+      fuzzWidth: 60,
+      strength: 0.7,
+      leftSpine: [],
+      rightSpine: [],
+      anchorFrontIndex: null,
+      anchorLeftIndex: null,
+      anchorRightIndex: null
+    }
+  };
+
+  function rand(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
+
+  function macroDialecticValue() {
+    const raw = clamp(parseInt(els.constraint.value, 10) || 0, 0, 100) / 100;
+    return 0.01 + raw * 0.99;
+  }
+
+  function microDialecticValue() {
+    return clamp(parseInt(els.noise.value, 10) || 0, 0, 100) / 100;
+  }
+
+  function motionMicroInput(micro) {
+    // Treat 100% autonomy as the old 85% motion level, keeping the same curve but slightly toned down.
+    return clamp(micro * 0.85, 0, 1);
+  }
+
+  function movementMicroValue(micro, macro) {
+    const motionMicro = motionMicroInput(micro);
+    const highCentralization = smoothstep(0.82, 1.0, macro);
+    const highAutonomyBreakout = smoothstep(0.58, 1.0, motionMicro);
+    const calmSuppression = highCentralization * (1 - highAutonomyBreakout);
+    return clamp(motionMicro * 1.28 * (1 - calmSuppression), 0, 1);
+  }
+
+  function maxAutonomyExcursionValue(micro) {
+    // Extra travel only arrives near the far-right end of the Micro Dialectic slider.
+    // This keeps the halfway behavior and the maximum-coordination behavior essentially unchanged.
+    return smoothstep(0.74, 1.0, clamp(micro, 0, 1));
+  }
+
+  function savedNumber(value, fallback, min, max) {
+    const n = Number(value);
+    return Number.isFinite(n) ? clamp(n, min, max) : fallback;
+  }
+
+  function length(x, y) {
+    return Math.sqrt(x * x + y * y) || 0.000001;
+  }
+
+  function normalize(x, y) {
+    const l = length(x, y);
+    return [x / l, y / l];
+  }
+
+  function smoothstep(edge0, edge1, x) {
+    const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function smallFlockOverlayScale(count) {
+    if (count <= 10) return 0.30;
+    if (count <= 20) return 0.60;
+    return 1.00;
+  }
+
+  function makeBird(i) {
+    const [fx, fy] = [Math.cos(state.leaderAngle), Math.sin(state.leaderAngle)];
+    const px = -fy;
+    const py = fx;
+    const slot = formationSlot(i);
+    const baseX = slot.back * -fx + slot.sideOffset * px;
+    const baseY = slot.back * -fy + slot.sideOffset * py;
+    return {
+      x: baseX + rand(-50, 50),
+      y: baseY + rand(-50, 50),
+      vx: fx * state.leaderSpeed + rand(-14, 14),
+      vy: fy * state.leaderSpeed + rand(-14, 14),
+      seed: Math.random() * 1000,
+      radius: rand(5.4, 7.2)
+    };
+  }
+
+  function midpointSelectedBird(count) {
+    return Math.max(1, Math.round(Math.max(1, count) / 2));
+  }
+
+  function setSelectedBirdToMidpoint(count) {
+    els.selectedBird.value = String(midpointSelectedBird(count));
+  }
+
+  function setCount(n, keepSelectedBird) {
+    n = clamp(Math.round(n), 1, 400);
+    state.targetCount = n;
+    while (state.birds.length < n) state.birds.push(makeBird(state.birds.length));
+    while (state.birds.length > n) state.birds.pop();
+    els.selectedBird.max = String(n);
+    if (keepSelectedBird) {
+      els.selectedBird.value = String(clamp(parseInt(els.selectedBird.value, 10) || 1, 1, n));
+    } else {
+      setSelectedBirdToMidpoint(n);
+    }
+    updateLabels();
+  }
+
+  function resetSimulation() {
+    state.birds = [];
+    state.t = 0;
+    state.leaderAngle = rand(-0.35, 0.35);
+    state.centroidTrail = [];
+    state.selectedTrail = [];
+    state.leaderTrail = [];
+    state.collectiveVShape.initialized = false;
+    setCount(getBirdCountFromSlider());
+  }
+
+  function formationSlot(i) {
+    if (i === 0) return { back: 0, sideOffset: 0, side: 0, row: 0, wingErrorScale: 1 };
+
+    const k = i - 1;
+    let row = Math.floor(Math.sqrt(k + 1));
+    if (row < 1) row = 1;
+    const rowStart = row * row - 1;
+    const within = Math.max(0, k - rowStart);
+    const capacity = row * 2 + 1;
+    const local = within % capacity;
+    const side = local % 2 === 0 ? -1 : 1;
+    const thicknessRank = Math.floor(local / 2);
+    const armSpacing = 16;
+    const back = row * armSpacing * 1.42 + thicknessRank * 3.6;
+    const sideOffset = side * (row * armSpacing * 0.76 + thicknessRank * 4.8);
+    return { back, sideOffset, side, row, wingErrorScale: 1 + row * 0.014 };
+  }
+
+  function formationTarget(i, leader, fwdX, fwdY) {
+    const slot = formationSlot(i);
+    const perpX = -fwdY;
+    const perpY = fwdX;
+    return {
+      x: leader.x - fwdX * slot.back + perpX * slot.sideOffset,
+      y: leader.y - fwdY * slot.back + perpY * slot.sideOffset,
+      slot
+    };
+  }
+
+  function buildGrid(cellSize) {
+    const map = new Map();
+    const birds = state.birds;
+    for (let i = 0; i < birds.length; i++) {
+      const b = birds[i];
+      const gx = Math.floor(b.x / cellSize);
+      const gy = Math.floor(b.y / cellSize);
+      const key = gx + ',' + gy;
+      let bucket = map.get(key);
+      if (!bucket) {
+        bucket = [];
+        map.set(key, bucket);
+      }
+      bucket.push(i);
+    }
+    return map;
+  }
+
+  function step(dt) {
+    const birds = state.birds;
+    if (!birds.length) return;
+
+    const constraint = macroDialecticValue();
+    const noise = microDialecticValue();
+    const motionMicro = motionMicroInput(noise);
+    const movementNoise = movementMicroValue(noise, constraint);
+    const maxAutonomyExcursion = maxAutonomyExcursionValue(noise);
+    const highCentralizationBreakout = smoothstep(0.82, 1.0, constraint) * smoothstep(0.58, 1.0, motionMicro);
+    const leader = birds[0];
+    state.t += dt;
+
+    const desiredBase = -0.12 + Math.sin(state.t * 0.23) * 0.35 + Math.sin(state.t * 0.071) * 0.55;
+    let turn = angleDelta(state.leaderAngle, desiredBase) * 0.42;
+    turn += (Math.sin(state.t * 1.7 + 3.1) + Math.sin(state.t * 0.91)) * 0.034;
+    state.leaderAngle += turn * dt;
+
+    const leaderSpeed = state.leaderSpeed + Math.sin(state.t * 0.37) * 8;
+    leader.vx += (Math.cos(state.leaderAngle) * leaderSpeed - leader.vx) * 0.9 * dt;
+    leader.vy += (Math.sin(state.leaderAngle) * leaderSpeed - leader.vy) * 0.9 * dt;
+    const leaderMicroNoise = movementNoise * (1 - highCentralizationBreakout * 0.82);
+    leader.vx += (Math.random() - 0.5) * leaderMicroNoise * 18 * dt;
+    leader.vy += (Math.random() - 0.5) * leaderMicroNoise * 18 * dt;
+
+    const [fwdX, fwdY] = normalize(leader.vx, leader.vy);
+    const grid = buildGrid(28);
+    const acc = new Array(birds.length);
+    state.lastForces = new Array(birds.length);
+
+    for (let i = 0; i < birds.length; i++) {
+      const b = birds[i];
+      let ax = 0;
+      let ay = 0;
+      let formationX = 0;
+      let formationY = 0;
+      let alignmentX = 0;
+      let alignmentY = 0;
+      let wanderX = 0;
+      let wanderY = 0;
+      let separationX = 0;
+      let separationY = 0;
+      let jitterX = 0;
+      let jitterY = 0;
+
+      if (i > 0) {
+        const target = formationTarget(i, leader, fwdX, fwdY);
+        const dx = target.x - b.x;
+        const dy = target.y - b.y;
+        const autonomyReturnSlack = 1 - maxAutonomyExcursion * (0.18 + constraint * 0.06);
+        formationX = dx * (0.78 + constraint * 2.6) * constraint * autonomyReturnSlack;
+        formationY = dy * (0.78 + constraint * 2.6) * constraint * autonomyReturnSlack;
+        alignmentX = (leader.vx - b.vx) * (0.35 + constraint * 1.1) * constraint * autonomyReturnSlack;
+        alignmentY = (leader.vy - b.vy) * (0.35 + constraint * 1.1) * constraint * autonomyReturnSlack;
+        ax += formationX + alignmentX;
+        ay += formationY + alignmentY;
+      }
+
+      const looseness = Math.max(1 - constraint, highCentralizationBreakout * 0.18);
+      if (looseness > 0.001 && movementNoise > 0.001) {
+        const wander = looseness * (28 + movementNoise * (112 + maxAutonomyExcursion * 92));
+        const excursion = looseness * maxAutonomyExcursion * (72 + movementNoise * 118);
+        const angle = b.seed + state.t * (0.6 + (b.seed % 1.7));
+        const excursionAngle = b.seed * 1.733 + state.t * (0.20 + stableUnit(b.seed, 73) * 0.36);
+        wanderX = Math.cos(angle) * wander + Math.cos(excursionAngle) * excursion;
+        wanderY = Math.sin(angle * 1.17) * wander + Math.sin(excursionAngle * 1.09) * excursion;
+        ax += wanderX;
+        ay += wanderY;
+      }
+
+      const sep = separationForce(i, grid, 28);
+      separationX = sep.x * (52 + 92 * constraint);
+      separationY = sep.y * (52 + 92 * constraint);
+      ax += separationX;
+      ay += separationY;
+
+      const independentJitterGain = movementNoise * (1 + highCentralizationBreakout * 1.45 + maxAutonomyExcursion * 0.34);
+      const twitchA = b.seed * 9.173 + state.t * (8.4 + stableUnit(b.seed, 61) * 5.8);
+      const twitchB = b.seed * 4.811 + state.t * (13.0 + stableUnit(b.seed, 67) * 8.2);
+      const twitchX = Math.cos(twitchA) * 0.58 + Math.sin(twitchB) * 0.42;
+      const twitchY = Math.sin(twitchA * 1.19) * 0.58 + Math.cos(twitchB * 0.83) * 0.42;
+      const randomX = (Math.random() - 0.5) * 0.34;
+      const randomY = (Math.random() - 0.5) * 0.34;
+      const jitterScale = (58 - constraint * 18) * (1 + maxAutonomyExcursion * 0.18);
+      jitterX = (twitchX + randomX) * independentJitterGain * jitterScale;
+      jitterY = (twitchY + randomY) * independentJitterGain * jitterScale;
+      ax += jitterX;
+      ay += jitterY;
+
+      const relationX = formationX + alignmentX + separationX;
+      const relationY = formationY + alignmentY + separationY;
+      state.lastForces[i] = {
+        formationX, formationY,
+        alignmentX, alignmentY,
+        separationX, separationY,
+        wanderX, wanderY,
+        jitterX, jitterY,
+        relationX, relationY,
+        freeX: wanderX + jitterX,
+        freeY: wanderY + jitterY,
+        totalX: ax,
+        totalY: ay,
+        constraint,
+        noise,
+        movementNoise
+      };
+
+      acc[i] = { x: ax, y: ay };
+    }
+
+    for (let i = 0; i < birds.length; i++) {
+      const b = birds[i];
+      const a = acc[i];
+      b.vx += a.x * dt;
+      b.vy += a.y * dt;
+      const sp = length(b.vx, b.vy);
+      const minSpeed = 31;
+      const maxSpeed = i === 0 ? 86 : 94 + constraint * 20 + maxAutonomyExcursion * (14 + (1 - constraint) * 10);
+      const limited = clamp(sp, minSpeed, maxSpeed);
+      b.vx = b.vx / sp * limited;
+      b.vy = b.vy / sp * limited;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+    }
+
+    updateMetrics();
+    pushTrails();
+  }
+
+  function angleDelta(a, b) {
+    let d = b - a;
+    while (d > Math.PI) d -= TAU;
+    while (d < -Math.PI) d += TAU;
+    return d;
+  }
+
+  function separationForce(i, grid, cellSize) {
+    const birds = state.birds;
+    const b = birds[i];
+    const gx = Math.floor(b.x / cellSize);
+    const gy = Math.floor(b.y / cellSize);
+    let sx = 0;
+    let sy = 0;
+    let seen = 0;
+
+    for (let yy = -1; yy <= 1; yy++) {
+      for (let xx = -1; xx <= 1; xx++) {
+        const bucket = grid.get((gx + xx) + ',' + (gy + yy));
+        if (!bucket) continue;
+        for (let j = 0; j < bucket.length; j++) {
+          const otherIndex = bucket[j];
+          if (otherIndex === i) continue;
+          const o = birds[otherIndex];
+          const dx = b.x - o.x;
+          const dy = b.y - o.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > 0.01 && d2 < 360) {
+            const d = Math.sqrt(d2);
+            const push = (1 - d / 19);
+            sx += dx / d * push;
+            sy += dy / d * push;
+            seen++;
+            if (seen > 16) break;
+          }
+        }
+        if (seen > 16) break;
+      }
+      if (seen > 16) break;
+    }
+    return { x: sx, y: sy };
+  }
+
+  function updateMetrics() {
+    const birds = state.birds;
+    const n = birds.length;
+    let cx = 0;
+    let cy = 0;
+    let mvx = 0;
+    let mvy = 0;
+    let meanSpeed = 0;
+
+    for (let i = 0; i < n; i++) {
+      const b = birds[i];
+      cx += b.x;
+      cy += b.y;
+      const sp = length(b.vx, b.vy);
+      mvx += b.vx / sp;
+      mvy += b.vy / sp;
+      meanSpeed += sp;
+    }
+
+    cx /= n;
+    cy /= n;
+    meanSpeed /= n;
+    const alignment = clamp(length(mvx / n, mvy / n), 0, 1);
+    const heading = length(mvx, mvy) > 0.0001 ? normalize(mvx, mvy) : normalize(birds[0].vx, birds[0].vy);
+    const perpX = -heading[1];
+    const perpY = heading[0];
+    let spread = 0;
+    let sample = 0;
+    const projections = [];
+    const stride = Math.max(1, Math.floor(n / 1200));
+
+    for (let i = 0; i < n; i += stride) {
+      const b = birds[i];
+      const rx = b.x - cx;
+      const ry = b.y - cy;
+      spread += length(rx, ry);
+      projections.push({
+        along: rx * heading[0] + ry * heading[1],
+        side: rx * perpX + ry * perpY
+      });
+      sample++;
+    }
+
+    spread /= Math.max(1, sample);
+    const vScore = estimateCollectiveVScore(projections);
+    const countFactor = smoothstep(6, 80, n);
+    const macroUse = clamp((alignment * 0.40 + vScore * 0.60) * countFactor, 0, 1);
+    const microUse = clamp((1 - smoothstep(25, 900, n)) * 0.72 + (1 - macroDialecticValue()) * 0.28, 0, 1);
+    const rawDof = n * 4;
+    const reduction = n > 1 ? (macroDialecticValue()) * vScore * smoothstep(5, 90, n) * 0.72 : 0;
+    const effectiveDof = Math.round(rawDof * (1 - reduction));
+
+    state.metrics = {
+      cx,
+      cy,
+      alignment,
+      vScore,
+      spread,
+      headingX: heading[0],
+      headingY: heading[1],
+      macroUse,
+      microUse,
+      effectiveDof,
+      rawDof
+    };
+  }
+
+  function estimateCollectiveVScore(projections) {
+    if (!projections || projections.length < 4) return 0;
+
+    const alongs = projections.map(function (p) { return p.along; }).sort(function (a, b) { return a - b; });
+    const frontAlong = percentileSorted(alongs, 0.90);
+    const usable = [];
+    let leftCount = 0;
+    let rightCount = 0;
+
+    for (let i = 0; i < projections.length; i++) {
+      const p = projections[i];
+      const back = frontAlong - p.along;
+      if (back < -6) continue;
+      if (p.side >= 0) leftCount++;
+      else rightCount++;
+      usable.push({
+        back: Math.max(0, back),
+        sideAbs: Math.abs(p.side)
+      });
+    }
+
+    if (usable.length < 4) return 0;
+
+    const ratios = [];
+    for (let i = 0; i < usable.length; i++) {
+      const p = usable[i];
+      if (p.back > 8) ratios.push(clamp(p.sideAbs / p.back, 0.12, 0.95));
+    }
+
+    if (ratios.length < 3) return 0;
+    ratios.sort(function (a, b) { return a - b; });
+    const slope = percentileSorted(ratios, 0.50);
+    let err = 0;
+    let samples = 0;
+
+    for (let i = 0; i < usable.length; i++) {
+      const p = usable[i];
+      if (p.back < 4) continue;
+      const expectedSide = slope * p.back;
+      const dist = Math.abs(p.sideAbs - expectedSide);
+      err += dist / (20 + p.back * 0.08);
+      samples++;
+    }
+
+    const averageErr = err / Math.max(1, samples);
+    const wingBalance = Math.min(leftCount, rightCount) / Math.max(1, Math.max(leftCount, rightCount));
+    return clamp(Math.exp(-averageErr * 0.62) * smoothstep(0.12, 0.46, wingBalance), 0, 1);
+  }
+
+  function pushTrails() {
+    const n = state.birds.length;
+    const selected = clamp(parseInt(els.selectedBird.value, 10) - 1, 0, n - 1);
+    const b = state.birds[selected];
+    state.centroidTrail.push({ x: state.metrics.cx, y: state.metrics.cy });
+    state.selectedTrail.push({ x: b.x, y: b.y });
+    state.leaderTrail.push({ x: state.birds[0].x, y: state.birds[0].y });
+    limitTrail(state.centroidTrail, 160);
+    limitTrail(state.selectedTrail, 140);
+    limitTrail(state.leaderTrail, 160);
+  }
+
+  function limitTrail(arr, max) {
+    while (arr.length > max) arr.shift();
+  }
+
+  function updateLabels() {
+    const n = getBirdCountFromSlider();
+    const selected = clamp(parseInt(els.selectedBird.value, 10), 1, Math.max(1, state.birds.length));
+    els.birdCountValue.textContent = n.toLocaleString();
+    els.constraintValue.textContent = els.constraint.value + '%';
+    els.noiseValue.textContent = els.noise.value + '%';
+    els.selectedBirdValue.textContent = selected.toLocaleString();
+  }
+
+
+
+  function getCollapsedPanelSettings() {
+    const out = {};
+    const panels = document.querySelectorAll('.collapsiblePanel');
+    for (let i = 0; i < panels.length; i++) {
+      const panel = panels[i];
+      const key = panel.getAttribute('data-collapse-key') || panel.id || String(i);
+      out[key] = panel.classList.contains('isCollapsed');
+    }
+    return out;
+  }
+
+  function updateCollapseButton(panel, button) {
+    if (!panel || !button) return;
+    const title = panel.querySelector('h2');
+    const label = title ? title.textContent.trim() : 'section';
+    const collapsed = panel.classList.contains('isCollapsed');
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.setAttribute('aria-label', (collapsed ? 'Expand ' : 'Collapse ') + label);
+    button.title = collapsed ? 'Expand section' : 'Collapse section';
+  }
+
+  function setupCollapsiblePanels() {
+    const saved = restoredSettings && typeof restoredSettings.collapsedPanels === 'object'
+      ? restoredSettings.collapsedPanels
+      : {};
+    const panels = document.querySelectorAll('.collapsiblePanel');
+    for (let i = 0; i < panels.length; i++) {
+      const panel = panels[i];
+      const key = panel.getAttribute('data-collapse-key') || panel.id || String(i);
+      const button = panel.querySelector('.sectionCollapseToggle');
+      if (!button) continue;
+      if (saved[key] === true) panel.classList.add('isCollapsed');
+      updateCollapseButton(panel, button);
+      button.addEventListener('click', function () {
+        panel.classList.toggle('isCollapsed');
+        updateCollapseButton(panel, button);
+        saveSettings();
+      });
+    }
+  }
+
+
+
+  function stableUnit(seed, salt) {
+    const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  function desireWave(seed, salt, speed, phaseBoost) {
+    return 0.5 + 0.5 * Math.sin(state.t * speed + seed * (0.021 + salt * 0.0017) + phaseBoost);
+  }
+
+  function normalizeProfileMap(map, defs) {
+    // Convert raw pressures into one shared 100% distribution for a single category.
+    // The largest-remainder method keeps each displayed group adding to exactly 100.
+    const raw = [];
+    let total = 0;
+
+    for (let i = 0; i < defs.length; i++) {
+      const key = defs[i].key;
+      const value = Math.max(0, Number(map[key]) || 0);
+      raw.push({ key, value });
+      total += value;
+    }
+
+    if (total <= 0.000001) {
+      const out = {};
+      const base = Math.floor(100 / defs.length);
+      let remainder = 100 - base * defs.length;
+      for (let i = 0; i < defs.length; i++) {
+        const key = defs[i].key;
+        out[key] = base + (remainder > 0 ? 1 : 0);
+        remainder--;
+      }
+      return out;
+    }
+
+    const parts = raw.map(function (item) {
+      const exact = item.value / total * 100;
+      const floorValue = Math.floor(exact);
+      return {
+        key: item.key,
+        exact,
+        value: floorValue,
+        remainder: exact - floorValue
+      };
+    });
+
+    let used = 0;
+    for (let i = 0; i < parts.length; i++) used += parts[i].value;
+    let remaining = 100 - used;
+
+    parts.sort(function (a, b) {
+      if (b.remainder !== a.remainder) return b.remainder - a.remainder;
+      return defIndex(defs, a.key) - defIndex(defs, b.key);
+    });
+
+    for (let i = 0; i < parts.length && remaining > 0; i++, remaining--) {
+      parts[i].value += 1;
+    }
+
+    const out = {};
+    for (let i = 0; i < defs.length; i++) out[defs[i].key] = 0;
+    for (let i = 0; i < parts.length; i++) out[parts[i].key] = parts[i].value;
+    return out;
+  }
+
+  function defIndex(defs, key) {
+    for (let i = 0; i < defs.length; i++) {
+      if (defs[i].key === key) return i;
+    }
+    return defs.length;
+  }
+
+  function profileValue(profile, key) {
+    return Math.max(0, Number(profile[key]) || 0);
+  }
+
+  function flockCohesionTargetPercent() {
+    const countFactor = clamp((Math.max(1, state.birds.length) - 1) / 99, 0, 1);
+    const dialecticTarget = 15 - microDialecticValue() * 10;
+    return countFactor * dialecticTarget;
+  }
+
+  function forceProfileValue(profile, defs, forcedKey, forcedValue) {
+    const target = clamp(Number(forcedValue) || 0, 0, 100);
+    const remainingTarget = 100 - target;
+    let remainingCurrent = 0;
+
+    for (let i = 0; i < defs.length; i++) {
+      const key = defs[i].key;
+      if (key !== forcedKey) remainingCurrent += Math.max(0, Number(profile[key]) || 0);
+    }
+
+    const out = {};
+    for (let i = 0; i < defs.length; i++) {
+      const key = defs[i].key;
+      if (key === forcedKey) {
+        out[key] = Math.round(target);
+      } else if (remainingCurrent > 0.000001) {
+        out[key] = Math.max(0, Number(profile[key]) || 0) / remainingCurrent * remainingTarget;
+      } else {
+        out[key] = remainingTarget / Math.max(1, defs.length - 1);
+      }
+    }
+
+    return normalizeProfileMap(out, defs);
+  }
+
+  function applyFlockCohesionRule(wants) {
+    return forceProfileValue(wants, WANT_DEFS, 'flockCohesion', flockCohesionTargetPercent());
+  }
+
+  function birdSituation(i) {
+    const birds = state.birds;
+    const b = birds[i] || birds[0];
+    const n = Math.max(1, birds.length);
+    const forces = state.lastForces[i] || zeroForces();
+    const constraint = macroDialecticValue();
+    const noise = microDialecticValue();
+    const speed = length(b.vx, b.vy);
+    const normalizedVelocity = normalize(b.vx, b.vy);
+    const vx = normalizedVelocity[0];
+    const vy = normalizedVelocity[1];
+    const m = state.metrics;
+    const relationMag = length(forces.relationX || 0, forces.relationY || 0);
+    const relationPressure = relationPressureFromMagnitude(relationMag);
+    const separationPressure = relationPressureFromMagnitude(length(forces.separationX || 0, forces.separationY || 0));
+    const freePressure = relationPressureFromMagnitude(length(forces.freeX || 0, forces.freeY || 0));
+    const seasonPressure = clamp(0.72 + Math.sin(state.t * 0.13) * 0.08 + smoothstep(8, 70, n) * 0.12, 0, 1);
+    const personal = stableUnit(b.seed, 3);
+    const appetitePressure = stableUnit(b.seed, 7) * 38 + desireWave(b.seed, 2, 0.43, i * 0.13) * 42;
+    const matingPressure = stableUnit(b.seed, 11) * 38 + desireWave(b.seed, 5, 0.29, i * 0.09) * 42;
+    const groupPull = constraint * m.alignment * smoothstep(3, 35, n);
+    const solitaryPull = (1 - constraint) * (0.55 + personal * 0.45);
+    const distanceFromCentroid = length(b.x - m.cx, b.y - m.cy);
+    const spread = Math.max(24, m.spread || 24);
+    const isolation = n <= 1 ? 0.22 : smoothstep(spread * 0.42, spread * 1.55, distanceFromCentroid);
+    const flockDot = clamp(vx * m.headingX + vy * m.headingY, -1, 1);
+    const routeConflict = (1 - flockDot) * 0.5;
+    const south = Math.max(0, vy);
+    const north = Math.max(0, -vy);
+    const east = Math.max(0, vx);
+    const west = Math.max(0, -vx);
+    const speedPressure = smoothstep(44, 100, speed);
+    const slowPressure = smoothstep(58, 32, speed);
+    const vForm = clamp((m.vScore || 0) * smoothstep(5, 60, n), 0, 1);
+    const alignment = clamp(m.alignment || 0, 0, 1);
+    const macroUse = clamp(m.macroUse || 0, 0, 1);
+
+    return {
+      b,
+      n,
+      forces,
+      constraint,
+      noise,
+      speed,
+      vx,
+      vy,
+      relationPressure,
+      separationPressure,
+      freePressure,
+      seasonPressure,
+      appetitePressure,
+      matingPressure,
+      groupPull,
+      solitaryPull,
+      distanceFromCentroid,
+      spread,
+      isolation,
+      routeConflict,
+      south,
+      north,
+      east,
+      west,
+      speedPressure,
+      slowPressure,
+      vForm,
+      alignment,
+      macroUse
+    };
+  }
+
+  function macroParentRawProfile() {
+    const n = Math.max(1, state.birds.length);
+    const constraint = macroDialecticValue();
+    const noise = microDialecticValue();
+    const m = state.metrics || {};
+    const alignment = clamp(m.alignment || 0, 0, 1);
+    const vScore = clamp(m.vScore || 0, 0, 1);
+    const spread = clamp((m.spread || 0) / 180, 0, 1);
+    const climateWave = 0.5 + 0.5 * Math.sin(state.t * 0.13 + 1.4);
+    const seasonWave = 0.5 + 0.5 * Math.sin(state.t * 0.047 + 0.6);
+    const horizontalDrift = Math.abs(m.headingX || 0);
+    const southwardProgress = Math.max(0, m.headingY || 0);
+    const countDensity = smoothstep(10, 240, n);
+
+    return {
+      seasonalClimatePath: clamp(26 + climateWave * 32 + seasonWave * 18 + southwardProgress * 10, 0, 100),
+      stormRegime: clamp(16 + noise * 50 + climateWave * 13 + (1 - alignment) * 13, 0, 100),
+      windCorridorShift: clamp(14 + horizontalDrift * 34 + noise * 18 + (1 - vScore) * 10, 0, 100),
+      foodScarcity: clamp(18 + seasonWave * 24 + spread * 13 + (1 - constraint) * 9, 0, 100),
+      safeLandingScarcity: clamp(18 + climateWave * 17 + noise * 18 + constraint * 9 + spread * 7, 0, 100),
+      flockDensity: clamp(10 + countDensity * 54 + vScore * 16 + constraint * 9, 0, 100),
+      routeInstability: clamp(16 + (1 - alignment) * 35 + noise * 22 + horizontalDrift * 12 + (1 - vScore) * 8, 0, 100),
+      collectiveOrder: clamp(8 + alignment * 34 + vScore * 38 + constraint * 18, 0, 100)
+    };
+  }
+
+  function macroParentProfile() {
+    return normalizeProfileMap(macroParentRawProfile(), MACRO_PARENT_DEFS);
+  }
+
+  function localFieldRawForBird(i, macroRaw) {
+    const s = birdSituation(i);
+    const p = macroRaw || macroParentRawProfile();
+    const localPulse = 0.5 + 0.5 * Math.sin(state.t * 0.39 + s.b.seed * 0.023 + i * 0.011);
+    const gustPulse = 0.5 + 0.5 * Math.sin(state.t * 0.91 + s.b.seed * 0.037 + 2.1);
+
+    return {
+      temperatureStress: clamp(10 + p.seasonalClimatePath * 0.43 + s.north * 16 - s.south * 8 + localPulse * 8, 0, 100),
+      stormRisk: clamp(8 + p.stormRegime * 0.58 + p.seasonalClimatePath * 0.13 + s.noise * 18 + localPulse * 10, 0, 100),
+      gustTurbulence: clamp(8 + p.stormRegime * 0.35 + p.windCorridorShift * 0.30 + s.noise * 23 + s.relationPressure * 18 + gustPulse * 8, 0, 100),
+      visibilityLoss: clamp(7 + p.stormRegime * 0.24 + p.routeInstability * 0.26 + s.noise * 17 + s.isolation * 10 + localPulse * 6, 0, 100),
+      windShear: clamp(9 + p.windCorridorShift * 0.52 + p.stormRegime * 0.18 + s.speedPressure * 13 + gustPulse * 7, 0, 100),
+      foodPatchiness: clamp(10 + p.foodScarcity * 0.62 + p.routeInstability * 0.12 + s.solitaryPull * 8 + localPulse * 6, 0, 100),
+      landingPressure: clamp(10 + p.safeLandingScarcity * 0.56 + p.stormRegime * 0.20 + p.flockDensity * 0.08 + s.speedPressure * 8, 0, 100),
+      routeSignalLoss: clamp(8 + p.routeInstability * 0.58 + p.windCorridorShift * 0.18 + (1 - s.alignment) * 18 + s.routeConflict * 16, 0, 100),
+      neighborCompression: clamp(6 + p.flockDensity * 0.42 + p.collectiveOrder * 0.18 + s.separationPressure * 28 + s.constraint * 8, 0, 100)
+    };
+  }
+
+  function localFieldProfile(i, macroRaw) {
+    return normalizeProfileMap(localFieldRawForBird(i, macroRaw), LOCAL_FIELD_DEFS);
+  }
+
+  function macroChildConstraintRaw(i, localRaw, macroRaw) {
+    const l = localRaw || localFieldRawForBird(i, macroRaw);
+    const p = macroRaw || macroParentRawProfile();
+    const collectiveDisorder = Math.max(0, 100 - p.collectiveOrder);
+
+    return {
+      cold: clamp(l.temperatureStress * 0.58, 0, 100),
+      badWeather: clamp(l.stormRisk * 0.65 + l.visibilityLoss * 0.10, 0, 100),
+      turbulence: clamp(l.gustTurbulence * 0.66 + l.windShear * 0.18, 0, 100),
+      exhaustion: clamp(l.windShear * 0.34 + l.gustTurbulence * 0.20 + l.routeSignalLoss * 0.12 + l.landingPressure * 0.10, 0, 100),
+      hunger: clamp(l.foodPatchiness * 0.70, 0, 100),
+      poorVisibility: clamp(l.visibilityLoss * 0.72 + l.stormRisk * 0.08, 0, 100),
+      routeUncertainty: clamp(l.routeSignalLoss * 0.68 + l.visibilityLoss * 0.18 + l.windShear * 0.10, 0, 100),
+      isolation: clamp(collectiveDisorder * 0.22 + l.routeSignalLoss * 0.15, 0, 100),
+      crowding: clamp(l.neighborCompression * 0.62, 0, 100),
+      windResistance: clamp(l.windShear * 0.72 + l.gustTurbulence * 0.10, 0, 100),
+      offspringVulnerability: clamp(l.landingPressure * 0.34 + l.stormRisk * 0.24 + l.visibilityLoss * 0.10, 0, 100),
+      distanceRemaining: clamp(p.seasonalClimatePath * 0.20 + l.routeSignalLoss * 0.32 + p.routeInstability * 0.12, 0, 100)
+    };
+  }
+
+  function macroChildConstraintProfile(i, localRaw, macroRaw) {
+    return normalizeProfileMap(macroChildConstraintRaw(i, localRaw, macroRaw), CONSTRAINT_DEFS);
+  }
+
+  function macroOptionPressureForSelectedBird(selected) {
+    const child = macroChildConstraintRaw(selected);
+    const weatherStack =
+      child.badWeather * 0.28 +
+      child.turbulence * 0.25 +
+      child.poorVisibility * 0.16 +
+      child.routeUncertainty * 0.18 +
+      child.windResistance * 0.13;
+    return clamp(weatherStack / 100 * 0.18, 0, 0.18);
+  }
+
+  function birdConstraintProfile(i) {
+    const s = birdSituation(i);
+    const macroChild = macroChildConstraintRaw(i);
+    const cold = 28 + s.seasonPressure * 42 + s.north * 10 - s.south * 8 + stableUnit(s.b.seed, 19) * 8 + macroChild.cold * 0.26;
+    const badWeather = 18 + s.noise * 54 + s.seasonPressure * 12 + desireWave(s.b.seed, 47, 0.17, i * 0.07) * 10 + macroChild.badWeather * 0.34;
+    const turbulence = 12 + s.noise * 44 + s.relationPressure * 28 + (1 - s.alignment) * 18 + macroChild.turbulence * 0.32;
+    const exhaustion = 15 + s.speedPressure * 42 + s.noise * 18 + s.relationPressure * 16 + s.groupPull * 12 + macroChild.exhaustion * 0.24;
+    const hunger = 14 + s.appetitePressure * 0.72 + s.solitaryPull * 9 + macroChild.hunger * 0.26;
+    const poorVisibility = 12 + s.noise * 34 + s.relationPressure * 12 + s.isolation * 16 + macroChild.poorVisibility * 0.32;
+    const routeUncertainty = 12 + s.routeConflict * 42 + (1 - s.alignment) * 20 + s.noise * 10 + s.isolation * 12 + macroChild.routeUncertainty * 0.34;
+    const isolation = 10 + s.isolation * 58 + (1 - s.constraint) * 14 + macroChild.isolation * 0.20;
+    const crowding = 8 + s.separationPressure * 54 + s.constraint * smoothstep(25, 120, s.n) * 18 + macroChild.crowding * 0.24;
+    const windResistance = 12 + s.speedPressure * 36 + s.noise * 14 + (1 - s.vForm) * 14 + macroChild.windResistance * 0.30;
+    const offspringVulnerability = 10 + s.seasonPressure * 21 + stableUnit(s.b.seed, 35) * 28 + s.noise * 8 + macroChild.offspringVulnerability * 0.22;
+    const distanceRemaining = 22 + s.seasonPressure * 35 + (1 - s.south) * 16 + s.routeConflict * 14 + macroChild.distanceRemaining * 0.24;
+
+    return normalizeProfileMap({
+      cold,
+      badWeather,
+      turbulence,
+      exhaustion,
+      hunger,
+      poorVisibility,
+      routeUncertainty,
+      isolation,
+      crowding,
+      windResistance,
+      offspringVulnerability,
+      distanceRemaining
+    }, CONSTRAINT_DEFS);
+  }
+
+  function birdWantProfile(i, constraints) {
+    const s = birdSituation(i);
+    const c = constraints || birdConstraintProfile(i);
+    const groupSupport = s.groupPull * 42 + s.vForm * 22;
+    const routePressure = profileValue(c, 'distanceRemaining') + profileValue(c, 'routeUncertainty') * 0.55;
+
+    return applyFlockCohesionRule(normalizeProfileMap({
+      continuedFlight: 48 + s.speed * 0.20 + groupSupport * 0.30 + s.seasonPressure * 14 - s.noise * 5,
+      warmth: 42 + profileValue(c, 'cold') * 1.35 + s.seasonPressure * 18 + stableUnit(s.b.seed, 19) * 8,
+      safeFlight: 34 + profileValue(c, 'badWeather') * 1.25 + profileValue(c, 'turbulence') * 0.75 + profileValue(c, 'poorVisibility') * 0.65,
+      stableAir: 28 + profileValue(c, 'turbulence') * 1.35 + profileValue(c, 'windResistance') * 0.72 + s.constraint * 18,
+      energyConservation: 30 + profileValue(c, 'exhaustion') * 1.20 + profileValue(c, 'windResistance') * 0.72 + groupSupport * 0.46,
+      food: 18 + profileValue(c, 'hunger') * 1.55 + s.appetitePressure * 0.30,
+      rest: 18 + profileValue(c, 'exhaustion') * 1.15 + s.slowPressure * 18 + profileValue(c, 'badWeather') * 0.28,
+      visibility: 19 + profileValue(c, 'poorVisibility') * 1.20 + s.noise * 10 + s.relationPressure * 8,
+      orientation: 24 + profileValue(c, 'routeUncertainty') * 1.22 + routePressure * 0.40 + s.alignment * 11,
+      flockCohesion: 23 + profileValue(c, 'isolation') * 1.15 + s.groupPull * 36 + s.alignment * 14,
+      migrationProgress: 35 + routePressure * 1.05 + s.south * 28 + s.seasonPressure * 26 + s.constraint * 9,
+      reproduction: 15 + s.matingPressure * 0.70 + s.seasonPressure * 10 - s.groupPull * 7,
+      protectionYoung: 15 + profileValue(c, 'offspringVulnerability') * 1.35 + s.seasonPressure * 12 + s.groupPull * 8,
+      exploration: 14 + s.solitaryPull * 35 + s.noise * 10 + stableUnit(s.b.seed, 45) * 14 - s.constraint * 8
+    }, WANT_DEFS));
+  }
+
+  function birdTendencyProfile(i, wants, constraints) {
+    const s = birdSituation(i);
+    const w = wants || birdWantProfile(i, constraints);
+    const c = constraints || birdConstraintProfile(i);
+
+    return normalizeProfileMap({
+      southwardMovement: 22 + s.south * 62 + profileValue(w, 'warmth') * 0.85 + profileValue(w, 'migrationProgress') * 1.10 - s.north * 18,
+      northwardDrift: 6 + s.north * 44 + profileValue(w, 'exploration') * 0.45 + s.solitaryPull * 10,
+      eastwardDrift: 6 + s.east * 38 + profileValue(c, 'routeUncertainty') * 0.28 + profileValue(w, 'exploration') * 0.30,
+      westwardDrift: 6 + s.west * 38 + profileValue(c, 'routeUncertainty') * 0.28 + profileValue(w, 'exploration') * 0.30,
+      followRoute: 28 + profileValue(w, 'orientation') * 1.15 + profileValue(w, 'migrationProgress') * 1.05 + s.alignment * 24 + s.constraint * 18,
+      tightenFlock: 20 + profileValue(w, 'flockCohesion') * 1.20 + profileValue(c, 'isolation') * 1.05 + profileValue(c, 'badWeather') * 0.45 + s.constraint * 22,
+      spreadOut: 10 + profileValue(c, 'crowding') * 1.30 + s.solitaryPull * 18 + profileValue(w, 'exploration') * 0.45,
+      formV: 20 + profileValue(w, 'energyConservation') * 1.15 + profileValue(w, 'stableAir') * 0.90 + s.vForm * 38 + s.constraint * 20,
+      draftBehindFlock: 18 + profileValue(w, 'energyConservation') * 1.20 + profileValue(c, 'windResistance') * 0.95 + s.groupPull * 24,
+      keepFlying: 36 + profileValue(w, 'continuedFlight') * 1.28 + profileValue(w, 'migrationProgress') * 0.55 - profileValue(w, 'rest') * 0.45,
+      landAndRest: 12 + profileValue(w, 'rest') * 1.35 + profileValue(c, 'badWeather') * 0.65 + s.slowPressure * 20 - s.groupPull * 8,
+      forage: 10 + profileValue(w, 'food') * 1.45 + profileValue(c, 'hunger') * 0.90 + s.solitaryPull * 11,
+      detourWeather: 12 + profileValue(c, 'badWeather') * 1.28 + profileValue(w, 'safeFlight') * 0.90 + profileValue(c, 'poorVisibility') * 0.42 + s.east * 6 + s.west * 6,
+      explore: 10 + profileValue(w, 'exploration') * 1.35 + s.solitaryPull * 22 + s.noise * 8,
+      returnKnownPlace: 12 + profileValue(w, 'orientation') * 0.75 + profileValue(c, 'routeUncertainty') * 0.88 + s.seasonPressure * 12 + s.groupPull * 9
+    }, TENDENCY_DEFS);
+  }
+
+  function birdReadingProfiles(i) {
+    const constraints = birdConstraintProfile(i);
+    const wants = birdWantProfile(i, constraints);
+    const tendencies = birdTendencyProfile(i, wants, constraints);
+    return { wants, constraints, tendencies };
+  }
+
+  function averageProfiles() {
+    const birds = state.birds;
+    const avg = {
+      wants: zeroProfile(WANT_DEFS),
+      constraints: zeroProfile(CONSTRAINT_DEFS),
+      tendencies: zeroProfile(TENDENCY_DEFS)
+    };
+    const stride = Math.max(1, Math.floor(birds.length / 260));
+    let samples = 0;
+
+    for (let i = 0; i < birds.length; i += stride) {
+      const reading = birdReadingProfiles(i);
+      addProfile(avg.wants, reading.wants, WANT_DEFS);
+      addProfile(avg.constraints, reading.constraints, CONSTRAINT_DEFS);
+      addProfile(avg.tendencies, reading.tendencies, TENDENCY_DEFS);
+      samples++;
+    }
+
+    divideProfile(avg.wants, WANT_DEFS, samples);
+    divideProfile(avg.constraints, CONSTRAINT_DEFS, samples);
+    divideProfile(avg.tendencies, TENDENCY_DEFS, samples);
+
+    // The macro reading is still based on individual profiles, but the collective pattern gets a small explicit weight.
+    // This keeps the panel separate from the sim while showing how flock-level order becomes a condition of its own.
+    avg.wants.flockCohesion += state.metrics.alignment * 4 + state.metrics.vScore * 3;
+    avg.wants.energyConservation += state.metrics.vScore * 4;
+    avg.wants.migrationProgress += Math.max(0, state.metrics.headingY) * 4;
+    avg.constraints.crowding += state.metrics.vScore * 2;
+    avg.constraints.routeUncertainty += (1 - state.metrics.alignment) * 3;
+    avg.tendencies.formV += state.metrics.vScore * 6;
+    avg.tendencies.followRoute += state.metrics.alignment * 5;
+    avg.tendencies.southwardMovement += Math.max(0, state.metrics.headingY) * 5;
+
+    return {
+      wants: applyFlockCohesionRule(normalizeProfileMap(avg.wants, WANT_DEFS)),
+      constraints: normalizeProfileMap(avg.constraints, CONSTRAINT_DEFS),
+      tendencies: normalizeProfileMap(avg.tendencies, TENDENCY_DEFS)
+    };
+  }
+
+  function zeroProfile(defs) {
+    const out = {};
+    for (let i = 0; i < defs.length; i++) out[defs[i].key] = 0;
+    return out;
+  }
+
+  function addProfile(target, source, defs) {
+    for (let i = 0; i < defs.length; i++) {
+      const key = defs[i].key;
+      target[key] += profileValue(source, key);
+    }
+  }
+
+  function divideProfile(profile, defs, count) {
+    const divisor = Math.max(1, count);
+    for (let i = 0; i < defs.length; i++) {
+      const key = defs[i].key;
+      profile[key] = profile[key] / divisor;
+    }
+  }
+
+  function sortedProfile(profile, defs) {
+    return defs.map(function (def) {
+      return { key: def.key, label: def.label, value: profile[def.key] || 0 };
+    }).sort(function (a, b) {
+      if (b.value !== a.value) return b.value - a.value;
+      return defIndex(defs, a.key) - defIndex(defs, b.key);
+    });
+  }
+
+  function createProfileRow(item) {
+    const row = document.createElement('div');
+    row.className = 'desireItem';
+    row.dataset.key = item.key;
+    row.innerHTML =
+      '<div class="desireName"></div>' +
+      '<div class="desireTrack"><div class="desireFill"></div></div>' +
+      '<div class="desireScore">0</div>';
+    return row;
+  }
+
+  function syncProfileRows(container, items) {
+    const itemKeys = new Set(items.map(function (item) { return item.key; }));
+    const rowsByKey = new Map();
+
+    Array.prototype.slice.call(container.children).forEach(function (row) {
+      if (itemKeys.has(row.dataset.key)) rowsByKey.set(row.dataset.key, row);
+      else row.remove();
+    });
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let row = rowsByKey.get(item.key);
+      if (!row) row = createProfileRow(item);
+      container.appendChild(row);
+    }
+  }
+
+  function renderProfileList(container, profile, defs) {
+    if (!container) return;
+    const items = sortedProfile(profile, defs);
+
+    syncProfileRows(container, items);
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const row = container.querySelector('[data-key="' + item.key + '"]');
+      if (!row) continue;
+      const name = row.querySelector('.desireName');
+      const fill = row.querySelector('.desireFill');
+      const score = row.querySelector('.desireScore');
+      name.textContent = item.label;
+      fill.style.width = item.value + '%';
+      score.textContent = item.value + '%';
+    }
+
+    container.dataset.ready = '1';
+    container.dataset.count = String(items.length);
+  }
+
+
+
+  function capabilityBandLabel(score) {
+    if (score < 34) return 'Low';
+    if (score < 67) return 'Medium';
+    return 'High';
+  }
+
+  function comparableCapabilityRows(selected) {
+    const count = Math.max(1, state.birds.length);
+    const countLabel = count.toLocaleString() + (count === 1 ? ' bird' : ' birds');
+
+    let flockTier = 1;
+    if (count >= 2) flockTier = 2;
+    if (count >= 25) flockTier = 3;
+    if (count >= 200) flockTier = 4;
+    if (count >= 350) flockTier = 5;
+
+    const rangeMiles = flockTier;
+    const watchDirections = Math.min(8, Math.max(1, flockTier * 2));
+    const routeMemories = flockTier;
+    const sharedLoad = Math.max(45, 100 - (flockTier - 1) * 15);
+
+    return {
+      rows: [
+        {
+          key: 'travelRange',
+          label: 'Travel range',
+          summary: '1 → ' + rangeMiles + ' miles',
+          individual: {
+            metric: '1 mile',
+            detail: 'One bird spends only its own energy and stops when its own body is spent.'
+          },
+          collective: {
+            metric: rangeMiles + ' miles',
+            detail: countLabel + ' can draft, pace, and rotate pressure instead of each bird fighting alone.',
+            leap: '<strong>Leap:</strong> distance becomes a formation effect, not just private stamina.'
+          }
+        },
+        {
+          key: 'watchField',
+          label: 'Watching for danger',
+          summary: '1 → ' + watchDirections + ' directions',
+          individual: {
+            metric: '1 direction',
+            detail: 'One bird sees from one position and can miss what happens behind or to the side.'
+          },
+          collective: {
+            metric: watchDirections + ' directions',
+            detail: countLabel + ' create a wider field of attention around the whole moving group.',
+            leap: '<strong>Leap:</strong> a warning seen by one bird can become protection for all.'
+          }
+        },
+        {
+          key: 'routeMemory',
+          label: 'Route finding',
+          summary: '1 → ' + routeMemories + ' memories',
+          individual: {
+            metric: '1 memory',
+            detail: 'One bird depends on its own senses, memory, and immediate correction.'
+          },
+          collective: {
+            metric: routeMemories + ' memories',
+            detail: countLabel + ' combine remembered paths, local cues, and leader changes into one route.',
+            leap: '<strong>Leap:</strong> the flock can correct individual mistakes before they become the path.'
+          }
+        },
+        {
+          key: 'burdenSharing',
+          label: 'Burden sharing',
+          summary: '100% → ' + sharedLoad + '% load',
+          individual: {
+            metric: '100% load',
+            detail: 'A lone bird carries the full stress of movement, danger, and decision-making.'
+          },
+          collective: {
+            metric: sharedLoad + '% load',
+            detail: countLabel + ' distribute stress through spacing, shared vigilance, and collective motion.',
+            leap: '<strong>Leap:</strong> pressure is no longer isolated inside one body; it is spread through the group.'
+          }
+        }
+      ]
+    };
+  }
+
+  function createCapabilityCompareRow(item) {
+    const row = document.createElement('div');
+    row.className = 'capabilityCompareRow';
+    row.dataset.key = item.key;
+    row.innerHTML =
+      '<div class="capabilityCompareName"></div>' +
+      '<div class="capabilitySides">' +
+        '<div class="capabilitySide individual">' +
+          '<div class="capabilitySideHead">' +
+            '<div class="capabilitySideLabel">Individual</div>' +
+          '</div>' +
+          '<div class="capabilityPlainMetric"></div>' +
+          '<div class="capabilitySideDetail"></div>' +
+        '</div>' +
+        '<div class="capabilitySide collective">' +
+          '<div class="capabilitySideHead">' +
+            '<div class="capabilitySideLabel">Collective</div>' +
+          '</div>' +
+          '<div class="capabilityPlainMetric"></div>' +
+          '<div class="capabilitySideDetail"></div>' +
+          '<div class="capabilityLeapTag"></div>' +
+        '</div>' +
+      '</div>';
+    return row;
+  }
+
+  function renderCapabilityComparison(container, items) {
+    if (!container) return;
+    const keys = new Set(items.map(function (item) { return item.key; }));
+    const rowsByKey = new Map();
+
+    Array.prototype.slice.call(container.children).forEach(function (row) {
+      if (keys.has(row.dataset.key)) rowsByKey.set(row.dataset.key, row);
+      else row.remove();
+    });
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let row = rowsByKey.get(item.key);
+      if (!row) row = createCapabilityCompareRow(item);
+      container.appendChild(row);
+      const nameEl = row.querySelector('.capabilityCompareName');
+      nameEl.textContent = item.label;
+      nameEl.dataset.summary = item.summary || '';
+
+      const sides = row.querySelectorAll('.capabilitySide');
+      const individualSide = sides[0];
+      const collectiveSide = sides[1];
+
+      individualSide.querySelector('.capabilityPlainMetric').textContent = item.individual.metric;
+      individualSide.querySelector('.capabilitySideDetail').innerHTML = item.individual.detail;
+
+      collectiveSide.querySelector('.capabilityPlainMetric').textContent = item.collective.metric;
+      collectiveSide.querySelector('.capabilitySideDetail').innerHTML = item.collective.detail;
+      collectiveSide.querySelector('.capabilityLeapTag').innerHTML = item.collective.leap || '';
+    }
+  }
+
+  function createQualLeapCard(item) {
+    const card = document.createElement('div');
+    card.className = 'qualLeapCard';
+    card.dataset.key = item.key;
+    card.innerHTML =
+      '<div class="qualLeapCardHead">' +
+        '<div class="qualLeapCardTitle"></div>' +
+        '<div class="qualLeapCardBadge"></div>' +
+      '</div>' +
+      '<div class="qualLeapCardBar"><div class="qualLeapCardFill"></div></div>' +
+      '<div class="qualLeapCardDetail"></div>';
+    return card;
+  }
+
+  function renderQualLeapCards(container, items) {
+    if (!container) return;
+    const keys = new Set(items.map(function (item) { return item.key; }));
+    const cardsByKey = new Map();
+
+    Array.prototype.slice.call(container.children).forEach(function (card) {
+      if (keys.has(card.dataset.key)) cardsByKey.set(card.dataset.key, card);
+      else card.remove();
+    });
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let card = cardsByKey.get(item.key);
+      if (!card) card = createQualLeapCard(item);
+      container.appendChild(card);
+      card.querySelector('.qualLeapCardTitle').textContent = item.label;
+      card.querySelector('.qualLeapCardBadge').textContent = item.scoreLabel;
+      card.querySelector('.qualLeapCardFill').style.width = clamp(Number(item.score) || 0, 0, 100) + '%';
+      card.querySelector('.qualLeapCardDetail').textContent = item.detail;
+    }
+  }
+
+  function topProfileText(profile, defs, count) {
+    return sortedProfile(profile, defs).slice(0, count).map(function (item) { return item.label; }).join(', ');
+  }
+
+  function headingText(x, y) {
+    const ax = Math.abs(x);
+    const ay = Math.abs(y);
+    if (ay >= ax && y >= 0) return 'southward';
+    if (ay >= ax && y < 0) return 'northward';
+    if (ax > ay && x >= 0) return 'eastward';
+    return 'westward';
+  }
+
+  function updateDesirePanels(selected) {
+    if (!els.microWantList || !state.birds.length) return;
+
+    const now = performance.now ? performance.now() : Date.now();
+    const signature = selected + '|' + state.birds.length + '|' + els.noise.value + '|' + els.constraint.value;
+    const elapsed = now - (state.profileDisplay.lastUpdate || 0);
+    if (state.profileDisplay.signature === signature && elapsed < PROFILE_DISPLAY_UPDATE_MS) return;
+    state.profileDisplay.lastUpdate = now;
+    state.profileDisplay.signature = signature;
+
+    const micro = birdReadingProfiles(selected);
+    const macro = averageProfiles();
+    const macroParentRaw = macroParentRawProfile();
+    const macroParent = normalizeProfileMap(macroParentRaw, MACRO_PARENT_DEFS);
+    const localFieldRaw = localFieldRawForBird(selected, macroParentRaw);
+    const localField = normalizeProfileMap(localFieldRaw, LOCAL_FIELD_DEFS);
+    const microBreakdown = normalizeProfileMap(macroChildConstraintRaw(selected, localFieldRaw, macroParentRaw), CONSTRAINT_DEFS);
+    const selectedBird = state.birds[selected];
+    const selectedVelocity = normalize(selectedBird.vx, selectedBird.vy);
+    const selectedHeading = headingText(selectedVelocity[0], selectedVelocity[1]);
+    const flockHeading = headingText(state.metrics.headingX, state.metrics.headingY);
+
+    renderProfileList(els.microWantList, micro.wants, WANT_DEFS);
+    renderProfileList(els.microConstraintList, micro.constraints, CONSTRAINT_DEFS);
+    renderProfileList(els.macroWantList, macro.wants, WANT_DEFS);
+    renderProfileList(els.macroConstraintList, macro.constraints, CONSTRAINT_DEFS);
+    const capabilityComparison = comparableCapabilityRows(selected);
+    renderCapabilityComparison(els.capabilityComparisonList, capabilityComparison.rows);
+    renderProfileList(els.macroParentList, macroParent, MACRO_PARENT_DEFS);
+    renderProfileList(els.localFieldList, localField, LOCAL_FIELD_DEFS);
+    renderProfileList(els.microBreakdownList, microBreakdown, CONSTRAINT_DEFS);
+
+    els.microDesireBadge.textContent = 'Bird ' + (selected + 1).toLocaleString();
+    els.macroDesireBadge.textContent = state.birds.length.toLocaleString() + ' bird average';
+    if (els.capabilityCompareBadge) els.capabilityCompareBadge.textContent = state.birds.length.toLocaleString() + ' bird comparison';
+    if (els.breakdownBadge) els.breakdownBadge.textContent = 'Bird ' + (selected + 1).toLocaleString() + ' chain';
+  }
+
+  function render() {
+    const birds = state.birds;
+    if (!birds.length) return;
+    updateLabels();
+
+    const selected = clamp(parseInt(els.selectedBird.value, 10) - 1, 0, birds.length - 1);
+    const selectedBird = birds[selected];
+    const microCamera = {
+      cx: selectedBird.x,
+      cy: selectedBird.y,
+      height: state.microViewHeight
+    };
+
+    const bounds = computeBounds();
+    const autoMacroHeight = Math.max(260, (bounds.maxY - bounds.minY) * 1.22, (bounds.maxX - bounds.minX) * 0.64);
+    const macroCamera = {
+      cx: (bounds.minX + bounds.maxX) * 0.5,
+      cy: (bounds.minY + bounds.maxY) * 0.5,
+      height: autoMacroHeight * state.macroViewZoom
+    };
+
+    drawScene(microRenderer, microCamera, 'micro', selected);
+    drawScene(macroRenderer, macroCamera, 'macro', selected);
+    updateDesirePanels(selected);
+  }
+
+  function computeBounds() {
+    const birds = state.birds;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    const stride = Math.max(1, Math.floor(birds.length / 1500));
+    for (let i = 0; i < birds.length; i += stride) {
+      const b = birds[i];
+      if (b.x < minX) minX = b.x;
+      if (b.x > maxX) maxX = b.x;
+      if (b.y < minY) minY = b.y;
+      if (b.y > maxY) maxY = b.y;
+    }
+    const pad = 120;
+    return { minX: minX - pad, maxX: maxX + pad, minY: minY - pad, maxY: maxY + pad };
+  }
+
+  function drawScene(renderer, camera, kind, selected) {
+    renderer.resize();
+    renderer.clear();
+    const aspect = renderer.canvas.width / Math.max(1, renderer.canvas.height);
+    const view = {
+      cx: camera.cx,
+      cy: camera.cy,
+      width: camera.height * aspect,
+      height: camera.height
+    };
+
+    if (kind === 'macro' && els.showMacro.checked) {
+      const macroGeo = buildMacroOverlay();
+      renderer.drawLines(macroGeo.positions, macroGeo.colors, view);
+      renderer.drawTriangles(macroGeo.triangles, macroGeo.triangleColors, view);
+    }
+
+    const birdGeo = buildBirdGeometry(kind, selected, view);
+    renderer.drawTriangles(birdGeo.positions, birdGeo.colors, view);
+
+    if (els.showTrails.checked) {
+      const trailGeo = buildTrailGeometry(kind);
+      renderer.drawLines(trailGeo.positions, trailGeo.colors, view);
+    }
+
+    if (kind === 'micro' && els.showMicro.checked) {
+      const microGeo = buildMicroOverlay(selected);
+      renderer.drawTriangles(microGeo.underTriangles, microGeo.underTriangleColors, view);
+      renderer.drawLines(microGeo.positions, microGeo.colors, view);
+      renderer.drawTriangles(microGeo.triangles, microGeo.triangleColors, view);
+    }
+  }
+
+  function buildBirdGeometry(kind, selected, view) {
+    const birds = state.birds;
+    const pos = [];
+    const col = [];
+    const cull = kind === 'micro';
+    const margin = 120;
+    const left = view.cx - view.width * 0.5 - margin;
+    const right = view.cx + view.width * 0.5 + margin;
+    const top = view.cy - view.height * 0.5 - margin;
+    const bottom = view.cy + view.height * 0.5 + margin;
+    const stride = kind === 'macro' ? Math.max(1, Math.floor(birds.length / 7000)) : 1;
+
+    const selectedIsRedrawnByMicroOverlay = kind === 'micro' && els.showMicro.checked;
+
+    for (let i = 0; i < birds.length; i += stride) {
+      const b = birds[i];
+      if (cull && (b.x < left || b.x > right || b.y < top || b.y > bottom)) continue;
+
+      // In the micro view, the selected bird is redrawn by buildMicroOverlay() so it
+      // can face the nearest available option. If we also draw the regular velocity
+      // triangle here, tiny angle differences briefly look like two selected arrows.
+      if (i === selected && selectedIsRedrawnByMicroOverlay) continue;
+
+      let color;
+      if (i === selected) {
+        color = [0.36, 0.92, 0.62, kind === 'macro' ? 1 : 1];
+      } else {
+        const shade = kind === 'macro' ? 0.78 : 0.62;
+        const alpha = kind === 'macro' ? 0.94 : 0.72;
+        color = [shade * 0.78, shade * 0.86, shade, alpha];
+      }
+      // Birds should always face their actual velocity heading. The micro-constraints
+      // overlay can be toggled independently and must not control the bird triangle's orientation.
+      pushBirdTriangle(pos, col, b, color, kind === 'macro' ? 6.6 : 7.1);
+    }
+    return { positions: pos, colors: col };
+  }
+
+  function pushBirdTriangle(pos, col, b, color, size, dirX, dirY) {
+    const direction = Number.isFinite(dirX) && Number.isFinite(dirY)
+      ? normalize(dirX, dirY)
+      : normalize(b.vx, b.vy);
+    const fx = direction[0];
+    const fy = direction[1];
+    const px = -fy;
+    const py = fx;
+    const tipX = b.x + fx * size * 1.65;
+    const tipY = b.y + fy * size * 1.65;
+    const leftX = b.x - fx * size + px * size * 0.72;
+    const leftY = b.y - fy * size + py * size * 0.72;
+    const rightX = b.x - fx * size - px * size * 0.72;
+    const rightY = b.y - fy * size - py * size * 0.72;
+    pushVertex(pos, col, tipX, tipY, color);
+    pushVertex(pos, col, leftX, leftY, color);
+    pushVertex(pos, col, rightX, rightY, color);
+  }
+
+  function pushVertex(pos, col, x, y, color) {
+    pos.push(x, y);
+    col.push(color[0], color[1], color[2], color[3]);
+  }
+
+  function buildTrailGeometry(kind) {
+    const pos = [];
+    const col = [];
+    if (kind === 'micro') {
+      pushTrail(pos, col, state.selectedTrail, [0.36, 0.92, 0.62, 0.62]);
+    } else {
+      pushTrail(pos, col, state.centroidTrail, [0.36, 0.92, 0.62, 0.72]);
+    }
+    return { positions: pos, colors: col };
+  }
+
+  function pushTrail(pos, col, trail, color) {
+    for (let i = 1; i < trail.length; i++) {
+      const a = trail[i - 1];
+      const b = trail[i];
+      const alpha = color[3] * (i / trail.length);
+      pushVertex(pos, col, a.x, a.y, [color[0], color[1], color[2], alpha]);
+      pushVertex(pos, col, b.x, b.y, [color[0], color[1], color[2], alpha]);
+    }
+  }
+
+  function buildMacroOverlay() {
+    const pos = [];
+    const col = [];
+    const tri = [];
+    const triCol = [];
+    const birds = state.birds;
+    const n = birds.length;
+    const m = state.metrics;
+
+    const overlayScale = smallFlockOverlayScale(n);
+
+    if (n === 1) {
+      const b = birds[0];
+      pushRadialGradientDisk(tri, triCol, b.x, b.y, 28 * overlayScale, [0.56, 0.88, 1.0, 0.14], [0.28, 0.55, 1.0, 0.0], 36);
+      pushRing(tri, triCol, b.x, b.y, 8 * overlayScale, [0.40, 0.78, 1.0, 0.50]);
+      state.collectiveVShape.initialized = false;
+    } else {
+      pushFlockDensityGradient(tri, triCol);
+      const averageV = computeCollectiveVShape();
+      if (averageV.ok) {
+        pushCollectiveVGlow(tri, triCol, averageV);
+      } else {
+        state.collectiveVShape.initialized = false;
+      }
+      pushArrow(pos, col, m.cx, m.cy, m.cx + m.headingX * 64 * overlayScale, m.cy + m.headingY * 64 * overlayScale, [0.36, 0.92, 0.62, 0.55]);
+      pushRing(tri, triCol, m.cx, m.cy, 11 * overlayScale, [0.36, 0.92, 0.62, 0.80]);
+    }
+
+    return { positions: pos, colors: col, triangles: tri, triangleColors: triCol };
+  }
+
+
+
+  function getCollectiveHeading() {
+    let headingX = state.metrics.headingX;
+    let headingY = state.metrics.headingY;
+    if (!isFinite(headingX) || !isFinite(headingY) || length(headingX, headingY) < 0.0001) {
+      const fallback = normalize(state.birds[0].vx, state.birds[0].vy);
+      headingX = fallback[0];
+      headingY = fallback[1];
+    }
+    return [headingX, headingY];
+  }
+
+  function collectHardVAnchors() {
+    const birds = state.birds;
+    const n = birds.length;
+    if (n < 2) return null;
+
+    const heading = getCollectiveHeading();
+    let headingX = heading[0];
+    let headingY = heading[1];
+    const perpX = -headingY;
+    const perpY = headingX;
+    const cx = state.metrics.cx;
+    const cy = state.metrics.cy;
+
+    const projected = birds.map(function (bird, index) {
+      const rx = bird.x - cx;
+      const ry = bird.y - cy;
+      return {
+        bird,
+        index,
+        along: rx * headingX + ry * headingY,
+        side: rx * perpX + ry * perpY,
+        support: 0
+      };
+    });
+
+    const alongs = projected.map(function (item) { return item.along; }).sort(function (a, b) { return a - b; });
+    const sideAbs = projected.map(function (item) { return Math.abs(item.side); }).sort(function (a, b) { return a - b; });
+    const q02 = percentileSorted(alongs, 0.02);
+    const q05 = percentileSorted(alongs, 0.05);
+    const q50 = percentileSorted(alongs, 0.50);
+    const q95 = percentileSorted(alongs, 0.95);
+    const q98 = percentileSorted(alongs, 0.98);
+    const side90 = percentileSorted(sideAbs, 0.90);
+    const side95 = percentileSorted(sideAbs, 0.95);
+    const frontLimit = q98 + Math.max(16, Math.abs(q98 - q50) * 0.18, state.metrics.spread * 0.025);
+    const backLimit = q02 - Math.max(18, Math.abs(q50 - q02) * 0.18, state.metrics.spread * 0.030);
+    const sideLimit = Math.max(42, side90 * 1.34, side95 * 1.08, state.metrics.spread * 0.42);
+    const supportRadius = clamp(34 + state.metrics.spread * 0.115, 42, 96);
+    const supportRadius2 = supportRadius * supportRadius;
+
+    for (let i = 0; i < projected.length; i++) {
+      const a = projected[i];
+      let support = 0;
+      for (let j = 0; j < projected.length; j++) {
+        if (i === j) continue;
+        const b = projected[j];
+        const dx = a.bird.x - b.bird.x;
+        const dy = a.bird.y - b.bird.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= supportRadius2) support += 1 - d2 / supportRadius2;
+      }
+      a.support = support;
+    }
+
+    const supportValues = projected.map(function (item) { return item.support; }).sort(function (a, b) { return a - b; });
+    const supportFloor = n >= 80 ? Math.max(1.4, percentileSorted(supportValues, 0.12) * 0.75) : 0;
+    let body = projected.filter(function (item) {
+      return item.along <= frontLimit &&
+        item.along >= backLimit &&
+        Math.abs(item.side) <= sideLimit &&
+        item.support >= supportFloor;
+    });
+
+    if (body.length < Math.min(3, n)) {
+      body = projected.filter(function (item) {
+        return item.along <= q95 + Math.max(24, state.metrics.spread * 0.08) &&
+          item.along >= q05 - Math.max(28, state.metrics.spread * 0.10) &&
+          Math.abs(item.side) <= Math.max(54, side95 * 1.25);
+      });
+    }
+
+    if (body.length < Math.min(3, n)) body = projected.slice();
+
+    body.sort(function (a, b) {
+      if (b.along !== a.along) return b.along - a.along;
+      if (b.support !== a.support) return b.support - a.support;
+      return Math.abs(a.side) - Math.abs(b.side);
+    });
+
+    // Hard rule: the V tip is always the directional lead bird, Bird 1.
+    // The overlay may filter outlying birds when choosing the two rear endpoints,
+    // but it never reselects a different bird as the tip.
+    const front = projected.find(function (item) { return item.index === 0; }) || projected[0];
+
+    const candidates = [];
+    for (let i = 0; i < body.length; i++) {
+      const item = body[i];
+      if (item.index === front.index) continue;
+      const dx = item.bird.x - front.bird.x;
+      const dy = item.bird.y - front.bird.y;
+      const dist = length(dx, dy);
+      const back = Math.max(0, -(dx * headingX + dy * headingY));
+      const side = dx * perpX + dy * perpY;
+      if (dist < 4) continue;
+      candidates.push({
+        bird: item.bird,
+        index: item.index,
+        along: item.along,
+        side,
+        back,
+        dist,
+        support: item.support
+      });
+    }
+
+    if (!candidates.length) return null;
+
+    candidates.sort(function (a, b) {
+      if (b.back !== a.back) return b.back - a.back;
+      if (b.support !== a.support) return b.support - a.support;
+      return Math.abs(b.side) - Math.abs(a.side);
+    });
+
+    if (n === 2) {
+      return { headingX, headingY, front, lineBack: candidates[0] };
+    }
+
+    const minimumBack = Math.max(10, state.metrics.spread * 0.045);
+    const endpointCandidates = candidates.filter(function (item) {
+      return item.back >= minimumBack || item.dist >= minimumBack * 1.6;
+    });
+    const usableCandidates = endpointCandidates.length >= 2 ? endpointCandidates : candidates;
+
+    function endpointScore(item) {
+      return item.back * 1.55 + item.dist * 0.42 + Math.abs(item.side) * 0.70 + item.support * 18;
+    }
+
+    function pointSegmentDistance(px, py, ax, ay, bx, by) {
+      const abx = bx - ax;
+      const aby = by - ay;
+      const denom = abx * abx + aby * aby;
+      if (denom <= 0.000001) return length(px - ax, py - ay);
+      const t = clamp(((px - ax) * abx + (py - ay) * aby) / denom, 0, 1);
+      const qx = ax + abx * t;
+      const qy = ay + aby * t;
+      return length(px - qx, py - qy);
+    }
+
+    const supportTolerance = clamp(18 + state.metrics.spread * 0.060, 22, 58);
+    function pairVSupport(a, b) {
+      let support = 0;
+      for (let i = 0; i < body.length; i++) {
+        const item = body[i];
+        if (item.index === front.index) continue;
+        const dLeft = pointSegmentDistance(item.bird.x, item.bird.y, front.bird.x, front.bird.y, a.bird.x, a.bird.y);
+        const dRight = pointSegmentDistance(item.bird.x, item.bird.y, front.bird.x, front.bird.y, b.bird.x, b.bird.y);
+        const d = Math.min(dLeft, dRight);
+        if (d <= supportTolerance) support += 1 - d / supportTolerance;
+      }
+      return support;
+    }
+
+    function localOpposition(a, b) {
+      const midX = (a.bird.x + b.bird.x) * 0.5;
+      const midY = (a.bird.y + b.bird.y) * 0.5;
+      const local = normalize(front.bird.x - midX, front.bird.y - midY);
+      const localPerpX = -local[1];
+      const localPerpY = local[0];
+      const sideA = (a.bird.x - front.bird.x) * localPerpX + (a.bird.y - front.bird.y) * localPerpY;
+      const sideB = (b.bird.x - front.bird.x) * localPerpX + (b.bird.y - front.bird.y) * localPerpY;
+      return {
+        ok: sideA * sideB <= 0 && Math.abs(sideA - sideB) > 0.001,
+        sideA,
+        sideB,
+        local
+      };
+    }
+
+    function pairScore(a, b) {
+      if (!a || !b || a.index === b.index) return -Infinity;
+      const opposition = localOpposition(a, b);
+      if (!opposition.ok) return -Infinity;
+      const sep = length(a.bird.x - b.bird.x, a.bird.y - b.bird.y);
+      const depth = Math.min(a.back, b.back);
+      const depthBalance = Math.min(a.back, b.back) / Math.max(1, Math.max(a.back, b.back));
+      const sideBalance = Math.min(Math.abs(opposition.sideA), Math.abs(opposition.sideB)) / Math.max(1, Math.max(Math.abs(opposition.sideA), Math.abs(opposition.sideB)));
+      const support = pairVSupport(a, b);
+      return support * 42 + depth * 1.15 + sep * 0.42 + depthBalance * 32 + sideBalance * 38 + (a.support + b.support) * 9 - Math.abs(a.back - b.back) * 0.18;
+    }
+
+    const leftPool = usableCandidates.filter(function (item) { return item.side >= 0; })
+      .sort(function (a, b) { return endpointScore(b) - endpointScore(a); })
+      .slice(0, 18);
+    const rightPool = usableCandidates.filter(function (item) { return item.side < 0; })
+      .sort(function (a, b) { return endpointScore(b) - endpointScore(a); })
+      .slice(0, 18);
+    const allPool = usableCandidates.slice()
+      .sort(function (a, b) { return endpointScore(b) - endpointScore(a); })
+      .slice(0, 30);
+
+    let endpointA = null;
+    let endpointB = null;
+    let bestScore = -Infinity;
+
+    function considerPair(a, b) {
+      const score = pairScore(a, b);
+      if (score > bestScore) {
+        bestScore = score;
+        endpointA = a;
+        endpointB = b;
+      }
+    }
+
+    if (leftPool.length && rightPool.length) {
+      for (let i = 0; i < leftPool.length; i++) {
+        for (let j = 0; j < rightPool.length; j++) {
+          considerPair(leftPool[i], rightPool[j]);
+        }
+      }
+    }
+
+    if (!endpointA || !endpointB) {
+      for (let i = 0; i < allPool.length; i++) {
+        for (let j = i + 1; j < allPool.length; j++) {
+          considerPair(allPool[i], allPool[j]);
+        }
+      }
+    }
+
+    const current = state.collectiveVShape || {};
+    if (current.anchorLeftIndex != null && current.anchorRightIndex != null) {
+      const previousA = usableCandidates.find(function (item) { return item.index === current.anchorLeftIndex; });
+      const previousB = usableCandidates.find(function (item) { return item.index === current.anchorRightIndex; });
+      const previousScore = pairScore(previousA, previousB);
+      if (previousScore > -Infinity && previousScore >= bestScore * 0.86) {
+        endpointA = previousA;
+        endpointB = previousB;
+        bestScore = previousScore;
+      }
+    }
+
+    if (!endpointA || !endpointB || endpointA.index === endpointB.index) return null;
+
+    const midX = (endpointA.bird.x + endpointB.bird.x) * 0.5;
+    const midY = (endpointA.bird.y + endpointB.bird.y) * 0.5;
+    let localHeading = normalize(front.bird.x - midX, front.bird.y - midY);
+    if (!isFinite(localHeading[0]) || !isFinite(localHeading[1]) || length(localHeading[0], localHeading[1]) < 0.0001) {
+      localHeading = [headingX, headingY];
+    }
+
+    headingX = localHeading[0];
+    headingY = localHeading[1];
+    const localPerpX = -headingY;
+    const localPerpY = headingX;
+    const sideA = (endpointA.bird.x - front.bird.x) * localPerpX + (endpointA.bird.y - front.bird.y) * localPerpY;
+    const sideB = (endpointB.bird.x - front.bird.x) * localPerpX + (endpointB.bird.y - front.bird.y) * localPerpY;
+
+    let left = sideA >= sideB ? endpointA : endpointB;
+    let right = sideA >= sideB ? endpointB : endpointA;
+
+    if (Math.abs(sideA - sideB) < 0.0001) {
+      left = Math.abs(endpointA.side) >= Math.abs(endpointB.side) ? endpointA : endpointB;
+      right = left.index === endpointA.index ? endpointB : endpointA;
+    }
+
+    state.collectiveVShape.anchorFrontIndex = front.index;
+    state.collectiveVShape.anchorLeftIndex = left.index;
+    state.collectiveVShape.anchorRightIndex = right.index;
+
+    return { headingX, headingY, front, left, right };
+  }
+
+
+  function makeSpinePoint(x, y, w, d, apexX, apexY, headingX, headingY) {
+    return {
+      x,
+      y,
+      w,
+      d,
+      back: Math.max(0, projectBackDistance(x, y, apexX, apexY, headingX, headingY))
+    };
+  }
+
+  function buildHardAnchoredWingSpine(apexX, apexY, endX, endY, headingX, headingY, bandWidth, sideSign, phase) {
+    const dx = endX - apexX;
+    const dy = endY - apexY;
+    const wingLength = Math.max(1, length(dx, dy));
+    const tangent = normalize(dx, dy);
+    let normalX = -tangent[1];
+    let normalY = tangent[0];
+
+    const perpX = -headingY;
+    const perpY = headingX;
+    const expectedSide = projectSideDistance(endX, endY, apexX, apexY, perpX, perpY);
+    if ((normalX * perpX + normalY * perpY) * sideSign < 0) {
+      normalX = -normalX;
+      normalY = -normalY;
+    }
+
+    const wave = clamp(wingLength * 0.035, 2.5, 12);
+    const mid1T = 0.34;
+    const mid2T = 0.68;
+    const wave1 = Math.sin(state.t * 1.08 + phase) * wave;
+    const wave2 = Math.sin(state.t * 0.86 + phase + 1.9) * wave * 0.72;
+    const pullSide = clamp(Math.abs(expectedSide) * 0.025, 0, wave * 0.55);
+
+    const p0 = makeSpinePoint(apexX, apexY, 8, 0.92, apexX, apexY, headingX, headingY);
+    const p1 = makeSpinePoint(
+      apexX + dx * mid1T + normalX * (wave1 + pullSide),
+      apexY + dy * mid1T + normalY * (wave1 + pullSide),
+      bandWidth * 0.92,
+      0.76,
+      apexX,
+      apexY,
+      headingX,
+      headingY
+    );
+    const p2 = makeSpinePoint(
+      apexX + dx * mid2T + normalX * wave2,
+      apexY + dy * mid2T + normalY * wave2,
+      bandWidth,
+      0.66,
+      apexX,
+      apexY,
+      headingX,
+      headingY
+    );
+    const p3 = makeSpinePoint(endX, endY, bandWidth * 1.08, 0.58, apexX, apexY, headingX, headingY);
+
+    const dense = densifySpine([p0, p1, p2, p3], 10);
+    if (dense.length) {
+      dense[0].x = apexX;
+      dense[0].y = apexY;
+      dense[0].back = 0;
+      dense[dense.length - 1].x = endX;
+      dense[dense.length - 1].y = endY;
+      dense[dense.length - 1].back = p3.back;
+    }
+    return dense;
+  }
+
+  function buildHardAnchoredLineSpine(frontX, frontY, backX, backY, headingX, headingY, bandWidth) {
+    const dx = backX - frontX;
+    const dy = backY - frontY;
+    const lineLength = Math.max(1, length(dx, dy));
+    const tangent = normalize(dx, dy);
+    const normalX = -tangent[1];
+    const normalY = tangent[0];
+    const wave = clamp(lineLength * 0.018, 1.5, 5.5);
+    const p0 = makeSpinePoint(frontX, frontY, 8, 0.92, frontX, frontY, headingX, headingY);
+    const p1 = makeSpinePoint(frontX + dx * 0.50 + normalX * Math.sin(state.t * 1.05) * wave, frontY + dy * 0.50 + normalY * Math.sin(state.t * 1.05) * wave, bandWidth, 0.70, frontX, frontY, headingX, headingY);
+    const p2 = makeSpinePoint(backX, backY, bandWidth * 1.02, 0.58, frontX, frontY, headingX, headingY);
+    const dense = densifySpine([p0, p1, p2], 12);
+    if (dense.length) {
+      dense[0].x = frontX;
+      dense[0].y = frontY;
+      dense[0].back = 0;
+      dense[dense.length - 1].x = backX;
+      dense[dense.length - 1].y = backY;
+      dense[dense.length - 1].back = p2.back;
+    }
+    return dense;
+  }
+
+  function computeCollectiveVShape() {
+    const birds = state.birds;
+    const n = birds.length;
+    if (n < 2) return { ok: false };
+
+    const anchors = collectHardVAnchors();
+    if (!anchors) return { ok: false };
+
+    // Hard rule: these anchor points are recomputed from actual bird positions every frame.
+    // Bird 1, the directional leader, is always the V tip. No smoothing or front-bird
+    // search is allowed to move the tip to another bird.
+    state.collectiveVShape.initialized = false;
+
+    const headingX = anchors.headingX;
+    const headingY = anchors.headingY;
+    const apexX = anchors.front.bird.x;
+    const apexY = anchors.front.bird.y;
+
+    if (n === 2) {
+      const backX = anchors.lineBack.bird.x;
+      const backY = anchors.lineBack.bird.y;
+      const visualScale = smallFlockOverlayScale(n);
+      const bandWidth = clamp(11 + state.metrics.alignment * 4, 10, 16) * visualScale;
+      const strength = clamp(0.60 + state.metrics.alignment * 0.22, 0.56, 0.84);
+      return {
+        ok: true,
+        lineMode: true,
+        apexX,
+        apexY,
+        headingX,
+        headingY,
+        centerSpine: buildHardAnchoredLineSpine(apexX, apexY, backX, backY, headingX, headingY, bandWidth),
+        bandWidth,
+        fuzzWidth: bandWidth * 1.9,
+        visualScale,
+        strength
+      };
+    }
+
+    const leftBird = anchors.left.bird;
+    const rightBird = anchors.right.bird;
+    const visualScale = smallFlockOverlayScale(n);
+    const bandWidth = clamp(12 + Math.min(8, Math.sqrt(n)) + state.metrics.alignment * 2.5, 13, 24) * visualScale;
+    const strength = clamp(0.54 + state.metrics.alignment * 0.22 + state.metrics.vScore * 0.12, 0.52, 0.86);
+    const leftSpine = buildHardAnchoredWingSpine(apexX, apexY, leftBird.x, leftBird.y, headingX, headingY, bandWidth, 1, 0.4);
+    const rightSpine = buildHardAnchoredWingSpine(apexX, apexY, rightBird.x, rightBird.y, headingX, headingY, bandWidth, -1, 2.1);
+
+    return {
+      ok: true,
+      apexX,
+      apexY,
+      headingX,
+      headingY,
+      leftX: leftBird.x,
+      leftY: leftBird.y,
+      rightX: rightBird.x,
+      rightY: rightBird.y,
+      leftSpine,
+      rightSpine,
+      bandWidth,
+      fuzzWidth: bandWidth * 2.05,
+      visualScale,
+      strength
+    };
+  }
+
+
+  function buildAverageDensitySpine(config) {
+    const samples = config.samples || [];
+    const sideSign = config.sideSign || 1;
+    const backMax = Math.max(40, config.backMax || 120);
+    const pointCount = Math.max(4, config.pointCount || 7);
+    const slope = estimateWingSlope(samples, sideSign);
+    const span = backMax / Math.max(1, pointCount - 1);
+    const points = [{ x: config.apexX, y: config.apexY, w: 10, d: 0.70, back: 0 }];
+    let prevBack = 0;
+
+    for (let i = 1; i < pointCount; i++) {
+      const t = i / (pointCount - 1);
+      const targetBack = backMax * t;
+      const backWindow = Math.max(20, span * 1.15);
+      let total = 0;
+      let weightedBack = 0;
+      let weightedSide = 0;
+
+      for (let j = 0; j < samples.length; j++) {
+        const sample = samples[j];
+        const db = (sample.back - targetBack) / backWindow;
+        if (Math.abs(db) > 2.4) continue;
+        const weight = Math.exp(-(db * db) * 0.84);
+        total += weight;
+        weightedBack += sample.back * weight;
+        weightedSide += sample.side * weight;
+      }
+
+      let localBack = total > 0.001 ? weightedBack / total : targetBack;
+      localBack = clamp(Math.max(prevBack + 5, localBack), prevBack + 5, backMax);
+
+      let localSide = total > 0.001 ? weightedSide / total : sideSign * slope * localBack;
+      const expectedSide = sideSign * slope * localBack;
+      const curveLimit = clamp(backMax * 0.10, 16, 46);
+      localSide = clamp(localSide, expectedSide - curveLimit, expectedSide + curveLimit);
+      if (sideSign > 0) localSide = Math.max(0, localSide);
+      if (sideSign < 0) localSide = Math.min(0, localSide);
+
+      let spreadWeighted = 0;
+      for (let j = 0; j < samples.length; j++) {
+        const sample = samples[j];
+        const db = (sample.back - localBack) / backWindow;
+        if (Math.abs(db) > 2.4) continue;
+        const weight = Math.exp(-(db * db) * 0.84);
+        spreadWeighted += Math.abs(sample.side - localSide) * weight;
+      }
+      const spread = total > 0.001 ? spreadWeighted / total : 8;
+      const width = clamp(8 + spread * 0.82, 8, 32);
+      const density = clamp(total / Math.max(2.2, samples.length * 0.22), 0.14, 1);
+      const x = config.apexX - config.headingX * localBack + config.perpX * localSide;
+      const y = config.apexY - config.headingY * localBack + config.perpY * localSide;
+      points.push({ x, y, w: width, d: density, back: localBack });
+      prevBack = localBack;
+    }
+
+    return densifySpine(smoothSpineGeometry(points), 8);
+  }
+
+  function estimateWingSlope(samples, sideSign) {
+    if (!samples || !samples.length) return 0.52;
+    const ratios = [];
+    for (let i = 0; i < samples.length; i++) {
+      const sample = samples[i];
+      if (sample.back <= 4) continue;
+      const side = sideSign > 0 ? sample.side : -sample.side;
+      if (side <= 0) continue;
+      ratios.push(clamp(side / sample.back, 0.16, 0.92));
+    }
+    if (!ratios.length) return 0.52;
+    ratios.sort(function (a, b) { return a - b; });
+    return percentileSorted(ratios, 0.50);
+  }
+
+  function smoothSpineGeometry(points) {
+    if (!points || points.length < 3) return clonePoints(points);
+    let out = clonePoints(points);
+    for (let pass = 0; pass < 3; pass++) {
+      const next = clonePoints(out);
+      for (let i = 1; i < out.length - 1; i++) {
+        next[i].x = out[i - 1].x * 0.20 + out[i].x * 0.60 + out[i + 1].x * 0.20;
+        next[i].y = out[i - 1].y * 0.20 + out[i].y * 0.60 + out[i + 1].y * 0.20;
+        next[i].w = out[i - 1].w * 0.18 + out[i].w * 0.64 + out[i + 1].w * 0.18;
+        next[i].d = out[i - 1].d * 0.18 + out[i].d * 0.64 + out[i + 1].d * 0.18;
+        next[i].back = out[i - 1].back * 0.18 + out[i].back * 0.64 + out[i + 1].back * 0.18;
+      }
+      next[0] = { x: points[0].x, y: points[0].y, w: points[0].w, d: points[0].d, back: points[0].back };
+      out = next;
+    }
+    return out;
+  }
+
+  function densifySpine(points, subdivisions) {
+    if (!points || points.length < 2) return clonePoints(points);
+    const steps = Math.max(1, subdivisions || 4);
+    const out = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[Math.max(0, i - 1)];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[Math.min(points.length - 1, i + 2)];
+      for (let s = 0; s < steps; s++) {
+        const t = s / steps;
+        out.push({
+          x: catmullRomNumber(p0.x, p1.x, p2.x, p3.x, t),
+          y: catmullRomNumber(p0.y, p1.y, p2.y, p3.y, t),
+          w: Math.max(5, catmullRomNumber(p0.w || 10, p1.w || 10, p2.w || 10, p3.w || 10, t)),
+          d: clamp(catmullRomNumber(p0.d || 0.5, p1.d || 0.5, p2.d || 0.5, p3.d || 0.5, t), 0.10, 1),
+          back: Math.max(0, catmullRomNumber(p0.back || 0, p1.back || 0, p2.back || 0, p3.back || 0, t))
+        });
+      }
+    }
+    out.push(clonePoints([points[points.length - 1]])[0]);
+    return out;
+  }
+
+  function catmullRomNumber(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  }
+
+  function projectSideDistance(x, y, originX, originY, perpX, perpY) {
+    return (x - originX) * perpX + (y - originY) * perpY;
+  }
+
+  function projectBackDistance(x, y, originX, originY, headingX, headingY) {
+    return -((x - originX) * headingX + (y - originY) * headingY);
+  }
+
+  function smoothCollectiveVShape(target, count) {
+    const current = state.collectiveVShape;
+    const targetAngle = Math.atan2(target.headingY, target.headingX);
+
+    if (!current.initialized || Math.abs((current.count || 0) - count) > Math.max(8, count * 0.22)) {
+      current.initialized = true;
+      current.count = count;
+      current.apexX = target.apexX;
+      current.apexY = target.apexY;
+      current.headingX = target.headingX;
+      current.headingY = target.headingY;
+      current.back = target.back;
+      current.leftSide = target.leftSide;
+      current.rightSide = target.rightSide;
+      current.leftBack = target.leftBack;
+      current.rightBack = target.rightBack;
+      current.bandWidth = target.bandWidth;
+      current.fuzzWidth = target.fuzzWidth;
+      current.strength = target.strength;
+      current.leftSpine = clonePoints(target.leftSpine);
+      current.rightSpine = clonePoints(target.rightSpine);
+      return current;
+    }
+
+    const currentAngle = Math.atan2(current.headingY, current.headingX);
+    const nextAngle = currentAngle + angleDelta(currentAngle, targetAngle) * 0.026;
+    current.count = count;
+    current.apexX += (target.apexX - current.apexX) * 0.050;
+    current.apexY += (target.apexY - current.apexY) * 0.050;
+    current.headingX = Math.cos(nextAngle);
+    current.headingY = Math.sin(nextAngle);
+    current.back += (target.back - current.back) * 0.045;
+    current.leftSide += (target.leftSide - current.leftSide) * 0.050;
+    current.rightSide += (target.rightSide - current.rightSide) * 0.050;
+    current.leftBack += (target.leftBack - current.leftBack) * 0.050;
+    current.rightBack += (target.rightBack - current.rightBack) * 0.050;
+    current.bandWidth += (target.bandWidth - current.bandWidth) * 0.050;
+    current.fuzzWidth += (target.fuzzWidth - current.fuzzWidth) * 0.050;
+    current.strength += (target.strength - current.strength) * 0.060;
+    current.leftSpine = smoothPointArray(current.leftSpine, target.leftSpine, 0.07);
+    current.rightSpine = smoothPointArray(current.rightSpine, target.rightSpine, 0.07);
+    return current;
+  }
+
+  function clonePoints(points) {
+    return (points || []).map(function (p) {
+      return { x: p.x, y: p.y, w: p.w, d: p.d, back: p.back };
+    });
+  }
+
+  function smoothPointArray(current, target, amount) {
+    if (!current || current.length !== target.length) return clonePoints(target);
+    const out = new Array(target.length);
+    for (let i = 0; i < target.length; i++) {
+      out[i] = {
+        x: current[i].x + (target[i].x - current[i].x) * amount,
+        y: current[i].y + (target[i].y - current[i].y) * amount,
+        w: (current[i].w == null ? target[i].w : current[i].w + (target[i].w - current[i].w) * amount),
+        d: (current[i].d == null ? target[i].d : current[i].d + (target[i].d - current[i].d) * amount),
+        back: (current[i].back == null ? target[i].back : current[i].back + (target[i].back - current[i].back) * amount)
+      };
+    }
+    return out;
+  }
+
+
+  function pushCollectiveVGlow(pos, col, v) {
+    const strength = clamp(v.strength || 0.7, 0.22, 1);
+    const visualScale = clamp(Number(v.visualScale) || 1, 0.30, 1);
+    const layers = [
+      { scale: 2.05, alpha: 0.34 * strength, start: [1.00, 0.56, 0.56], end: [0.88, 0.18, 0.18] },
+      { scale: 1.35, alpha: 0.68 * strength, start: [1.00, 0.72, 0.72], end: [0.96, 0.28, 0.28] },
+      { scale: 0.86, alpha: 1.00 * strength, start: [1.00, 0.86, 0.84], end: [1.00, 0.40, 0.40] }
+    ];
+
+    if (v.lineMode && v.centerSpine && v.centerSpine.length > 1) {
+      for (let i = 0; i < layers.length; i++) {
+        const layer = layers[i];
+        pushContinuousDensityWing(pos, col, v.centerSpine, layer.scale * 0.78, layer.start, layer.end, layer.alpha);
+      }
+      pushDisk(pos, col, v.apexX, v.apexY, 10 * visualScale, [1.00, 0.84, 0.82, 1.00 * strength]);
+      const tail = v.centerSpine[v.centerSpine.length - 1];
+      pushDisk(pos, col, tail.x, tail.y, 7 * visualScale, [0.98, 0.46, 0.46, 0.72 * strength]);
+      return;
+    }
+
+    const leftSpine = v.leftSpine && v.leftSpine.length > 1 ? v.leftSpine : [
+      { x: v.apexX, y: v.apexY, w: 10, d: 0.7 },
+      { x: v.leftX, y: v.leftY, w: v.bandWidth || 18, d: 0.5 }
+    ];
+    const rightSpine = v.rightSpine && v.rightSpine.length > 1 ? v.rightSpine : [
+      { x: v.apexX, y: v.apexY, w: 10, d: 0.7 },
+      { x: v.rightX, y: v.rightY, w: v.bandWidth || 18, d: 0.5 }
+    ];
+
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i];
+      pushContinuousDensityWing(pos, col, leftSpine, layer.scale, layer.start, layer.end, layer.alpha);
+      pushContinuousDensityWing(pos, col, rightSpine, layer.scale, layer.start, layer.end, layer.alpha);
+    }
+
+    pushDisk(pos, col, v.apexX, v.apexY, 12 * visualScale, [1.00, 0.84, 0.82, 1.00 * strength]);
+  }
+
+
+  function pushFlockDensityGradient(pos, col) {
+    const birds = state.birds;
+    const n = birds.length;
+    if (!n) return;
+
+    const maxSamples = 240;
+    const stride = Math.max(1, Math.floor(n / maxSamples));
+    const indices = [];
+    for (let i = 0; i < n; i += stride) indices.push(i);
+
+    const baseRadius = clamp(18 + state.metrics.spread * 0.028, 16, 34);
+    const densityRadius = baseRadius * 1.55;
+    const densities = computeLocalDensityScores(indices, densityRadius);
+    const baseAlpha = clamp(0.060 * Math.sqrt(160 / Math.max(1, indices.length)), 0.030, 0.090);
+    const layers = [
+      { scale: 1.60, alpha: 0.45 },
+      { scale: 0.96, alpha: 0.75 },
+      { scale: 0.42, alpha: 1.00 }
+    ];
+
+    for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+      const layer = layers[layerIndex];
+      for (let k = 0; k < indices.length; k++) {
+        const b = birds[indices[k]];
+        const density = densities[k];
+        const sp = length(b.vx, b.vy);
+        const bx = sp > 0.0001 ? b.vx / sp : state.metrics.headingX;
+        const by = sp > 0.0001 ? b.vy / sp : state.metrics.headingY;
+        const aligned = clamp((bx * state.metrics.headingX + by * state.metrics.headingY + 1) * 0.5, 0, 1);
+        const center = [
+          0.88 + density * 0.10,
+          0.28 + density * 0.10,
+          0.28 + density * 0.10,
+          baseAlpha * layer.alpha * (0.65 + density * 0.50) * (0.82 + aligned * 0.18)
+        ];
+        const edge = [0.72, 0.16 + density * 0.06, 0.16 + density * 0.06, 0.0];
+        pushRadialGradientDisk(pos, col, b.x, b.y, baseRadius * layer.scale, center, edge, layerIndex === 0 ? 22 : 28);
+      }
+    }
+  }
+
+  function computeLocalDensityScores(indices, radius) {
+    const birds = state.birds;
+    const n = birds.length;
+    const r2 = radius * radius;
+    const comparisonStride = Math.max(1, Math.floor(n / 700));
+    const scores = [];
+
+    for (let k = 0; k < indices.length; k++) {
+      const b = birds[indices[k]];
+      let total = 0;
+      let comparisons = 0;
+      for (let j = 0; j < n; j += comparisonStride) {
+        const o = birds[j];
+        const dx = b.x - o.x;
+        const dy = b.y - o.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < r2) total += 1 - d2 / r2;
+        comparisons++;
+      }
+      scores.push(clamp(total / Math.max(4, comparisons * 0.045), 0, 1));
+    }
+
+    return scores;
+  }
+
+  function pushRadialGradientDisk(pos, col, x, y, r, centerColor, edgeColor, steps) {
+    const count = Math.max(18, Math.round(steps || 32));
+    for (let i = 0; i < count; i++) {
+      const a0 = (i / count) * TAU;
+      const a1 = ((i + 1) / count) * TAU;
+      pushVertex(pos, col, x, y, centerColor);
+      pushVertex(pos, col, x + Math.cos(a0) * r, y + Math.sin(a0) * r, edgeColor);
+      pushVertex(pos, col, x + Math.cos(a1) * r, y + Math.sin(a1) * r, edgeColor);
+    }
+  }
+
+  function pushContinuousDensityWing(pos, col, spine, widthScale, startRgb, endRgb, alpha) {
+    if (!spine || spine.length < 2) return;
+    const leftEdge = [];
+    const rightEdge = [];
+    const edgeColors = [];
+
+    for (let i = 0; i < spine.length; i++) {
+      const prev = spine[Math.max(0, i - 1)];
+      const next = spine[Math.min(spine.length - 1, i + 1)];
+      const tangent = normalize(next.x - prev.x, next.y - prev.y);
+      const px = -tangent[1];
+      const py = tangent[0];
+      const width = Math.max(3, (spine[i].w || 10) * widthScale);
+      leftEdge.push({ x: spine[i].x + px * width, y: spine[i].y + py * width });
+      rightEdge.push({ x: spine[i].x - px * width, y: spine[i].y - py * width });
+      const t = i / Math.max(1, spine.length - 1);
+      const density = clamp(spine[i].d || 0.5, 0.10, 1);
+      edgeColors.push(mixColor(startRgb, endRgb, t, alpha * (0.65 + density * 0.35) * (1 - t * 0.12)));
+    }
+
+    for (let i = 0; i < spine.length - 1; i++) {
+      const c0 = edgeColors[i];
+      const c1 = edgeColors[i + 1];
+      pushVertex(pos, col, leftEdge[i].x, leftEdge[i].y, c0);
+      pushVertex(pos, col, leftEdge[i + 1].x, leftEdge[i + 1].y, c1);
+      pushVertex(pos, col, rightEdge[i + 1].x, rightEdge[i + 1].y, c1);
+      pushVertex(pos, col, leftEdge[i].x, leftEdge[i].y, c0);
+      pushVertex(pos, col, rightEdge[i + 1].x, rightEdge[i + 1].y, c1);
+      pushVertex(pos, col, rightEdge[i].x, rightEdge[i].y, c0);
+    }
+  }
+
+  function mixColor(a, b, t, alpha) {
+    return [
+      a[0] + (b[0] - a[0]) * t,
+      a[1] + (b[1] - a[1]) * t,
+      a[2] + (b[2] - a[2]) * t,
+      alpha
+    ];
+  }
+
+  function percentileSorted(sortedNumbers, q) {
+    if (!sortedNumbers.length) return 0;
+    const idx = clamp(q, 0, 1) * (sortedNumbers.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    if (lo === hi) return sortedNumbers[lo];
+    const t = idx - lo;
+    return sortedNumbers[lo] * (1 - t) + sortedNumbers[hi] * t;
+  }
+
+  function buildMicroOverlay(selected) {
+    const pos = [];
+    const col = [];
+    const tri = [];
+    const triCol = [];
+    const underTri = [];
+    const underTriCol = [];
+    const birds = state.birds;
+    const b = birds[selected];
+    const [bx, by] = normalize(b.vx, b.vy);
+    const forces = state.lastForces[selected] || zeroForces();
+    const passingEffect = lowCountVisualPassingEffect(selected);
+    const separateLostCones = lowCountSeparateLostOptionCones(selected);
+    const relation = actualLocalRelationVector(forces, selected, passingEffect);
+    const relationMag = length(relation.x, relation.y);
+    const directionPressure = Math.max(relationPressureFromMagnitude(relationMag), passingEffect.pressure * 0.85);
+    const optionPressure = optionPressureForSelectedBird(selected, forces, relationMag, passingEffect);
+    const optionRadius = 78;
+    const boundaryInner = 8;
+    const boundaryOuter = optionRadius;
+
+    const headingAngle = Math.atan2(by, bx);
+    const sliderBalance = microMacroDialecticBalance();
+    const dialecticPressure = optionPressureFromDialecticSliders(optionPressure, sliderBalance);
+
+    // The option circle is now built around the selected bird's real travel
+    // direction. The sliders shape how much of that circle appears as wants,
+    // constraints, coordination/authority pressure, and open autonomy/anarchy.
+    const targetAngle = headingAngle;
+    const targetHalfAngle = optionConeHalfAngleFromPressure(dialecticPressure);
+    const cone = smoothOptionCone(selected, targetAngle, targetHalfAngle, dialecticPressure);
+    const selectedProfiles = birdReadingProfiles(selected);
+    const start = cone.angle - cone.halfAngle;
+    const end = cone.angle + cone.halfAngle;
+    const fullCircle = cone.halfAngle >= Math.PI - 0.002;
+
+    // Build one actual option-space mask. The individual 2+ bird interaction
+    // cones are not overlays: they become extra blocked intervals, so they cut
+    // real wedges out of the blue available area and merge with the average lost
+    // field wherever they touch it.
+    const domainStart = cone.angle - Math.PI;
+    const domainEnd = cone.angle + Math.PI;
+    const blockedIntervals = [];
+
+    if (!fullCircle) {
+      addAngleRange(blockedIntervals, domainStart, start, domainStart, domainEnd, cone.pressure, 'average');
+      addAngleRange(blockedIntervals, end, domainEnd, domainStart, domainEnd, cone.pressure, 'average');
+    }
+
+    for (let i = 0; i < separateLostCones.length; i++) {
+      const lost = separateLostCones[i];
+      addCenteredAngleInterval(
+        blockedIntervals,
+        lost.angle,
+        lost.halfAngle,
+        domainStart,
+        domainEnd,
+        cone.angle,
+        lost.pressure,
+        'neighbor'
+      );
+    }
+
+    const mergedBlocked = mergeAngleIntervals(blockedIntervals);
+    const fullAvailableDomain = [{ start: domainStart, end: domainEnd }];
+
+    // The blue available-options field is always a complete 360-degree base.
+    // Red lost-options wedges are drawn on top as cutouts/replacements, so there
+    // are no empty gaps when the want and constraint fields swing through each other.
+    drawSegmentedOptionIntervals(
+      fullAvailableDomain,
+      selectedProfiles.wants,
+      WANT_DEFS,
+      b.x,
+      b.y,
+      optionRadius,
+      boundaryInner,
+      underTri,
+      underTriCol,
+      pos,
+      col,
+      [0.40, 0.78, 1.0],
+      0.105,
+      0.31,
+      cone.pressure
+    );
+
+    // Draw a second moving layer over the 360-degree blue base. This restores
+    // intermingling: wants and constraints swing on independent angular tracks,
+    // so red cuts can pass through, cross, and overlap the blue option wedges.
+    // The blue base underneath guarantees there are no blank spots.
+    drawIntermingledOptionSegments(
+      fullAvailableDomain,
+      selectedProfiles.wants,
+      selectedProfiles.constraints,
+      fullAvailableDomain,
+      mergedBlocked,
+      b.x,
+      b.y,
+      optionRadius,
+      boundaryInner,
+      underTri,
+      underTriCol,
+      pos,
+      col,
+      cone.pressure,
+      sliderBalance
+    );
+
+    const visualLostCuts = movingLostCutIntervals(
+      fullAvailableDomain,
+      selectedProfiles.constraints,
+      mergedBlocked,
+      domainStart,
+      domainEnd,
+      cone.pressure
+    );
+
+    if (visualLostCuts.length) {
+      const lostWedgeColor = [1.0, 0.37, 0.43, 0.18];
+      for (let i = 0; i < visualLostCuts.length; i++) {
+        const cut = visualLostCuts[i];
+        pushArc(pos, col, b.x, b.y, optionRadius, cut.start, cut.end, lostWedgeColor);
+      }
+    }
+
+    // Each neighboring bird that is close enough for its body to touch the
+    // selected bird's micro option circle contributes its own fixed 8-degree
+    // constraint wedge. These stay attached to the neighbor's actual angle.
+    if (separateLostCones.length) {
+      drawNeighborConstraintWedges(
+        separateLostCones, b.x, b.y, optionRadius, boundaryInner,
+        domainStart, domainEnd, cone.angle,
+        underTri, underTriCol, pos, col
+      );
+    }
+
+    if (!fullCircle) {
+      pushRay(pos, col, b.x, b.y, start, boundaryInner, boundaryOuter, [0.40, 0.78, 1.0, 0.34]);
+      pushRay(pos, col, b.x, b.y, end, boundaryInner, boundaryOuter, [0.40, 0.78, 1.0, 0.34]);
+    }
+
+    // Display the selected bird exactly like the macro view: one velocity-facing
+    // triangle using the same renderer path. The option space can keep shifting
+    // around the bird, but the bird arrow itself no longer chases those wedges,
+    // which removes the jumpy micro-only direction changes.
+    pushBirdTriangle(tri, triCol, b, [0.36, 0.92, 0.62, 1.0], 7.6);
+
+    return {
+      positions: pos,
+      colors: col,
+      triangles: tri,
+      triangleColors: triCol,
+      underTriangles: underTri,
+      underTriangleColors: underTriCol
+    };
+  }
+
+  function normalizeAngleAround(angle, reference) {
+    let a = angle;
+    while (a < reference - Math.PI) a += TAU;
+    while (a > reference + Math.PI) a -= TAU;
+    return a;
+  }
+
+  function addAngleRange(list, start, end, domainStart, domainEnd, pressure, source) {
+    const s = clamp(Math.min(start, end), domainStart, domainEnd);
+    const e = clamp(Math.max(start, end), domainStart, domainEnd);
+    if (e - s <= 0.001) return;
+    list.push({
+      start: s,
+      end: e,
+      pressure: clamp(pressure || 0, 0, 1),
+      source: source || 'average'
+    });
+  }
+
+  function addCenteredAngleInterval(list, center, halfAngle, domainStart, domainEnd, reference, pressure, source) {
+    const c = normalizeAngleAround(center, reference);
+    const h = clamp(halfAngle, 0, Math.PI);
+    const start = c - h;
+    const end = c + h;
+
+    if (start < domainStart) {
+      addAngleRange(list, domainStart, end, domainStart, domainEnd, pressure, source);
+      addAngleRange(list, start + TAU, domainEnd, domainStart, domainEnd, pressure, source);
+      return;
+    }
+
+    if (end > domainEnd) {
+      addAngleRange(list, start, domainEnd, domainStart, domainEnd, pressure, source);
+      addAngleRange(list, domainStart, end - TAU, domainStart, domainEnd, pressure, source);
+      return;
+    }
+
+    addAngleRange(list, start, end, domainStart, domainEnd, pressure, source);
+  }
+
+  function mergeAngleIntervals(intervals) {
+    if (!intervals.length) return [];
+    const sorted = intervals.slice().sort(function (a, b) { return a.start - b.start; });
+    const out = [];
+
+    for (let i = 0; i < sorted.length; i++) {
+      const next = sorted[i];
+      const last = out[out.length - 1];
+      if (!last || next.start > last.end + 0.001) {
+        out.push({
+          start: next.start,
+          end: next.end,
+          pressure: next.pressure,
+          source: next.source
+        });
+      } else {
+        last.end = Math.max(last.end, next.end);
+        last.pressure = Math.max(last.pressure || 0, next.pressure || 0);
+        if (last.source !== next.source) last.source = 'merged';
+      }
+    }
+
+    return out;
+  }
+
+  function invertAngleIntervals(blocked, domainStart, domainEnd) {
+    const available = [];
+    let cursor = domainStart;
+
+    for (let i = 0; i < blocked.length; i++) {
+      const block = blocked[i];
+      if (block.start > cursor + 0.001) {
+        available.push({ start: cursor, end: block.start });
+      }
+      cursor = Math.max(cursor, block.end);
+    }
+
+    if (cursor < domainEnd - 0.001) {
+      available.push({ start: cursor, end: domainEnd });
+    }
+
+    return available;
+  }
+
+  function profileSegments(profile, defs) {
+    const raw = [];
+    let total = 0;
+
+    for (let i = 0; i < defs.length; i++) {
+      const value = Math.max(0, Number(profile[defs[i].key]) || 0);
+      if (value <= 0) continue;
+      raw.push({ key: defs[i].key, value: value, order: i });
+      total += value;
+    }
+
+    if (!raw.length || total <= 0.000001) {
+      return defs.map(function (def, i) {
+        return { key: def.key, value: 1 / defs.length, order: i };
+      });
+    }
+
+    return raw.map(function (item) {
+      return { key: item.key, value: item.value / total, order: item.order };
+    });
+  }
+
+  function drawLostOptionCutouts(intervals, constraintProfile, cx, cy, radius, inner, underTri, underTriCol, pos, col, pressure) {
+    const rgb = [1.0, 0.37, 0.43];
+    const baseSegments = profileSegments(constraintProfile, CONSTRAINT_DEFS);
+    const minSlice = 0.006;
+
+    for (let i = 0; i < intervals.length; i++) {
+      const interval = intervals[i];
+      const width = interval.end - interval.start;
+      if (width <= 0.001) continue;
+
+      const segments = animatedOptionSegments(baseSegments, i + 37, width);
+      let cursor = interval.start;
+
+      for (let j = 0; j < segments.length; j++) {
+        const seg = segments[j];
+        const isLast = j === segments.length - 1;
+        const next = isLast ? interval.end : Math.min(interval.end, cursor + width * seg.animatedValue);
+        if (next - cursor >= minSlice) {
+          const pulse = 0.86 + ((seg.order % 5) * 0.038);
+          const shimmer = 0.86 + 0.14 * Math.sin((state.t || 0) * (0.66 + seg.order * 0.015) + seg.order * 2.03 + i * 0.9);
+          const fill = [rgb[0], rgb[1], rgb[2], clamp((0.135 + pressure * 0.036) * pulse * shimmer, 0.055, 0.30)];
+          const line = [rgb[0], rgb[1], rgb[2], clamp((0.18 + pressure * 0.06) * shimmer, 0.055, 0.42)];
+          pushSector(underTri, underTriCol, cx, cy, radius, cursor, next, fill);
+          pushArc(pos, col, cx, cy, radius, cursor, next, line);
+          if (j > 0) pushRay(pos, col, cx, cy, cursor, inner, radius, [rgb[0], rgb[1], rgb[2], 0.08]);
+        }
+        cursor = next;
+      }
+    }
+  }
+
+  function nearestAvailableAngle(preferredAngle, blockedIntervals, domainStart, domainEnd) {
+    const width = domainEnd - domainStart;
+    if (!blockedIntervals || !blockedIntervals.length || width <= 0.001) {
+      return wrapAngleToDomain(preferredAngle, domainStart, domainEnd);
+    }
+
+    const margin = 0.035;
+    const angle = wrapAngleToDomain(preferredAngle, domainStart, domainEnd);
+    let blockedHit = null;
+
+    for (let i = 0; i < blockedIntervals.length; i++) {
+      const r = blockedIntervals[i];
+      if (angle >= r.start + margin && angle <= r.end - margin) {
+        blockedHit = r;
+        break;
+      }
+    }
+
+    if (!blockedHit) return angle;
+
+    const available = invertAngleIntervals(blockedIntervals, domainStart, domainEnd);
+    if (!available.length) return domainStart + width * 0.5;
+
+    let best = null;
+    let bestDistance = Infinity;
+    for (let i = 0; i < available.length; i++) {
+      const r = available[i];
+      const candidate = clamp(angle, r.start + margin, r.end - margin);
+      const d = Math.abs(angleDelta(angle, candidate));
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = candidate;
+      }
+    }
+
+    if (best === null || !Number.isFinite(best)) {
+      let widest = available[0];
+      for (let i = 1; i < available.length; i++) {
+        if (available[i].end - available[i].start > widest.end - widest.start) widest = available[i];
+      }
+      best = (widest.start + widest.end) * 0.5;
+    }
+
+    return wrapAngleToDomain(best, domainStart, domainEnd);
+  }
+
+  function drawSegmentedOptionIntervals(intervals, profile, defs, cx, cy, radius, inner, underTri, underTriCol, pos, col, rgb, fillAlpha, lineAlpha, pressure) {
+    const baseSegments = profileSegments(profile, defs);
+    const minSlice = 0.006;
+
+    for (let i = 0; i < intervals.length; i++) {
+      const interval = intervals[i];
+      const width = interval.end - interval.start;
+      if (width <= 0.001) continue;
+
+      const segments = animatedOptionSegments(baseSegments, i, width);
+      let cursor = interval.start;
+
+      for (let j = 0; j < segments.length; j++) {
+        const seg = segments[j];
+        const isLast = j === segments.length - 1;
+        const next = isLast ? interval.end : Math.min(interval.end, cursor + width * seg.animatedValue);
+        if (next - cursor >= minSlice) {
+          const pulse = 0.82 + ((seg.order % 5) * 0.045);
+          const shimmer = 0.86 + 0.14 * Math.sin(state.t * (0.72 + seg.order * 0.013) + seg.order * 1.91 + i * 0.7);
+          const fill = [rgb[0], rgb[1], rgb[2], clamp(fillAlpha * pulse * shimmer + pressure * 0.012, 0.02, 0.34)];
+          const line = [rgb[0], rgb[1], rgb[2], clamp(lineAlpha * (0.88 + (seg.order % 4) * 0.05) * shimmer, 0.03, 0.52)];
+          pushSector(underTri, underTriCol, cx, cy, radius, cursor, next, fill);
+          pushArc(pos, col, cx, cy, radius, cursor, next, line);
+          if (j > 0) pushRay(pos, col, cx, cy, cursor, inner, radius, [rgb[0], rgb[1], rgb[2], clamp(lineAlpha * 0.48, 0.025, 0.25)]);
+        }
+        cursor = next;
+      }
+    }
+  }
+
+  function animatedOptionSegments(baseSegments, intervalIndex, intervalWidth) {
+    if (!baseSegments.length) return [];
+    const driftStrength = clamp(intervalWidth / Math.PI, 0.10, 1) * 0.34;
+    const t = state.t || 0;
+
+    const weighted = baseSegments.map(function (seg, index) {
+      const slow = Math.sin(t * (0.38 + seg.order * 0.011) + seg.order * 1.37 + intervalIndex * 0.93);
+      const slower = Math.sin(t * (0.19 + index * 0.017) + seg.order * 2.11);
+      const modifier = 1 + driftStrength * (slow * 0.72 + slower * 0.28);
+      return {
+        key: seg.key,
+        order: seg.order,
+        animatedValue: Math.max(0.0001, seg.value * modifier),
+        sortPhase: index + Math.sin(t * 0.16 + seg.order * 0.71 + intervalIndex) * 0.18
+      };
+    });
+
+    // Adjacent slices can slowly pass around each other instead of remaining fixed.
+    weighted.sort(function (a, b) { return a.sortPhase - b.sortPhase; });
+
+    let total = 0;
+    for (let i = 0; i < weighted.length; i++) total += weighted[i].animatedValue;
+    for (let i = 0; i < weighted.length; i++) weighted[i].animatedValue /= Math.max(0.0001, total);
+
+    return weighted;
+  }
+
+  function intervalWidthTotal(intervals) {
+    let total = 0;
+    for (let i = 0; i < intervals.length; i++) {
+      total += Math.max(0, intervals[i].end - intervals[i].start);
+    }
+    return total;
+  }
+
+
+  function movingLostCutIntervals(domainIntervals, constraintProfile, blockedIntervals, domainStart, domainEnd, pressure) {
+    const blockedWidth = intervalWidthTotal(blockedIntervals || []);
+    const domainWidth = Math.max(0.0001, intervalWidthTotal(domainIntervals || [{ start: domainStart, end: domainEnd }]));
+    if (blockedWidth <= 0.001) return [];
+
+    const constraintWeight = clamp(blockedWidth / domainWidth, 0.035, 0.92);
+    const constraintSegments = profileSegments(constraintProfile, CONSTRAINT_DEFS).map(function (seg, index) {
+      return {
+        key: 'constraint-' + seg.key,
+        order: index * 2 + 1,
+        value: seg.value * constraintWeight,
+        rgb: [1.0, 0.37, 0.43],
+        fillAlpha: 0.12,
+        lineAlpha: 0.18
+      };
+    });
+
+    const cuts = [];
+    for (let i = 0; i < domainIntervals.length; i++) {
+      const interval = domainIntervals[i];
+      const width = interval.end - interval.start;
+      if (width <= 0.001) continue;
+      const segments = orbitingOptionSegments(constraintSegments, i + 19, width);
+
+      for (let j = 0; j < segments.length; j++) {
+        const seg = segments[j];
+        const sliceWidth = Math.max(0.006, width * seg.animatedValue);
+        const center = interval.start + width * seg.centerPhase;
+        addWrappedAngleRange(cuts, center - sliceWidth * 0.5, center + sliceWidth * 0.5, domainStart, domainEnd, pressure, 'visual-lost');
+      }
+    }
+
+    return mergeAngleIntervals(cuts);
+  }
+
+  function addWrappedAngleRange(list, start, end, domainStart, domainEnd, pressure, source) {
+    const width = domainEnd - domainStart;
+    if (width <= 0.001 || end - start <= 0.001) return;
+    let a = wrapAngleToDomain(start, domainStart, domainEnd);
+    let b = a + (end - start);
+    while (b > domainEnd + 0.0001) {
+      addAngleRange(list, a, domainEnd, domainStart, domainEnd, pressure, source);
+      b -= width;
+      a = domainStart;
+    }
+    addAngleRange(list, a, b, domainStart, domainEnd, pressure, source);
+  }
+
+  function drawIntermingledOptionSegments(domainIntervals, wantProfile, constraintProfile, availableIntervals, blockedIntervals, cx, cy, radius, inner, underTri, underTriCol, pos, col, pressure, balance) {
+    const availableWidth = intervalWidthTotal(availableIntervals);
+    const blockedWidth = intervalWidthTotal(blockedIntervals);
+    const totalWidth = Math.max(0.0001, availableWidth + blockedWidth);
+    const baseWantWeight = Math.max(0.02, availableWidth / totalWidth);
+    const baseConstraintWeight = Math.max(0.02, blockedWidth / totalWidth);
+    const dialectic = balance || microMacroDialecticBalance();
+    const wantLean = 0.60 + dialectic.autonomy * 0.32 + dialectic.anarchy * 0.22;
+    const constraintLean = 0.60 + dialectic.coordination * 0.26 + dialectic.authority * 0.34;
+    const normalizer = Math.max(0.0001, baseWantWeight * wantLean + baseConstraintWeight * constraintLean);
+    const wantWeight = Math.max(0.02, baseWantWeight * wantLean / normalizer);
+    const constraintWeight = Math.max(0.02, baseConstraintWeight * constraintLean / normalizer);
+
+    const wantSegments = profileSegments(wantProfile, WANT_DEFS).map(function (seg, index) {
+      return {
+        key: 'want-' + seg.key,
+        order: index * 2,
+        value: seg.value * wantWeight,
+        rgb: [0.40, 0.78, 1.0],
+        fillAlpha: 0.112 + pressure * 0.034,
+        lineAlpha: 0.33 + pressure * 0.08
+      };
+    });
+
+    const constraintSegments = profileSegments(constraintProfile, CONSTRAINT_DEFS).map(function (seg, index) {
+      return {
+        key: 'constraint-' + seg.key,
+        order: index * 2 + 1,
+        value: seg.value * constraintWeight,
+        rgb: [1.0, 0.37, 0.43],
+        fillAlpha: 0.104,
+        lineAlpha: 0.145
+      };
+    });
+
+    const combined = wantSegments.concat(constraintSegments);
+    const minSlice = 0.0055;
+
+    for (let i = 0; i < domainIntervals.length; i++) {
+      const interval = domainIntervals[i];
+      const width = interval.end - interval.start;
+      if (width <= 0.001) continue;
+
+      // Wants and constraints now have independent angular drift fields.
+      // They keep their relative sizes, but their centers orbit at different
+      // speeds and amplitudes, so blue and red wedges can separate, overlap,
+      // cross through each other, and then recombine instead of staying bunched.
+      const segments = orbitingOptionSegments(combined, i, width, dialectic);
+
+      for (let j = 0; j < segments.length; j++) {
+        const seg = segments[j];
+        const sliceWidth = Math.max(minSlice, width * seg.animatedValue);
+        const center = interval.start + width * seg.centerPhase;
+        const start = center - sliceWidth * 0.5;
+        const end = center + sliceWidth * 0.5;
+
+        if (end - start >= minSlice) {
+          const shimmer = 0.86 + 0.14 * Math.sin((state.t || 0) * (0.70 + seg.order * 0.009) + seg.order * 1.73 + i * 0.7);
+          const rgb = seg.rgb || [1, 1, 1];
+          const fill = [
+            rgb[0],
+            rgb[1],
+            rgb[2],
+            clamp(seg.fillAlpha * shimmer + pressure * 0.008, 0.018, 0.30)
+          ];
+          const line = [
+            rgb[0],
+            rgb[1],
+            rgb[2],
+            clamp(seg.lineAlpha * shimmer, 0.025, 0.50)
+          ];
+
+          pushWrappedSector(underTri, underTriCol, cx, cy, radius, start, end, interval.start, interval.end, fill);
+          pushWrappedArc(pos, col, cx, cy, radius, start, end, interval.start, interval.end, line);
+          pushRay(pos, col, cx, cy, wrapAngleToDomain(start, interval.start, interval.end), inner, radius, [rgb[0], rgb[1], rgb[2], clamp(seg.lineAlpha * 0.34, 0.018, 0.20)]);
+        }
+      }
+    }
+  }
+
+
+  function orbitingOptionSegments(baseSegments, intervalIndex, intervalWidth, balance) {
+    if (!baseSegments.length) return [];
+
+    const t = state.t || 0;
+    const dialectic = balance || microMacroDialecticBalance();
+    const wantOrbitBoost = 0.70 + dialectic.autonomy * 0.55 + dialectic.anarchy * 0.20;
+    const constraintOrbitBoost = 0.70 + dialectic.coordination * 0.26 + dialectic.authority * 0.54;
+    const total = baseSegments.reduce(function (sum, seg) {
+      return sum + Math.max(0.0001, Number(seg.value) || 0);
+    }, 0.0001);
+
+    let largestWantKey = null;
+    let largestWantValue = -1;
+    for (let i = 0; i < baseSegments.length; i++) {
+      const seg = baseSegments[i];
+      const isWant = String(seg.key || '').indexOf('want-') === 0;
+      const value = Math.max(0.0001, Number(seg.value) || 0);
+      if (isWant && value > largestWantValue) {
+        largestWantValue = value;
+        largestWantKey = seg.key;
+      }
+    }
+
+    let cursor = 0;
+    return baseSegments.map(function (seg, index) {
+      const baseValue = Math.max(0.0001, (Number(seg.value) || 0) / total);
+      const baseCenter = cursor + baseValue * 0.5;
+      cursor += baseValue;
+
+      const isConstraint = String(seg.key || '').indexOf('constraint-') === 0;
+      const categoryDirection = isConstraint ? -1 : 1;
+      const categoryOffset = isConstraint ? 0.48 - dialectic.authority * 0.10 : 0.02 + dialectic.autonomy * 0.08;
+      const isAnchoredWant = !isConstraint && seg.key === largestWantKey;
+      const swingStrength = clamp(intervalWidth / Math.PI, 0.18, 1) * (isConstraint ? 0.24 * constraintOrbitBoost : 0.21 * wantOrbitBoost);
+      const broadSwing = Math.sin(t * (0.075 + index * 0.0015) + seg.order * 0.37 + intervalIndex * 0.71) * swingStrength;
+      const crossingSwing = Math.sin(t * (0.14 + (seg.order % 5) * 0.004) + seg.order * 1.19 + intervalIndex * 1.3) * swingStrength * 0.48;
+      const smallRipple = Math.sin(t * 0.24 + seg.order * 2.07) * 0.016;
+      const valuePulse = isAnchoredWant ? 1 : 1 + 0.11 * Math.sin(t * (0.10 + index * 0.003) + seg.order * 1.67 + intervalIndex);
+      const movingCenter = positiveModulo(baseCenter + categoryOffset + categoryDirection * broadSwing + crossingSwing + smallRipple, 1);
+
+      return Object.assign({}, seg, {
+        animatedValue: Math.max(0.0001, baseValue * valuePulse),
+        centerPhase: isAnchoredWant ? 0.5 : movingCenter
+      });
+    });
+  }
+
+  function positiveModulo(value, modulus) {
+    return ((value % modulus) + modulus) % modulus;
+  }
+
+  function wrapAngleToDomain(angle, domainStart, domainEnd) {
+    const width = domainEnd - domainStart;
+    return domainStart + positiveModulo(angle - domainStart, width);
+  }
+
+  function pushWrappedSector(tri, triCol, cx, cy, radius, start, end, domainStart, domainEnd, color) {
+    const width = domainEnd - domainStart;
+    if (width <= 0.001) return;
+    let a = wrapAngleToDomain(start, domainStart, domainEnd);
+    let b = a + (end - start);
+    while (b > domainEnd + 0.0001) {
+      pushSector(tri, triCol, cx, cy, radius, a, domainEnd, color);
+      b -= width;
+      a = domainStart;
+    }
+    pushSector(tri, triCol, cx, cy, radius, a, b, color);
+  }
+
+  function pushWrappedArc(pos, col, cx, cy, radius, start, end, domainStart, domainEnd, color) {
+    const width = domainEnd - domainStart;
+    if (width <= 0.001) return;
+    let a = wrapAngleToDomain(start, domainStart, domainEnd);
+    let b = a + (end - start);
+    while (b > domainEnd + 0.0001) {
+      pushArc(pos, col, cx, cy, radius, a, domainEnd, color);
+      b -= width;
+      a = domainStart;
+    }
+    pushArc(pos, col, cx, cy, radius, a, b, color);
+  }
+
+  function actualLocalRelationVector(forces, selected, passingEffect) {
+    const baseX = forces.relationX || 0;
+    const baseY = forces.relationY || 0;
+    const birds = state.birds;
+    const n = birds.length;
+
+    // For 2+ birds, nearby-bird option loss is drawn as separate cutout cones,
+    // so it should not be averaged back into the main cone direction.
+    return {
+      x: baseX,
+      y: baseY
+    };
+  }
+
+  function drawNeighborConstraintWedges(cones, cx, cy, radius, inner, domainStart, domainEnd, referenceAngle, underTri, underTriCol, pos, col) {
+    const fillRgb = [1.0, 0.37, 0.43];
+
+    for (let i = 0; i < cones.length; i++) {
+      const cone = cones[i];
+      const center = normalizeAngleAround(cone.angle, referenceAngle);
+      // The rule is a total 8-degree wedge: 4 degrees on each side.
+      const halfAngle = Math.min((Math.PI / 180) * 4, Math.max(0, Number(cone.halfAngle) || 0));
+      if (halfAngle <= 0.0001) continue;
+
+      const pressure = clamp(Number(cone.pressure) || 0, 0, 1);
+      const start = center - halfAngle;
+      const end = center + halfAngle;
+      const fill = [fillRgb[0], fillRgb[1], fillRgb[2], clamp(0.16 + pressure * 0.18, 0.13, 0.36)];
+      const line = [fillRgb[0], fillRgb[1], fillRgb[2], clamp(0.50 + pressure * 0.32, 0.40, 0.88)];
+      const sideLine = [fillRgb[0], fillRgb[1], fillRgb[2], clamp(0.28 + pressure * 0.22, 0.22, 0.58)];
+
+      pushWrappedSector(underTri, underTriCol, cx, cy, radius, start, end, domainStart, domainEnd, fill);
+      pushWrappedArc(pos, col, cx, cy, radius, start, end, domainStart, domainEnd, line);
+      pushRay(pos, col, cx, cy, wrapAngleToDomain(start, domainStart, domainEnd), inner, radius, sideLine);
+      pushRay(pos, col, cx, cy, wrapAngleToDomain(end, domainStart, domainEnd), inner, radius, sideLine);
+    }
+  }
+
+  function lowCountSeparateLostOptionCones(selected) {
+    const birds = state.birds;
+    const n = birds.length;
+    if (n <= 1) return [];
+
+    const b = birds[selected];
+    if (!b) return [];
+
+    const constraint = macroDialecticValue();
+    const optionRadius = 78;
+    const cones = [];
+
+    for (let i = 0; i < birds.length; i++) {
+      if (i === selected) continue;
+      const o = birds[i];
+      const dx = o.x - b.x;
+      const dy = o.y - b.y;
+      const d = length(dx, dy);
+      if (d <= 0.001) continue;
+
+      const touchDistance = optionRadius + Math.max(2.5, Number(o.radius) || 0);
+      if (d > touchDistance) continue;
+
+      const ux = dx / d;
+      const uy = dy / d;
+      const penetration = clamp((touchDistance - d) / 18, 0, 1);
+      const relVx = o.vx - b.vx;
+      const relVy = o.vy - b.vy;
+      const relSpeed = length(relVx, relVy);
+      const lateralSpeed = Math.abs(relVx * -uy + relVy * ux);
+      const flyByBoost = 1 + clamp(relSpeed / 86, 0, 1) * 0.34 + clamp(lateralSpeed / 70, 0, 1) * 0.20;
+      const constraintBoost = 0.76 + constraint * 0.54;
+      const pressure = clamp((0.06 + Math.pow(penetration, 0.62) * 0.94) * flyByBoost * constraintBoost, 0, 1);
+
+      cones.push({
+        index: i,
+        distance: d,
+        pressure,
+        angle: Math.atan2(dy, dx),
+        // Fixed 8-degree total cone: 4 degrees on each side of the neighbor angle.
+        halfAngle: (Math.PI / 180) * 4
+      });
+    }
+
+    cones.sort(function (a, b) {
+      if (b.pressure !== a.pressure) return b.pressure - a.pressure;
+      return a.distance - b.distance;
+    });
+
+    return cones;
+  }
+
+  function lowCountVisualPassingEffect(selected) {
+    const birds = state.birds;
+    const n = birds.length;
+    if (n <= 1 || n > 22) return { pressure: 0, x: 0, y: 0 };
+
+    const b = birds[selected];
+    if (!b) return { pressure: 0, x: 0, y: 0 };
+
+    const constraint = macroDialecticValue();
+    const optionRadius = 78;
+    let x = 0;
+    let y = 0;
+    let total = 0;
+    let strongest = 0;
+
+    for (let i = 0; i < birds.length; i++) {
+      if (i === selected) continue;
+      const o = birds[i];
+      const dx = b.x - o.x;
+      const dy = b.y - o.y;
+      const d = length(dx, dy);
+      const touchDistance = optionRadius + Math.max(2.5, Number(o.radius) || 0);
+      if (d <= 0.001 || d > touchDistance) continue;
+
+      const penetration = clamp((touchDistance - d) / 18, 0, 1);
+      const relSpeed = length(b.vx - o.vx, b.vy - o.vy);
+      const flyByBoost = 1 + clamp(relSpeed / 78, 0, 1) * 0.35;
+      const influence = (0.08 + Math.pow(penetration, 0.72) * 0.92) * flyByBoost;
+
+      x += (dx / d) * influence;
+      y += (dy / d) * influence;
+      total += influence;
+      strongest = Math.max(strongest, influence);
+    }
+
+    if (total <= 0.0001) return { pressure: 0, x: 0, y: 0 };
+
+    const countBoost = 1 + smoothstep(2, 22, n) * 0.28;
+    const constraintBoost = 0.74 + constraint * 0.48;
+    const pressure = clamp((strongest * 0.78 + total * 0.20) * countBoost * constraintBoost, 0, 1);
+    const mag = length(x, y);
+
+    return {
+      pressure,
+      x: x / mag,
+      y: y / mag
+    };
+  }
+
+  function relationPressureFromMagnitude(magnitude) {
+    if (magnitude < 1.5) return 0;
+    return smoothstep(4, 185, magnitude);
+  }
+
+  function optionPressureForSelectedBird(selected, forces, relationMag, passingEffect) {
+    const birds = state.birds;
+    const b = birds[selected] || birds[0];
+    const n = Math.max(1, birds.length);
+    const constraint = macroDialecticValue();
+    const noise = microDialecticValue();
+
+    const formationPressure = relationPressureFromMagnitude(length(
+      (forces.formationX || 0) + (forces.alignmentX || 0),
+      (forces.formationY || 0) + (forces.alignmentY || 0)
+    ));
+    const separationPressure = relationPressureFromMagnitude(length(forces.separationX || 0, forces.separationY || 0));
+    const rawRelationPressure = relationPressureFromMagnitude(relationMag);
+    const macroOptionPressure = macroOptionPressureForSelectedBird(selected);
+
+    // Low-count flight is calibrated directly in terms of visible available options.
+    // For 1-22 birds, the interaction slider sets the same approximate baseline:
+    // 0% -> 90% open, 50% -> 2/3 open, 100% -> 1/3 open.
+    // Nearby birds can still momentarily narrow the cone through passing/separation pressure.
+    if (n <= 22) {
+      const separateInteractionCones = n >= 2;
+      const calibratedPressure = calibratedLowCountOptionPressure(
+        b ? b.seed : 0,
+        n,
+        constraint,
+        noise,
+        separateInteractionCones ? 0 : formationPressure,
+        separateInteractionCones ? 0 : separationPressure,
+        separateInteractionCones ? 0 : rawRelationPressure,
+        separateInteractionCones ? 0 : (passingEffect ? passingEffect.pressure : 0)
+      );
+      return clamp(1 - (1 - calibratedPressure) * (1 - macroOptionPressure), 0, lowCountOptionPressureCap(n, separationPressure));
+    }
+
+    const collectivePressure = Math.max(formationPressure, rawRelationPressure * 0.55) * lowCountCollectiveOptionScale(n, constraint);
+    const passingPressure = separationPressure * lowCountPassingOptionScale(n, constraint);
+    const environmentalPressure = environmentalOptionPressure(b ? b.seed : 0, n, constraint, noise);
+
+    const combinedPressure = 1 -
+      (1 - environmentalPressure) *
+      (1 - collectivePressure) *
+      (1 - passingPressure) *
+      (1 - macroOptionPressure);
+
+    return clamp(combinedPressure, 0, lowCountOptionPressureCap(n, separationPressure));
+  }
+
+  function lowCountCollectiveOptionScale(n, constraint) {
+    if (n <= 1) return 0;
+    const countScale = smoothstep(1, 8, n);
+    const lowCountFloor = n <= 2 ? 0.12 : n <= 3 ? 0.22 : 0.32;
+    return clamp(Math.max(countScale, lowCountFloor * constraint) * (0.45 + constraint * 0.55), 0, 1);
+  }
+
+  function lowCountPassingOptionScale(n, constraint) {
+    if (n <= 1) return 0;
+    const lowCountScale = n <= 3 ? 0.46 : 0.58 + smoothstep(4, 18, n) * 0.42;
+    return clamp(lowCountScale * (0.58 + constraint * 0.42), 0, 1);
+  }
+
+  function calibratedLowCountOptionPressure(seed, n, constraint, noise, formationPressure, separationPressure, rawRelationPressure, visualPassingPressure) {
+    const available = calibratedLowCountAvailableShare(
+      seed,
+      n,
+      constraint,
+      noise,
+      formationPressure,
+      separationPressure,
+      rawRelationPressure,
+      visualPassingPressure
+    );
+    return optionPressureFromAvailableShare(available);
+  }
+
+  function calibratedLowCountAvailableShare(seed, n, constraint, noise, formationPressure, separationPressure, rawRelationPressure, visualPassingPressure) {
+    const c = clamp(constraint, 0, 1);
+    const weatherPulse = 0.5 + 0.5 * Math.sin(state.t * 0.31 + seed * 0.017);
+    const gustPulse = 0.5 + 0.5 * Math.sin(state.t * 0.83 + seed * 0.031 + 1.7);
+    const countBlend = smoothstep(1, 22, n);
+
+    // Exact static anchors before live variation:
+    // c = 0.00 -> 0.90 available, c = 0.50 -> 0.666..., c = 1.00 -> 0.333... .
+    // This baseline now holds through the whole 1-22 bird range.
+    const baseAvailable = 0.90 - (11 / 30) * c - 0.20 * c * c;
+
+    // Weather and noise keep the cone alive but stay small enough that the slider remains readable.
+    const centeredWeather = (weatherPulse - 0.5) * (0.026 + noise * 0.040 + c * 0.018);
+    const momentaryGust = (gustPulse - 0.5) * noise * 0.024;
+    const noisyNarrowing = noise * (0.005 + weatherPulse * 0.012);
+
+    // Other birds do not reset the low-count baseline, but passing nearby now has a stronger
+    // visible effect in the 1-22 bird range. The visual passing pressure reaches farther than
+    // the physical separation force, so the red slice appears more often and moves more clearly.
+    const passingPressure = Math.max(separationPressure, visualPassingPressure || 0);
+    const passingNarrowing = passingPressure * (0.110 + countBlend * 0.185) * (0.68 + c * 0.46);
+    const relationNarrowing = Math.max(formationPressure, rawRelationPressure * 0.45) * countBlend * c * 0.055;
+
+    const available = baseAvailable - centeredWeather - momentaryGust - noisyNarrowing - passingNarrowing - relationNarrowing;
+    const lowClamp = 0.30 - Math.min(0.035, separationPressure * 0.035);
+    return clamp(available, lowClamp, 0.93);
+  }
+
+  function optionPressureFromAvailableShare(availableShare) {
+    const minimumShare = 0.10;
+    const maximumShare = 1;
+    const share = clamp(availableShare, minimumShare, maximumShare);
+    const blockedNormalized = clamp((maximumShare - share) / (maximumShare - minimumShare), 0, 1);
+    return Math.pow(blockedNormalized, 1 / 0.72);
+  }
+
+  function environmentalOptionPressure(seed, n, constraint, noise) {
+    const macroRaw = macroParentRawProfile();
+    const macroWeather = clamp((
+      macroRaw.stormRegime * 0.42 +
+      macroRaw.routeInstability * 0.26 +
+      macroRaw.windCorridorShift * 0.22 +
+      macroRaw.safeLandingScarcity * 0.10
+    ) / 100, 0, 1);
+    if (constraint <= 0.001 && noise <= 0.001 && macroWeather <= 0.001) return 0;
+    const weatherPulse = 0.5 + 0.5 * Math.sin(state.t * 0.31 + seed * 0.017);
+    const lowCountOpenness = n <= 1 ? 0.45 : n <= 2 ? 0.62 : n <= 3 ? 0.78 : 1;
+    const materialPressure = constraint * (0.035 + weatherPulse * 0.060);
+    const weatherPressure = noise * (0.045 + weatherPulse * 0.145);
+    const macroPressure = macroWeather * (0.018 + weatherPulse * 0.040);
+    return clamp((materialPressure + weatherPressure + macroPressure) * lowCountOpenness, 0, 0.28);
+  }
+
+  function lowCountOptionPressureCap(n, separationPressure) {
+    const passBump = clamp(separationPressure, 0, 1) * 0.18;
+    if (n <= 1) return 0.20;
+    if (n === 2) return 0.42 + passBump;
+    if (n === 3) return 0.50 + passBump;
+    return 1;
+  }
+
+
+  function microMacroDialecticBalance() {
+    const microSlider = clamp(microDialecticValue(), 0, 1);
+    const macroSlider = clamp(macroDialecticValue(), 0, 1);
+    return {
+      microSlider,
+      macroSlider,
+      autonomy: microSlider,
+      coordination: 1 - microSlider,
+      authority: macroSlider,
+      anarchy: 1 - macroSlider
+    };
+  }
+
+  function optionPressureFromDialecticSliders(basePressure, balance) {
+    const b = balance || microMacroDialecticBalance();
+    const sliderPressure = b.coordination * 0.34 + b.authority * 0.38 + b.anarchy * 0.10;
+    const openPressureRelief = b.autonomy * 0.16 + b.anarchy * 0.08;
+    return clamp(basePressure * 0.42 + sliderPressure - openPressureRelief, 0, 1);
+  }
+
+  function optionNavigationTargetAngle(selected, headingAngle, forces, balance, passingEffect) {
+    const b = balance || microMacroDialecticBalance();
+    const f = forces || zeroForces();
+    const freeMag = length(f.freeX || 0, f.freeY || 0);
+    const relationMag = length(f.relationX || 0, f.relationY || 0);
+    let target = headingAngle;
+
+    if (freeMag > 0.001) {
+      const freeAngle = Math.atan2(f.freeY || 0, f.freeX || 0);
+      target += angleDelta(target, freeAngle) * clamp(0.10 + b.autonomy * 0.24 + b.anarchy * 0.12, 0, 0.42);
+    }
+
+    if (relationMag > 0.001) {
+      const relationAngle = Math.atan2(f.relationY || 0, f.relationX || 0);
+      target += angleDelta(target, relationAngle) * clamp(0.05 + b.coordination * 0.20 + b.authority * 0.18, 0, 0.38);
+    }
+
+    const pass = passingEffect || { pressure: 0 };
+    const scoutWiggle = Math.sin((state.t || 0) * (0.72 + b.autonomy * 0.46) + selected * 0.61) * Math.PI * (0.018 + b.autonomy * 0.065 + b.anarchy * 0.025);
+    const authorityNarrowing = Math.sin((state.t || 0) * 0.31 + selected * 0.37) * Math.PI * b.authority * 0.018;
+    target += scoutWiggle + authorityNarrowing + (pass.pressure || 0) * Math.PI * 0.018;
+
+    return target;
+  }
+
+  function smoothOptionNavigator(selected, targetAngle, blockedIntervals, domainStart, domainEnd, balance) {
+    const nav = state.optionNavigator;
+    const dialectic = balance || microMacroDialecticBalance();
+    const openTarget = nearestAvailableAngle(targetAngle, blockedIntervals, domainStart, domainEnd);
+    const target = wrapAngleToDomain(openTarget, domainStart, domainEnd);
+
+    if (!nav.initialized || nav.selected !== selected) {
+      nav.selected = selected;
+      nav.angle = target;
+      nav.initialized = true;
+      return nav.angle;
+    }
+
+    const ease = clamp(0.08 + dialectic.autonomy * 0.10 + dialectic.coordination * 0.05 + dialectic.anarchy * 0.04, 0.05, 0.26);
+    nav.angle += angleDelta(nav.angle, target) * ease;
+    nav.angle = wrapAngleToDomain(nav.angle, domainStart, domainEnd);
+    return nav.angle;
+  }
+
+  function optionConeHalfAngleFromPressure(pressure) {
+    if (pressure <= 0.001) return Math.PI;
+    const minimum = Math.PI * 0.10;
+    const maximum = Math.PI;
+    const curved = Math.pow(clamp(pressure, 0, 1), 0.72);
+    return clamp(maximum - curved * (maximum - minimum), minimum, maximum);
+  }
+
+
+  function averageConeAngleTarget(headingAngle, relationX, relationY, passingEffect, pressure, count) {
+    const relationMag = length(relationX, relationY);
+    if (relationMag <= 0.00001) return headingAngle;
+
+    const relationAngle = Math.atan2(relationY, relationX);
+    const delta = angleDelta(headingAngle, relationAngle);
+    const lowCountWeight = 1 - smoothstep(26, 120, Math.max(1, count));
+    const pressureWeight = clamp(0.18 + pressure * 0.44 + (passingEffect.pressure || 0) * 0.24, 0, 1);
+    const maxOffset = Math.PI * 0.09;
+    const offset = clamp(delta * 0.32 * (0.55 + lowCountWeight * 0.45) * pressureWeight, -maxOffset, maxOffset);
+    return headingAngle + offset;
+  }
+
+  function smoothOptionCone(selected, targetAngle, targetHalfAngle, targetPressure) {
+    const cone = state.optionCone;
+    const pressure = clamp(targetPressure, 0, 1);
+
+    if (!cone.initialized || cone.selected !== selected) {
+      cone.selected = selected;
+      cone.angle = targetAngle;
+      cone.halfAngle = targetHalfAngle;
+      cone.pressure = pressure;
+      cone.initialized = true;
+      return cone;
+    }
+
+    // When the actual local relation disappears, the full 360-degree availability should appear immediately.
+    // This is not a bird-count exception; it follows from zero constraint pressure.
+    if (pressure <= 0.001) {
+      cone.angle = targetAngle;
+      cone.halfAngle = Math.PI;
+      cone.pressure = 0;
+      return cone;
+    }
+
+    const halfAngleEase = 0.12 + pressure * 0.08;
+    const angleEase = 0.10 + pressure * 0.10;
+    // The cone center can drift a little away from the exact motion heading,
+    // but only by easing toward the pressure-shaped target angle.
+    cone.angle += angleDelta(cone.angle, targetAngle) * angleEase;
+    cone.halfAngle += (targetHalfAngle - cone.halfAngle) * halfAngleEase;
+    cone.pressure += (pressure - (cone.pressure || 0)) * 0.18;
+    return cone;
+  }
+
+  function zeroForces() {
+    return {
+      formationX: 0,
+      formationY: 0,
+      alignmentX: 0,
+      alignmentY: 0,
+      separationX: 0,
+      separationY: 0,
+      wanderX: 0,
+      wanderY: 0,
+      jitterX: 0,
+      jitterY: 0,
+      relationX: 0,
+      relationY: 0,
+      freeX: 0,
+      freeY: 0,
+      totalX: 0,
+      totalY: 0
+    };
+  }
+
+  function pushScaledVector(pos, col, x, y, vx, vy, scale, maxLen, color) {
+    const mag = length(vx, vy);
+    if (mag < 0.5) return;
+    const displayLen = clamp(mag * scale, 7, maxLen);
+    const nx = vx / mag;
+    const ny = vy / mag;
+    pushArrow(pos, col, x, y, x + nx * displayLen, y + ny * displayLen, color);
+  }
+
+  function pushRay(pos, col, x, y, angle, inner, outer, color) {
+    pushLine(pos, col, x + Math.cos(angle) * inner, y + Math.sin(angle) * inner, x + Math.cos(angle) * outer, y + Math.sin(angle) * outer, color);
+  }
+
+  function pushArc(pos, col, x, y, r, a0, a1, color) {
+    const steps = 24;
+    let lastX = x + Math.cos(a0) * r;
+    let lastY = y + Math.sin(a0) * r;
+    for (let i = 1; i <= steps; i++) {
+      const a = a0 + (a1 - a0) * (i / steps);
+      const nextX = x + Math.cos(a) * r;
+      const nextY = y + Math.sin(a) * r;
+      pushLine(pos, col, lastX, lastY, nextX, nextY, color);
+      lastX = nextX;
+      lastY = nextY;
+    }
+  }
+
+  function pushWedge(pos, col, x, y, centerAngle, r, halfAngle, color) {
+    pushSector(pos, col, x, y, r, centerAngle - halfAngle, centerAngle + halfAngle, color);
+  }
+
+  function pushSector(pos, col, x, y, r, a0, a1, color) {
+    const span = Math.max(0.0001, a1 - a0);
+    const steps = Math.max(12, Math.ceil(Math.abs(span) / TAU * 48));
+    for (let i = 0; i < steps; i++) {
+      const left = a0 + span * (i / steps);
+      const right = a0 + span * ((i + 1) / steps);
+      pushVertex(pos, col, x, y, color);
+      pushVertex(pos, col, x + Math.cos(left) * r, y + Math.sin(left) * r, color);
+      pushVertex(pos, col, x + Math.cos(right) * r, y + Math.sin(right) * r, color);
+    }
+  }
+
+  function pushDisk(pos, col, x, y, r, color) {
+    pushSector(pos, col, x, y, r, 0, TAU, color);
+  }
+
+  function pushLine(pos, col, x1, y1, x2, y2, color) {
+    pushVertex(pos, col, x1, y1, color);
+    pushVertex(pos, col, x2, y2, color);
+  }
+
+  function pushArrow(pos, col, x1, y1, x2, y2, color) {
+    pushLine(pos, col, x1, y1, x2, y2, color);
+    const [fx, fy] = normalize(x2 - x1, y2 - y1);
+    const px = -fy;
+    const py = fx;
+    const size = 16;
+    pushLine(pos, col, x2, y2, x2 - fx * size + px * size * 0.55, y2 - fy * size + py * size * 0.55, color);
+    pushLine(pos, col, x2, y2, x2 - fx * size - px * size * 0.55, y2 - fy * size - py * size * 0.55, color);
+  }
+
+  function pushRing(pos, col, x, y, r, color) {
+    const steps = 18;
+    for (let i = 0; i < steps; i++) {
+      const a0 = (i / steps) * TAU;
+      const a1 = ((i + 1) / steps) * TAU;
+      pushVertex(pos, col, x, y, color);
+      pushVertex(pos, col, x + Math.cos(a0) * r, y + Math.sin(a0) * r, color);
+      pushVertex(pos, col, x + Math.cos(a1) * r, y + Math.sin(a1) * r, color);
+    }
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.033, Math.max(0.001, (now - state.lastTime) / 1000));
+    state.lastTime = now;
+    if (!state.paused) {
+      const simSteps = dt > 0.02 ? 2 : 1;
+      for (let i = 0; i < simSteps; i++) step(dt / simSteps);
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  function Renderer(canvas) {
+    this.canvas = canvas;
+    this.gl = canvas.getContext('webgl', { antialias: true, alpha: false, premultipliedAlpha: false });
+    this.ok = !!this.gl;
+    if (!this.ok) return;
+    const gl = this.gl;
+    const vs = 'attribute vec2 a_position;\n' +
+      'attribute vec4 a_color;\n' +
+      'uniform vec2 u_center;\n' +
+      'uniform vec2 u_scale;\n' +
+      'varying vec4 v_color;\n' +
+      'void main(){\n' +
+      '  vec2 p = (a_position - u_center) * u_scale;\n' +
+      '  gl_Position = vec4(p.x, -p.y, 0.0, 1.0);\n' +
+      '  v_color = a_color;\n' +
+      '}';
+    const fs = 'precision mediump float;\n' +
+      'varying vec4 v_color;\n' +
+      'void main(){\n' +
+      '  gl_FragColor = v_color;\n' +
+      '}';
+    this.program = createProgram(gl, vs, fs);
+    this.positionBuffer = gl.createBuffer();
+    this.colorBuffer = gl.createBuffer();
+    this.aPosition = gl.getAttribLocation(this.program, 'a_position');
+    this.aColor = gl.getAttribLocation(this.program, 'a_color');
+    this.uCenter = gl.getUniformLocation(this.program, 'u_center');
+    this.uScale = gl.getUniformLocation(this.program, 'u_scale');
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  }
+
+  Renderer.prototype.resize = function () {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = this.canvas.getBoundingClientRect();
+    const w = Math.max(2, Math.floor(rect.width * dpr));
+    const h = Math.max(2, Math.floor(rect.height * dpr));
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+  };
+
+  Renderer.prototype.clear = function () {
+    const gl = this.gl;
+    gl.clearColor(0.02, 0.045, 0.065, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  };
+
+  Renderer.prototype.drawTriangles = function (positions, colors, view) {
+    if (!positions.length) return;
+    this.draw(positions, colors, view, this.gl.TRIANGLES);
+  };
+
+  Renderer.prototype.drawLines = function (positions, colors, view) {
+    if (!positions.length) return;
+    this.draw(positions, colors, view, this.gl.LINES);
+  };
+
+  Renderer.prototype.draw = function (positions, colors, view, mode) {
+    const gl = this.gl;
+    gl.useProgram(this.program);
+    gl.uniform2f(this.uCenter, view.cx, view.cy);
+    gl.uniform2f(this.uScale, 2 / view.width, 2 / view.height);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(this.aPosition);
+    gl.vertexAttribPointer(this.aPosition, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(this.aColor);
+    gl.vertexAttribPointer(this.aColor, 4, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(mode, 0, positions.length / 2);
+  };
+
+  function createShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(shader) || 'Shader compile error');
+    }
+    return shader;
+  }
+
+  function createProgram(gl, vsSource, fsSource) {
+    const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(program) || 'Program link error');
+    }
+    return program;
+  }
+
+  function bindWheelZoom(canvas, kind) {
+    canvas.addEventListener('wheel', function (event) {
+      event.preventDefault();
+      const factor = Math.pow(1.0018, Math.abs(event.deltaY));
+      const multiplier = event.deltaY > 0 ? factor : 1 / factor;
+      if (kind === 'micro') {
+        state.microViewHeight = clamp(state.microViewHeight * multiplier, 40, 900);
+      } else {
+        state.macroViewZoom = clamp(state.macroViewZoom * multiplier, 0.35, 5);
+      }
+      saveSettings();
+    }, { passive: false });
+  }
+
+  bindWheelZoom(microRenderer.canvas, 'micro');
+  bindWheelZoom(macroRenderer.canvas, 'macro');
+
+  function applyViewSplit() {
+    if (!els.viewGrid) return;
+    const split = clamp(Number(state.viewSplit) || 0, 0, 100);
+    state.viewSplit = split;
+    const microHidden = split <= 0.5;
+    const macroHidden = split >= 99.5;
+
+    els.viewGrid.classList.toggle('microHidden', microHidden);
+    els.viewGrid.classList.toggle('macroHidden', macroHidden);
+    if (els.microViewPanel) els.microViewPanel.classList.toggle('hiddenBySplit', microHidden);
+    if (els.macroViewPanel) els.macroViewPanel.classList.toggle('hiddenBySplit', macroHidden);
+    if (els.microReadingPanel) els.microReadingPanel.classList.toggle('hiddenBySplit', microHidden);
+    if (els.macroReadingPanel) els.macroReadingPanel.classList.toggle('hiddenBySplit', macroHidden);
+
+    if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) {
+      els.viewGrid.style.gridTemplateColumns = '';
+      if (els.desireGrid) els.desireGrid.style.gridTemplateColumns = '';
+    } else if (microHidden) {
+      els.viewGrid.style.gridTemplateColumns = '0 14px minmax(260px, 1fr)';
+      if (els.desireGrid) els.desireGrid.style.gridTemplateColumns = 'minmax(260px, 1fr)';
+    } else if (macroHidden) {
+      els.viewGrid.style.gridTemplateColumns = 'minmax(260px, 1fr) 14px 0';
+      if (els.desireGrid) els.desireGrid.style.gridTemplateColumns = 'minmax(260px, 1fr)';
+    } else {
+      els.viewGrid.style.gridTemplateColumns = 'minmax(260px, ' + split + 'fr) 14px minmax(260px, ' + (100 - split) + 'fr)';
+      if (els.desireGrid) els.desireGrid.style.gridTemplateColumns = 'minmax(260px, ' + split + 'fr) minmax(260px, ' + (100 - split) + 'fr)';
+    }
+
+    if (els.splitHandle) {
+      els.splitHandle.setAttribute('aria-valuenow', String(Math.round(split)));
+      if (microHidden) {
+        els.splitHandle.setAttribute('aria-valuetext', 'Micro view hidden, macro view shown');
+      } else if (macroHidden) {
+        els.splitHandle.setAttribute('aria-valuetext', 'Micro view shown, macro view hidden');
+      } else {
+        els.splitHandle.setAttribute('aria-valuetext', 'Micro view ' + Math.round(split) + ' percent, macro view ' + Math.round(100 - split) + ' percent');
+      }
+    }
+  }
+
+  function setViewSplitFromPointer(event) {
+    if (!els.viewGrid) return;
+    const rect = els.viewGrid.getBoundingClientRect();
+    const handleWidth = els.splitHandle ? els.splitHandle.getBoundingClientRect().width : 14;
+    const available = Math.max(1, rect.width - handleWidth);
+    const rawX = event.clientX - rect.left - handleWidth * 0.5;
+    let split = (clamp(rawX, 0, available) / available) * 100;
+    if (split < 3) split = 0;
+    if (split > 97) split = 100;
+    state.viewSplit = clamp(split, 0, 100);
+    applyViewSplit();
+  }
+
+  function bindSplitHandle() {
+    if (!els.viewGrid || !els.splitHandle) return;
+    let dragging = false;
+
+    function start(event) {
+      if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) return;
+      dragging = true;
+      els.viewGrid.classList.add('dragging');
+      els.splitHandle.setPointerCapture(event.pointerId);
+      setViewSplitFromPointer(event);
+      event.preventDefault();
+    }
+
+    function move(event) {
+      if (!dragging) return;
+      setViewSplitFromPointer(event);
+      event.preventDefault();
+    }
+
+    function stop(event) {
+      if (!dragging) return;
+      dragging = false;
+      els.viewGrid.classList.remove('dragging');
+      try { els.splitHandle.releasePointerCapture(event.pointerId); } catch (err) {}
+      saveSettings();
+      event.preventDefault();
+    }
+
+    els.splitHandle.addEventListener('pointerdown', start);
+    els.splitHandle.addEventListener('pointermove', move);
+    els.splitHandle.addEventListener('pointerup', stop);
+    els.splitHandle.addEventListener('pointercancel', stop);
+    els.splitHandle.addEventListener('keydown', function (event) {
+      let delta = 0;
+      if (event.key === 'ArrowLeft') delta = -4;
+      else if (event.key === 'ArrowRight') delta = 4;
+      else if (event.key === 'Home') state.viewSplit = 0;
+      else if (event.key === 'End') state.viewSplit = 100;
+      else if (event.key === 'Enter' || event.key === ' ') state.viewSplit = 50;
+      else return;
+
+      if (delta) state.viewSplit = clamp(state.viewSplit + delta, 0, 100);
+      if (state.viewSplit < 3) state.viewSplit = 0;
+      if (state.viewSplit > 97) state.viewSplit = 100;
+      applyViewSplit();
+      saveSettings();
+      event.preventDefault();
+    });
+
+    window.addEventListener('resize', applyViewSplit);
+    applyViewSplit();
+  }
+  function currentViewGridHeight() {
+    if (!els.viewGrid) return 620;
+    const rect = els.viewGrid.getBoundingClientRect();
+    return clamp(Math.round(rect.height || 620), 360, 1050);
+  }
+
+  function isNarrowLayout() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
+  }
+
+  function applyViewHeight() {
+    if (!els.viewGrid) return;
+
+    if (isNarrowLayout()) {
+      els.viewGrid.style.height = '';
+      if (els.heightHandle) {
+        els.heightHandle.setAttribute('aria-valuenow', String(Math.round(state.viewHeight || 620)));
+        els.heightHandle.setAttribute('aria-valuetext', 'View height follows stacked mobile layout');
+      }
+      return;
+    }
+
+    if (!state.viewHeight) state.viewHeight = currentViewGridHeight();
+    state.viewHeight = clamp(Number(state.viewHeight) || 620, 360, 1050);
+    els.viewGrid.style.height = state.viewHeight + 'px';
+
+    if (els.heightHandle) {
+      els.heightHandle.setAttribute('aria-valuenow', String(Math.round(state.viewHeight)));
+      els.heightHandle.setAttribute('aria-valuetext', 'Both views ' + Math.round(state.viewHeight) + ' pixels tall');
+    }
+  }
+
+  function bindViewHeightHandle() {
+    if (!els.viewGrid || !els.heightHandle) return;
+    let dragging = false;
+    let startY = 0;
+    let startHeight = 0;
+
+    function start(event) {
+      if (isNarrowLayout()) return;
+      dragging = true;
+      startY = event.clientY;
+      startHeight = currentViewGridHeight();
+      state.viewHeight = startHeight;
+      els.viewGrid.classList.add('heightDragging');
+      els.heightHandle.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+
+    function move(event) {
+      if (!dragging) return;
+      state.viewHeight = clamp(startHeight + (event.clientY - startY), 360, 1050);
+      applyViewHeight();
+      event.preventDefault();
+    }
+
+    function stop(event) {
+      if (!dragging) return;
+      dragging = false;
+      els.viewGrid.classList.remove('heightDragging');
+      try { els.heightHandle.releasePointerCapture(event.pointerId); } catch (err) {}
+      saveSettings();
+      event.preventDefault();
+    }
+
+    els.heightHandle.addEventListener('pointerdown', start);
+    els.heightHandle.addEventListener('pointermove', move);
+    els.heightHandle.addEventListener('pointerup', stop);
+    els.heightHandle.addEventListener('pointercancel', stop);
+    els.heightHandle.addEventListener('keydown', function (event) {
+      if (isNarrowLayout()) return;
+      if (!state.viewHeight) state.viewHeight = currentViewGridHeight();
+      let handled = true;
+      if (event.key === 'ArrowUp') state.viewHeight = clamp(state.viewHeight - 30, 360, 1050);
+      else if (event.key === 'ArrowDown') state.viewHeight = clamp(state.viewHeight + 30, 360, 1050);
+      else if (event.key === 'Home') state.viewHeight = 360;
+      else if (event.key === 'End') state.viewHeight = 1050;
+      else if (event.key === 'Enter' || event.key === ' ') state.viewHeight = 620;
+      else handled = false;
+
+      if (!handled) return;
+      applyViewHeight();
+      saveSettings();
+      event.preventDefault();
+    });
+
+    window.addEventListener('resize', applyViewHeight);
+    applyViewHeight();
+  }
+
+  bindSplitHandle();
+  bindViewHeightHandle();
+  setupCollapsiblePanels();
+
+  els.birdCount.addEventListener('input', function () {
+    setCount(getBirdCountFromSlider());
+    saveSettings();
+  });
+
+  function changeBirdCountBy(delta) {
+    const next = clamp(getBirdCountFromSlider() + delta, 1, 400);
+    setBirdCountSlider(next);
+    setCount(next);
+    saveSettings();
+  }
+
+  if (els.birdCountDown) {
+    els.birdCountDown.addEventListener('click', function () {
+      changeBirdCountBy(-1);
+    });
+  }
+
+  if (els.birdCountUp) {
+    els.birdCountUp.addEventListener('click', function () {
+      changeBirdCountBy(1);
+    });
+  }
+  els.constraint.addEventListener('input', function () { updateLabels(); saveSettings(); });
+  els.noise.addEventListener('input', function () { updateLabels(); saveSettings(); });
+  els.selectedBird.addEventListener('input', function () { updateLabels(); saveSettings(); });
+  els.showTrails.addEventListener('change', saveSettings);
+  els.showMacro.addEventListener('change', saveSettings);
+  els.showMicro.addEventListener('change', saveSettings);
+  els.pauseBtn.addEventListener('click', function () {
+    state.paused = !state.paused;
+    els.pauseBtn.textContent = state.paused ? 'Resume' : 'Pause';
+    els.pauseBtn.classList.toggle('active', state.paused);
+  });
+  els.resetBtn.addEventListener('click', resetSimulation);
+
+  resetSimulation();
+  requestAnimationFrame(frame);
+}());
+</script>
+</body>
+</html>

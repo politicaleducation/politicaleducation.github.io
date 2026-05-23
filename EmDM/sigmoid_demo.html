@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Emergence Graphed</title>
+<style>
+  :root{
+    --bg:#0f1324;
+    --panel:#171c31;
+    --panel2:#1d2440;
+    --text:#eef2ff;
+    --muted:#b8c2ea;
+    --grid:#313a63;
+    --curve:#8fd3ff;
+    --accent:#ffd166;
+    --border:rgba(255,255,255,.09);
+    --shadow:0 20px 55px rgba(0,0,0,.28);
+    --radius:20px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(1200px 600px at 100% 0%, rgba(126, 87, 255, .16), transparent 60%),
+      radial-gradient(900px 700px at 0% 100%, rgba(93, 203, 255, .11), transparent 60%),
+      var(--bg);
+  }
+  .wrap{
+    max-width:1250px;
+    margin:0 auto;
+    padding:28px 18px 34px;
+  }
+  .hero{
+    display:grid;
+    grid-template-columns:1.15fr .85fr;
+    gap:18px;
+    margin-bottom:18px;
+  }
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  .hero .panel{ padding:22px 22px 18px; }
+  h1{
+    margin:0 0 10px;
+    font-size:clamp(1.8rem, 2.6vw, 2.8rem);
+    line-height:1.08;
+    letter-spacing:-.035em;
+  }
+  h2{
+    margin:0 0 10px;
+    font-size:1.05rem;
+    letter-spacing:.01em;
+  }
+  p{
+    margin:8px 0;
+    color:var(--muted);
+  }
+  .formula{
+    display:inline-block;
+    margin-top:10px;
+    padding:10px 12px;
+    border-radius:14px;
+    background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.08);
+    color:var(--text);
+    font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size:.95rem;
+    line-height:1.45;
+    word-break:break-word;
+  }
+  .small{
+    font-size:.92rem;
+    color:var(--muted);
+  }
+  .chart-panel{
+    padding:16px 16px 14px;
+  }
+  .toolbar{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:14px;
+    align-items:end;
+    margin-bottom:12px;
+  }
+  .slider-block label{
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:7px;
+    font-size:.95rem;
+    color:var(--text);
+  }
+  .slider-block input[type="range"]{
+    width:100%;
+    accent-color:var(--curve);
+  }
+  .buttons{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  button{
+    border:1px solid rgba(255,255,255,.1);
+    background:rgba(255,255,255,.04);
+    color:var(--text);
+    padding:9px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font:inherit;
+    transition:.2s ease;
+  }
+  button:hover{ background:rgba(255,255,255,.08); transform:translateY(-1px); }
+  button.active{
+    background:rgba(143, 211, 255, .14);
+    border-color:rgba(143, 211, 255, .35);
+    box-shadow:inset 0 0 0 1px rgba(143, 211, 255, .18);
+  }
+  .canvas-wrap{
+    position:relative;
+    border-radius:18px;
+    overflow:hidden;
+    background:
+      radial-gradient(900px 600px at 50% 0%, rgba(255,255,255,.03), transparent 55%),
+      linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01)),
+      #12182b;
+    border:1px solid rgba(255,255,255,.07);
+    min-height:540px;
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:540px;
+  }
+  .overlay{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  .badge{
+    position:absolute;
+    top:14px;
+    left:14px;
+    padding:8px 11px;
+    border-radius:999px;
+    background:rgba(15,19,36,.78);
+    border:1px solid rgba(255,255,255,.08);
+    font-size:.9rem;
+    color:var(--text);
+    backdrop-filter: blur(8px);
+  }
+  .meta{
+    position:absolute;
+    right:14px;
+    top:14px;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .chip{
+    padding:7px 10px;
+    border-radius:999px;
+    background:rgba(15,19,36,.72);
+    border:1px solid rgba(255,255,255,.08);
+    font-size:.84rem;
+    color:var(--muted);
+    backdrop-filter: blur(8px);
+  }
+  .below{
+    margin-top:16px;
+    display:grid;
+    grid-template-columns:1.05fr .95fr;
+    gap:18px;
+  }
+  .eq-panel{
+    padding:18px;
+  }
+  .k{
+    font-size:.8rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:#99a7df;
+    margin-bottom:8px;
+  }
+  .v{
+    font-size:1.05rem;
+    color:var(--text);
+  }
+  .mini-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:12px;
+  }
+  .mini{
+    padding:14px;
+    border-radius:16px;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.07);
+  }
+  @media (max-width: 1020px){
+    .hero{ grid-template-columns:1fr; }
+    .toolbar{ grid-template-columns:1fr; }
+    .buttons{ justify-content:flex-start; }
+    .below{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="panel">
+        <h1>Emergence Graphed</h1>
+        <div class="formula">F(x) = Σ σ(k(x − nΔ))</div>
+      </div>
+      <div class="panel">
+        <div class="k">Displayed function</div>
+        <div class="v" id="effectiveName">Flat line</div>
+        <div class="formula" id="effectiveFormula">y ≈ constant</div>
+        <p class="small" style="margin-top:12px">Accuracy check: <strong id="accuracyReadout" style="color:var(--text)">—</strong></p>
+        <p class="small">Margin of error: <strong id="marginReadout" style="color:var(--text)">—</strong></p>
+      </div>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="toolbar">
+        <div class="slider-block">
+          <label>
+            <span>Zoom out</span>
+            <strong id="zoomLabel">Flat Line</strong>
+          </label>
+          <input id="zoom" type="range" min="0" max="1000" step="1" value="0" />
+        </div>
+        <div class="buttons">
+          <button data-stage="0" class="active">Flat Line</button>
+          <button data-stage="1">Exponential</button>
+          <button data-stage="2">Sigmoid</button>
+          <button data-stage="3">Shifted Sigmoids</button>
+          <button data-stage="4">Linear Trend</button>
+          <button data-stage="5">Linear Growth</button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="chart"></canvas>
+        <div class="overlay">
+          <div class="badge" id="stageBadge">Displayed effective function: flat line</div>
+          <div class="meta">
+            <div class="chip" id="windowChip">Window: —</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  const slider = document.getElementById('zoom');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const stageBadge = document.getElementById('stageBadge');
+  const windowChip = document.getElementById('windowChip');
+  const accuracyReadout = document.getElementById('accuracyReadout');
+  const marginReadout = document.getElementById('marginReadout');
+  const effectiveName = document.getElementById('effectiveName');
+  const effectiveFormula = document.getElementById('effectiveFormula');
+  const buttons = [...document.querySelectorAll('button[data-stage]')];
+
+  const cfg = {
+    spacing: 10,
+    steepness: 2.2,
+    steps: 6000,
+    baseIndex: 1000
+  };
+
+  const thresholdX = cfg.baseIndex * cfg.spacing;
+
+  const stageData = [
+    {
+      t: 0.00,
+      name: 'Flat Line',
+      badge: 'Displayed effective function: flat line',
+      span: 0.1,
+      centerShift: -2.15,
+      toleranceY: 0.001,
+      toleranceLabel: '±0.001'
+    },
+    {
+      t: 0.15,
+      name: 'Exponential',
+      badge: 'Displayed effective function: exponential',
+      span: 2.25,
+      centerShift: -1.8,
+      toleranceY: 0.015,
+      toleranceLabel: '±0.015'
+    },
+    {
+      t: 0.35,
+      name: 'Sigmoid',
+      badge: 'Displayed effective function: single sigmoid',
+      span: 3,
+      centerShift: 0.0,
+      toleranceY: 0.001,
+      toleranceLabel: '±0.001'
+    },
+    {
+      t: 0.55,
+      name: 'Shifted Sigmoids',
+      badge: 'Displayed effective function: several shifted sigmoids',
+      span: 20,
+      centerShift: 0.0,
+      toleranceY: 0,
+      toleranceLabel: '±0'
+    },
+    {
+      t: 0.78,
+      name: 'Linear Trend',
+      badge: 'Displayed effective function: linear fit',
+      span: 1000,
+      centerShift: 0.0,
+      toleranceY: 0.25,
+      toleranceLabel: '±0.25'
+    },
+    {
+      t: 1.00,
+      name: 'Linear Growth',
+      badge: 'Displayed effective function: widest linear fit',
+      span: 10000,
+      centerShift: 0.0,
+      toleranceY: 0.3,
+      toleranceLabel: '±0.3'
+    }
+  ];
+
+  function sigmoid(z){
+    if (z > 18) return 1;
+    if (z < -18) return 0;
+    return 1 / (1 + Math.exp(-z));
+  }
+
+  function growth(x){
+    let sum = 0;
+    const raw = x / cfg.spacing;
+    const low = Math.max(0, Math.floor(raw - 40));
+    const high = Math.min(cfg.steps - 1, Math.ceil(raw + 40));
+    sum += low;
+    for (let n = low; n <= high; n++){
+      sum += sigmoid(cfg.steepness * (x - n * cfg.spacing));
+    }
+    return sum;
+  }
+
+  function mix(a, b, t){ return a + (b - a) * t; }
+  function logMix(a, b, t){
+    return Math.exp(mix(Math.log(a), Math.log(b), t));
+  }
+
+  function getSegmentedValue(t, key, isLog = false){
+    if (t <= stageData[0].t) return stageData[0][key];
+    for (let i = 0; i < stageData.length - 1; i++){
+      const A = stageData[i];
+      const B = stageData[i + 1];
+      if (t <= B.t){
+        const local = (t - A.t) / (B.t - A.t);
+        return isLog ? logMix(A[key], B[key], local) : mix(A[key], B[key], local);
+      }
+    }
+    return stageData[stageData.length - 1][key];
+  }
+
+  function getAppearance(span){
+    if (span < 1.5) return stageData[0];
+    if (span < 3) return stageData[1];
+    if (span < 20) return stageData[2];
+    if (span < 200) return stageData[3];
+    if (span < 5000) return stageData[4];
+    return stageData[5];
+  }
+
+  function niceStep(range, targetTicks = 7){
+    const rough = range / targetTicks;
+    const power = Math.pow(10, Math.floor(Math.log10(rough || 1)));
+    const unit = rough / power;
+    let step;
+    if (unit < 1.5) step = 1;
+    else if (unit < 3) step = 2;
+    else if (unit < 7) step = 5;
+    else step = 10;
+    return step * power;
+  }
+
+  function trimFixed(n, digits = 4){
+    const rounded = Number(n).toFixed(digits);
+    return rounded.replace(/\.?0+$/, '');
+  }
+
+  function fmt(n){
+    const abs = Math.abs(n);
+    if (abs >= 1000) return trimFixed(n, 0);
+    if (abs >= 100) return trimFixed(n, 1);
+    if (abs >= 10) return trimFixed(n, 2);
+    return trimFixed(n, 4);
+  }
+
+  function linearRegression(xs, ys){
+    let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+    const n = xs.length;
+    for (let i = 0; i < n; i++){
+      const x = xs[i];
+      const y = ys[i];
+      sumX += x;
+      sumY += y;
+      sumXX += x * x;
+      sumXY += x * y;
+    }
+    const denom = n * sumXX - sumX * sumX || 1;
+    const m = (n * sumXY - sumX * sumY) / denom;
+    const b = (sumY - m * sumX) / n;
+    return {m, b};
+  }
+
+  function computeAccuracy(exactYs, modelYs, toleranceY){
+    let matches = 0;
+
+    for (let i = 0; i < exactYs.length; i++){
+      if (Math.abs(exactYs[i] - modelYs[i]) <= toleranceY) matches += 1;
+    }
+
+    return 100 * matches / Math.max(1, exactYs.length);
+  }
+
+  function buildModel(stage, windowInfo, xs, exactYs){
+    const center = windowInfo.center;
+    const xMin = windowInfo.xMin;
+    const xMax = windowInfo.xMax;
+    const n0 = cfg.baseIndex;
+    const baseline = n0;
+    if (stage === stageData[0]){
+      const c = growth(center);
+      return {
+        name: 'Flat line',
+        formula: `y ≈ ${fmt(c)}`,
+        fn: () => c,
+        marginLabel: stage.toleranceLabel
+      };
+    }
+    if (stage === stageData[1]){
+      return {
+        name: 'Exponential approximation',
+        formula: `y ≈ ${baseline} + e^(${fmt(cfg.steepness)}(x − ${thresholdX}))`,
+        fn: (x) => baseline + Math.exp(cfg.steepness * (x - thresholdX)),
+        marginLabel: stage.toleranceLabel
+      };
+    }
+    if (stage === stageData[2]){
+      return {
+        name: 'Single sigmoid',
+        formula: `y ≈ ${baseline} + 1 / (1 + e^(−${fmt(cfg.steepness)}(x − ${thresholdX})))`,
+        fn: (x) => baseline + 1 / (1 + Math.exp(-cfg.steepness * (x - thresholdX))),
+        marginLabel: stage.toleranceLabel
+      };
+    }
+    if (stage === stageData[3]){
+      return {
+        name: 'Shifted sigmoids (same as reality)',
+        formula: 'F(x) = Σ σ(k(x − nΔ))',
+        fn: (x) => growth(x),
+        marginLabel: stage.toleranceLabel
+      };
+    }
+    const fit = linearRegression(xs, exactYs);
+    const sign = fit.b >= 0 ? '+' : '−';
+    return {
+      name: stage === stageData[4] ? 'Linear coarse-grained fit' : 'Widest linear fit',
+      formula: `y ≈ ${fmt(fit.m)}x ${sign} ${fmt(Math.abs(fit.b))}`,
+      fn: (x) => fit.m * x + fit.b,
+      marginLabel: stage.toleranceLabel
+    };
+  }
+
+  function resize(){
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function draw(){
+    const t = Number(slider.value) / 1000;
+    const baseX = thresholdX;
+    const span = getSegmentedValue(t, 'span', true);
+    const stage = getAppearance(span);
+    const centerShift = getSegmentedValue(t, 'centerShift', false);
+    const center = baseX + centerShift;
+    const xMin = center - span / 2;
+    const xMax = center + span / 2;
+
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const pad = {top: 48, right: 72, bottom: 48, left: 72};
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - pad.top - pad.bottom;
+
+    const sampleCount = Math.min(
+      8000,
+      Math.max(
+        900,
+        Math.floor(plotW * 1.15),
+        Math.floor((xMax - xMin) / cfg.spacing * 1.6)
+      )
+    );
+
+    const xs = new Array(sampleCount);
+    const exactYs = new Array(sampleCount);
+
+    let yMinExact = Infinity;
+    let yMaxExact = -Infinity;
+    for (let i = 0; i < sampleCount; i++){
+      const x = xMin + (i / (sampleCount - 1)) * (xMax - xMin);
+      const y = growth(x);
+      xs[i] = x;
+      exactYs[i] = y;
+      if (y < yMinExact) yMinExact = y;
+      if (y > yMaxExact) yMaxExact = y;
+    }
+
+    const model = buildModel(stage, {center, xMin, xMax}, xs, exactYs);
+    const modelYs = xs.map(model.fn);
+
+    let yMin = yMinExact;
+    let yMax = yMaxExact;
+    const yRange = Math.max(1e-6, yMax - yMin);
+    const yPad = Math.max(0.08 * yRange, 0.08);
+    yMin -= yPad;
+    yMax += yPad;
+
+    const xScale = x => pad.left + (x - xMin) / (xMax - xMin) * plotW;
+    const yScale = y => h - pad.bottom - (y - yMin) / (yMax - yMin) * plotH;
+    const accuracy = computeAccuracy(exactYs, modelYs, stage.toleranceY);
+
+    ctx.clearRect(0, 0, w, h);
+
+    const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+    grad.addColorStop(0, 'rgba(255,255,255,0.02)');
+    grad.addColorStop(1, 'rgba(255,255,255,0.005)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(pad.left, pad.top, plotW, plotH);
+
+    const xStep = niceStep(xMax - xMin, 7);
+    const yStep = niceStep(yMax - yMin, 6);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+
+    for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax + 1e-9; x += xStep){
+      const px = xScale(x);
+      ctx.beginPath();
+      ctx.moveTo(px, pad.top);
+      ctx.lineTo(px, h - pad.bottom);
+      ctx.stroke();
+    }
+
+    for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax + 1e-9; y += yStep){
+      const py = yScale(y);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, py);
+      ctx.lineTo(w - pad.right, py);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pad.left, pad.top, plotW, plotH);
+    ctx.clip();
+
+    ctx.beginPath();
+    for (let i = 0; i < sampleCount; i++){
+      const px = xScale(xs[i]);
+      const py = yScale(exactYs[i]);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#8fd3ff';
+    ctx.shadowColor = 'rgba(143,211,255,.35)';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (let i = 0; i < sampleCount; i++){
+      const px = xScale(xs[i]);
+      const py = yScale(modelYs[i]);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.setLineDash([10, 7]);
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '#ffd166';
+    ctx.shadowColor = 'rgba(255,209,102,.28)';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    ctx.fillStyle = '#b8c2ea';
+    ctx.font = '12px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax + 1e-9; x += xStep){
+      const px = xScale(x);
+      ctx.fillText(fmt(x), px, h - pad.bottom + 10);
+    }
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax + 1e-9; y += yStep){
+      const py = yScale(y);
+      ctx.fillText(fmt(y), pad.left - 10, py);
+    }
+
+    ctx.fillStyle = '#eef2ff';
+    ctx.font = '13px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('x', pad.left + plotW / 2, h - 8);
+
+    ctx.save();
+    ctx.translate(18, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('y', 0, 0);
+    ctx.restore();
+
+    zoomLabel.textContent = stage.name;
+    stageBadge.textContent = stage.badge;
+    windowChip.textContent = `Window: ${fmt(xMax - xMin)}`;
+    accuracyReadout.textContent = `${accuracy.toFixed(1)}%`;
+    marginReadout.textContent = model.marginLabel;
+    effectiveName.textContent = model.name;
+    effectiveFormula.textContent = model.formula;
+
+    buttons.forEach((btn, idx) => {
+      btn.classList.toggle('active', stage === stageData[idx]);
+    });
+  }
+
+  function findSliderValueForSpan(targetSpan){
+    const max = 1000;
+    if (targetSpan <= stageData[0].span) return 0;
+    if (targetSpan >= stageData[stageData.length - 1].span) return max;
+
+    for (let i = 0; i < stageData.length - 1; i++){
+      const A = stageData[i];
+      const B = stageData[i + 1];
+      if (targetSpan >= A.span && targetSpan <= B.span){
+        const ratio = Math.log(targetSpan / A.span) / Math.log(B.span / A.span);
+        const t = A.t + ratio * (B.t - A.t);
+        return Math.round(t * max);
+      }
+    }
+    return max;
+  }
+
+  function setStage(idx){
+    const targetSpans = [0.1, 2.25, 3, 20, 1000, 10000];
+    slider.value = String(findSliderValueForSpan(targetSpans[idx]));
+    draw();
+  }
+
+  slider.addEventListener('input', draw);
+
+  buttons.forEach((btn, idx) => {
+    btn.addEventListener('click', () => setStage(idx));
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = Math.sign(e.deltaY);
+    let next = Number(slider.value) + delta * 28;
+    next = Math.max(0, Math.min(1000, next));
+    slider.value = String(next);
+    draw();
+  }, {passive:false});
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+</body>
+</html>
