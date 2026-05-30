@@ -201,6 +201,7 @@
   </div>
 </div>
 
+
 <div id="bottomHint">
   <div class="main">HOLD ANYWHERE OR ANY KEY</div>
   <div class="sub">release touch/key when the timing ring hits the center</div>
@@ -235,8 +236,9 @@
     const margin = 12;
     const resetClearance = W < 560 ? 86 : 118;
     const panelW = Math.max(238, Math.min(460, W - margin * 2 - resetClearance));
+    const panelTop = margin + 116 + 10;
     difficultyPanel.style.left = margin + "px";
-    difficultyPanel.style.top = (margin + 116 + 10) + "px";
+    difficultyPanel.style.top = panelTop + "px";
     difficultyPanel.style.width = panelW + "px";
   }
 
@@ -835,6 +837,7 @@
   const centerStripePixels = 4;
   const streakBonusPerMakeSeconds = 0.001;
   const streakBonusCap = 15;
+  const perfectWindowSeconds = 0.010;
   let baseMissWindowSeconds = (hardWindowSeconds + easyWindowSeconds) / 2;
   let missWindowSeconds = baseMissWindowSeconds;
   const rackBallSpacing = 1.15;
@@ -849,7 +852,6 @@
   const ballLoadDurationMs = 260;
 
   const difficultyStorageKey = "threePointContestDifficulty";
-
   function loadSavedDifficulty() {
     try {
       const saved = window.localStorage ? window.localStorage.getItem(difficultyStorageKey) : null;
@@ -1158,7 +1160,8 @@
 
   function classifyShot(aim, windowSeconds = aim.windowSeconds || getCurrentMissWindowSeconds()) {
     const e = Math.abs(aim.delta);
-    const safeWindowSeconds = Math.max(0.010, windowSeconds);
+    const safeWindowSeconds = Math.max(perfectWindowSeconds, windowSeconds);
+    if (e <= perfectWindowSeconds) return { type: "perfect", made: true, label: "", perfect: true };
     if (e <= safeWindowSeconds * 0.20) return { type: "swish", made: true, label: "" };
     if (e <= safeWindowSeconds * 0.50) return { type: "soft-rim", made: true, label: "" };
     if (e <= safeWindowSeconds * 0.80) return { type: "rattle", made: true, label: "" };
@@ -1171,27 +1174,33 @@
   }
 
   function getTimingFeedback(aim, outcome, now, windowSeconds = aim.windowSeconds || getCurrentMissWindowSeconds()) {
-    const safeWindowSeconds = Math.max(0.010, windowSeconds);
+    const safeWindowSeconds = Math.max(perfectWindowSeconds, windowSeconds);
     const absDelta = Math.abs(aim.delta);
     const insideWindow = absDelta <= safeWindowSeconds;
     const nearCenter = absDelta <= safeWindowSeconds * 0.20;
+    const perfect = absDelta <= perfectWindowSeconds || !!outcome.perfect;
     let status;
     let detail;
     let color;
     let glow;
 
-    if (insideWindow || outcome.made) {
+    if (perfect) {
+      status = "PERFECT";
+      detail = "PERFECT";
+      color = "#FFFFFF";
+      glow = "rgba(124,255,137,0.72)";
+    } else if (insideWindow || outcome.made) {
       status = "ON TIME";
       detail = "MAKE";
       color = "#7CFF89";
       glow = "rgba(124,255,137,0.34)";
     } else if (aim.delta < 0) {
-      status = "TOO EARLY";
+      status = "EARLY";
       detail = "EARLY";
       color = "#FF6B6B";
       glow = "rgba(255,87,87,0.30)";
     } else {
-      status = "TOO LATE";
+      status = "LATE";
       detail = "LATE";
       color = "#FF6B6B";
       glow = "rgba(255,87,87,0.30)";
@@ -1205,6 +1214,7 @@
       windowSeconds: safeWindowSeconds,
       insideWindow,
       nearCenter,
+      perfect,
       made: !!outcome.made,
       color,
       glow,
@@ -1434,7 +1444,7 @@
   function triggerNet(now, shot) {
     state.netKickTime = now;
     state.netKickDir = [shot.dirX || 0, shot.dirY || 1];
-    state.netKickStrength = shot.outcome.type === "swish" ? 0.42 : 0.56;
+    state.netKickStrength = shot.outcome.type === "perfect" ? 0.68 : (shot.outcome.type === "swish" ? 0.42 : 0.56);
   }
 
   function updateShotEvents(now) {
@@ -1543,7 +1553,7 @@
 
     if (shot.outcome.made) {
       state.makes += 1;
-      state.streak += 1;
+      state.streak = shot.outcome.perfect ? streakBonusCap : state.streak + 1;
       state.score += shot.points;
     } else {
       state.streak = 0;
@@ -1814,6 +1824,11 @@
     uictx.fillStyle = '#78FF7A';
     uictx.fillRect(baseGreenLeft, barY, baseGreenRight - baseGreenLeft, barH);
 
+    const perfectHalfWidth = Math.max(centerStripePixels * 1.4, halfBar * (perfectWindowSeconds / releaseTargetSeconds));
+    const perfectPulse = 0.65 + 0.35 * Math.sin(now * 0.014);
+    uictx.fillStyle = `rgba(255,255,255,${0.78 + perfectPulse * 0.18})`;
+    uictx.fillRect(cx - perfectHalfWidth, barY, perfectHalfWidth * 2, barH);
+
     const centerStripeW = Math.max(2, Math.min(centerStripePixels, barH * 0.22));
     uictx.fillStyle = '#07110A';
     uictx.fillRect(cx - centerStripeW * 0.5, barY, centerStripeW, barH);
@@ -1855,34 +1870,94 @@
     if (!feedback) return;
 
     const age = now - feedback.at;
-    if (age < 0 || age > 1800) return;
+    if (age < 0 || age > 1900) return;
 
-    const fade = age < 1350 ? 1 : clamp(1 - (age - 1350) / 450, 0, 1);
-    const panelW = Math.min(W - 52, 280);
-    const panelH = 42;
-    const x = (W - panelW) / 2;
-    const y = Math.max(120, H * 0.18);
+    const fade = age < 1420 ? 1 : clamp(1 - (age - 1420) / 480, 0, 1);
+    const label = feedback.status;
+    const perfect = !!feedback.perfect;
+    const fontSize = perfect ? Math.max(22, Math.min(34, W * 0.072)) : 17;
+    const font = `950 ${fontSize}px system-ui, sans-serif`;
 
     uictx.save();
+    uictx.font = font;
+    const textW = uictx.measureText(label).width;
+    const padX = perfect ? 20 : 13;
+    const panelW = Math.min(W - 52, Math.ceil(textW + padX * 2));
+    const panelH = perfect ? Math.ceil(fontSize + 22) : 34;
+    const x = (W - panelW) / 2;
+    const y = Math.max(112, H * 0.18);
+    const cx = W * 0.5;
+    const cy = y + panelH * 0.5;
+    const t = clamp(age / 900, 0, 1);
+
     uictx.globalAlpha = fade;
-    roundedRectPath(uictx, x, y, panelW, panelH, 13);
-    uictx.fillStyle = 'rgba(7,9,14,.78)';
+
+    if (perfect) {
+      const burstFade = clamp(1 - age / 980, 0, 1);
+      const burstRadius = 26 + t * 78;
+
+      uictx.save();
+      uictx.globalAlpha = fade * burstFade;
+      uictx.strokeStyle = 'rgba(255,255,255,0.82)';
+      uictx.lineWidth = 2.5;
+      uictx.beginPath();
+      uictx.arc(cx, cy, burstRadius, 0, Math.PI * 2);
+      uictx.stroke();
+
+      uictx.strokeStyle = 'rgba(124,255,137,0.76)';
+      uictx.lineWidth = 4;
+      uictx.beginPath();
+      uictx.arc(cx, cy, burstRadius * 0.72, -Math.PI * 0.18, Math.PI * 1.12);
+      uictx.stroke();
+
+      const sparkleCount = 16;
+      for (let i = 0; i < sparkleCount; i++) {
+        const a = (Math.PI * 2 * i / sparkleCount) + age * 0.0023;
+        const r = 24 + ((age * 0.10 + i * 13) % 72);
+        const sx = cx + Math.cos(a) * r;
+        const sy = cy + Math.sin(a) * r * 0.62;
+        const s = 2.2 + ((i % 3) * 1.5);
+        uictx.strokeStyle = i % 2 ? 'rgba(124,255,137,0.86)' : 'rgba(255,255,255,0.92)';
+        uictx.lineWidth = 1.7;
+        uictx.beginPath();
+        uictx.moveTo(sx - s, sy);
+        uictx.lineTo(sx + s, sy);
+        uictx.moveTo(sx, sy - s);
+        uictx.lineTo(sx, sy + s);
+        uictx.stroke();
+      }
+      uictx.restore();
+    }
+
+    roundedRectPath(uictx, x, y, panelW, panelH, perfect ? 18 : 11);
+    uictx.fillStyle = perfect ? 'rgba(7,12,10,.88)' : 'rgba(7,9,14,.78)';
     uictx.fill();
-    uictx.strokeStyle = feedback.color;
-    uictx.lineWidth = 1.5;
+    uictx.strokeStyle = perfect ? 'rgba(255,255,255,.95)' : feedback.color;
+    uictx.lineWidth = perfect ? 2.4 : 1.5;
     uictx.stroke();
 
     uictx.shadowColor = feedback.glow;
-    uictx.shadowBlur = 18;
+    uictx.shadowBlur = perfect ? 28 : 16;
     uictx.fillStyle = feedback.color;
-    uictx.font = '900 17px system-ui, sans-serif';
+    uictx.font = font;
     uictx.textAlign = 'center';
     uictx.textBaseline = 'middle';
-    uictx.fillText(feedback.status, W * 0.5, y + panelH * 0.5);
+    uictx.fillText(label, cx, cy + (perfect ? -1 : 0));
+
+    if (perfect) {
+      uictx.shadowBlur = 0;
+      uictx.strokeStyle = 'rgba(124,255,137,0.95)';
+      uictx.lineWidth = 1.5;
+      uictx.beginPath();
+      uictx.moveTo(x + 16, y + panelH - 7);
+      uictx.lineTo(x + panelW - 16, y + panelH - 7);
+      uictx.stroke();
+    }
 
     uictx.shadowBlur = 0;
     uictx.restore();
   }
+
 
 
 
