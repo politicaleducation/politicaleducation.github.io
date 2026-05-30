@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>Deterministic WebGL 3D Three-Point Shooter</title>
+<title>Three Point Contest - Needle Bar Timing</title>
 <style>
   html, body {
     margin: 0;
@@ -93,8 +93,9 @@
   #difficultyPanel {
     position: fixed;
     left: max(12px, env(safe-area-inset-left));
-    right: max(12px, calc(env(safe-area-inset-right) + 132px));
-    top: max(10px, env(safe-area-inset-top));
+    right: auto;
+    top: max(140px, calc(env(safe-area-inset-top) + 140px));
+    width: min(320px, calc(100vw - 24px));
     max-width: 320px;
     padding: 10px 12px 11px;
     border: 1px solid rgba(255,255,255,.18);
@@ -191,9 +192,9 @@
 <div id="difficultyPanel">
   <div id="difficultyTop">
     <span>Difficulty</span>
-    <span id="difficultyValue">±0.18s</span>
+    <span id="difficultyValue">±0.018s</span>
   </div>
-  <input id="difficultySlider" type="range" min="0" max="100" step="1" value="50">
+  <input id="difficultySlider" type="range" min="0" max="100" step="1" value="43">
   <div id="difficultyEnds">
     <span>Hard</span>
     <span>Easy</span>
@@ -201,8 +202,8 @@
 </div>
 
 <div id="bottomHint">
-  <div class="main">HOLD ANYWHERE</div>
-  <div class="sub">release when the timing ring hits the center</div>
+  <div class="main">HOLD ANYWHERE OR ANY KEY</div>
+  <div class="sub">release touch/key when the timing ring hits the center</div>
 </div>
 
 <script>
@@ -219,6 +220,7 @@
   const difficultyPanel = document.getElementById("difficultyPanel");
   const difficultySlider = document.getElementById("difficultySlider");
   const difficultyValueEl = document.getElementById("difficultyValue");
+  const timingUiVersion = "needle-bar-v4-fps-proportions";
 
   const webglOptions = { antialias: true, alpha: false, preserveDrawingBuffer: false };
   const gl = glCanvas.getContext("webgl", webglOptions) || glCanvas.getContext("experimental-webgl", webglOptions);
@@ -228,6 +230,15 @@
   }
 
   let W = 0, H = 0, DPR = 1;
+
+  function positionDifficultyPanel() {
+    const margin = 12;
+    const resetClearance = W < 560 ? 86 : 118;
+    const panelW = Math.max(238, Math.min(460, W - margin * 2 - resetClearance));
+    difficultyPanel.style.left = margin + "px";
+    difficultyPanel.style.top = (margin + 116 + 10) + "px";
+    difficultyPanel.style.width = panelW + "px";
+  }
 
   function resize() {
     const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
@@ -247,6 +258,7 @@
     uictx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
     gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    positionDifficultyPanel();
   }
 
   window.addEventListener("resize", resize, { passive: true });
@@ -816,8 +828,15 @@
     fov: Math.PI / 5.1
   };
 
-  const releaseTargetSeconds = 0.50;
-  let missWindowSeconds = 0.18;
+  const releaseTargetSeconds = 0.65;
+  const hardWindowSeconds = 0.020;
+  const easyWindowSeconds = 0.055;
+  const minimumMakeZonePixels = 30;
+  const centerStripePixels = 4;
+  const streakBonusPerMakeSeconds = 0.001;
+  const streakBonusCap = 15;
+  let baseMissWindowSeconds = (hardWindowSeconds + easyWindowSeconds) / 2;
+  let missWindowSeconds = baseMissWindowSeconds;
   const rackBallSpacing = 1.15;
   const rackFloorZ = 0.42;
   const rackBallScale = 0.32;
@@ -830,13 +849,16 @@
   const ballLoadDurationMs = 260;
 
   function updateDifficultyFromSlider() {
-    const t = Number(difficultySlider.value || 50) / 100;
-    missWindowSeconds = 0.01 + t * 0.09;
+    const t = Number(difficultySlider.value || 43) / 100;
+    baseMissWindowSeconds = hardWindowSeconds + t * (easyWindowSeconds - hardWindowSeconds);
+    missWindowSeconds = getEffectiveBaseMissWindowSeconds();
     difficultyValueEl.textContent = `±${missWindowSeconds.toFixed(3)}s`;
   }
 
   difficultySlider.addEventListener("input", updateDifficultyFromSlider, { passive: true });
   difficultySlider.addEventListener("change", updateDifficultyFromSlider, { passive: true });
+  window.addEventListener("resize", updateDifficultyFromSlider, { passive: true });
+  window.addEventListener("orientationchange", updateDifficultyFromSlider, { passive: true });
   updateDifficultyFromSlider();
 
   function makeRack(name, centerX, centerY, dirX, dirY, moneyPattern) {
@@ -943,8 +965,28 @@
     netKickTime: -9999,
     netKickDir: [0, 1],
     netKickStrength: 0,
-    shotResults: Array(25).fill(null)
+    shotResults: Array(25).fill(null),
+    lastTimingFeedback: null,
+    lastVisibleTiming: null
   };
+
+  function getTimingBarWidth() {
+    return Math.max(1, Math.min(W - 40, 520));
+  }
+
+  function getMinimumVisibleWindowSeconds() {
+    return minimumMakeZonePixels * releaseTargetSeconds / getTimingBarWidth();
+  }
+
+  function getEffectiveBaseMissWindowSeconds() {
+    return Math.max(baseMissWindowSeconds, getMinimumVisibleWindowSeconds());
+  }
+
+  function getCurrentMissWindowSeconds() {
+    const streakBonus = Math.min(state.streak, streakBonusCap) * streakBonusPerMakeSeconds;
+    missWindowSeconds = getEffectiveBaseMissWindowSeconds() + streakBonus;
+    return missWindowSeconds;
+  }
 
 
 
@@ -961,7 +1003,7 @@
     if (state.cameraMoveFromPos && state.cameraMoveToPos && now < state.cameraMoveEndAt) {
       if (now <= state.cameraMoveStartAt) return state.cameraMoveFromPos;
       const t = clamp((now - state.cameraMoveStartAt) / Math.max(1, state.cameraMoveEndAt - state.cameraMoveStartAt), 0, 1);
-      return mix3(state.cameraMoveFromPos, state.cameraMoveToPos, easeOut(t));
+      return mix3(state.cameraMoveFromPos, state.cameraMoveToPos, t);
     }
     const ball = getCurrentBall();
     return ball ? ball.shotPos : [0, court.hoopY - court.threeRadius - 1.0, handBallZ];
@@ -1020,60 +1062,157 @@
     drawMesh(ballSeams, model, 1);
   }
 
-  function updateCamera(now) {
-    const startPos = getDisplayedShotStartPos(now);
-    if (!startPos) return;
-
+  function getCameraForShotStartPos(startPos) {
     const dx = startPos[0] - hoop[0];
     const dy = startPos[1] - hoop[1];
     const len = Math.hypot(dx, dy) || 1;
     const outX = dx / len;
     const outY = dy / len;
 
-    const desiredEye = [
-      startPos[0] + outX * 11.6,
-      startPos[1] + outY * 11.6,
-      8.55
-    ];
-    const desiredTarget = [
-      lerp(startPos[0], hoop[0], 0.82),
-      lerp(startPos[1], hoop[1], 0.82),
-      8.15
-    ];
-    const follow = 0.18;
-
-    for (let i = 0; i < 3; i++) {
-      camera.eye[i] = lerp(camera.eye[i], desiredEye[i], follow);
-      camera.target[i] = lerp(camera.target[i], desiredTarget[i], follow);
-    }
-  }
-
-  function getAim(now) {
-    const elapsed = Math.max(0, (now - state.holdStart) / 1000);
-    const delta = elapsed - releaseTargetSeconds;
-    const err = clamp(Math.abs(delta) / missWindowSeconds, 0, 1);
-
     return {
-      x: 0,
-      y: clamp(delta / missWindowSeconds, -1, 1),
-      err,
-      elapsed,
-      delta,
-      remaining: releaseTargetSeconds - elapsed
+      eye: [
+        startPos[0] + outX * 11.6,
+        startPos[1] + outY * 11.6,
+        8.55
+      ],
+      target: [
+        lerp(startPos[0], hoop[0], 0.82),
+        lerp(startPos[1], hoop[1], 0.82),
+        8.15
+      ]
     };
   }
 
-  function classifyShot(aim) {
+  function setCameraTo(cameraFrame) {
+    for (let i = 0; i < 3; i++) {
+      camera.eye[i] = cameraFrame.eye[i];
+      camera.target[i] = cameraFrame.target[i];
+    }
+  }
+
+  function updateCamera(now) {
+    if (state.cameraMoveFromPos && state.cameraMoveToPos && now < state.cameraMoveEndAt) {
+      const fromCamera = getCameraForShotStartPos(state.cameraMoveFromPos);
+      const toCamera = getCameraForShotStartPos(state.cameraMoveToPos);
+
+      if (now <= state.cameraMoveStartAt) {
+        setCameraTo(fromCamera);
+        return;
+      }
+
+      const t = clamp((now - state.cameraMoveStartAt) / Math.max(1, state.cameraMoveEndAt - state.cameraMoveStartAt), 0, 1);
+      setCameraTo({
+        eye: mix3(fromCamera.eye, toCamera.eye, t),
+        target: mix3(fromCamera.target, toCamera.target, t)
+      });
+      return;
+    }
+
+    const startPos = getDisplayedShotStartPos(now);
+    if (!startPos) return;
+    setCameraTo(getCameraForShotStartPos(startPos));
+  }
+
+  function getAim(now, windowSeconds = getCurrentMissWindowSeconds()) {
+    const elapsed = Math.max(0, (now - state.holdStart) / 1000);
+    const delta = elapsed - releaseTargetSeconds;
+    const safeWindowSeconds = Math.max(0.001, windowSeconds);
+    const err = clamp(Math.abs(delta) / safeWindowSeconds, 0, 1);
+
+    return {
+      x: 0,
+      y: clamp(delta / safeWindowSeconds, -1, 1),
+      err,
+      elapsed,
+      delta,
+      remaining: releaseTargetSeconds - elapsed,
+      windowSeconds: safeWindowSeconds
+    };
+  }
+
+  function classifyShot(aim, windowSeconds = aim.windowSeconds || getCurrentMissWindowSeconds()) {
     const e = Math.abs(aim.delta);
-    if (e <= 0.025) return { type: "swish", made: true, label: "" };
-    if (e <= 0.070) return { type: "soft-rim", made: true, label: "" };
-    if (e <= 0.130) return { type: "rattle", made: true, label: "" };
-    if (e <= 0.220) return { type: "barely", made: true, label: "" };
+    const safeWindowSeconds = Math.max(0.010, windowSeconds);
+    if (e <= safeWindowSeconds * 0.20) return { type: "swish", made: true, label: "" };
+    if (e <= safeWindowSeconds * 0.50) return { type: "soft-rim", made: true, label: "" };
+    if (e <= safeWindowSeconds * 0.80) return { type: "rattle", made: true, label: "" };
+    if (e <= safeWindowSeconds) return { type: "barely", made: true, label: "" };
     return { type: "miss", made: false, label: "missed" };
   }
 
+  function formatMs(seconds) {
+    return `${Math.round(Math.abs(seconds) * 1000)} ms`;
+  }
+
+  function getTimingFeedback(aim, outcome, now, windowSeconds = aim.windowSeconds || getCurrentMissWindowSeconds()) {
+    const safeWindowSeconds = Math.max(0.010, windowSeconds);
+    const absDelta = Math.abs(aim.delta);
+    const insideWindow = absDelta <= safeWindowSeconds;
+    const nearCenter = absDelta <= safeWindowSeconds * 0.20;
+    let status;
+    let detail;
+    let color;
+    let glow;
+
+    if (insideWindow || outcome.made) {
+      status = "ON TIME";
+      detail = "MAKE";
+      color = "#7CFF89";
+      glow = "rgba(124,255,137,0.34)";
+    } else if (aim.delta < 0) {
+      status = "TOO EARLY";
+      detail = "EARLY";
+      color = "#FF6B6B";
+      glow = "rgba(255,87,87,0.30)";
+    } else {
+      status = "TOO LATE";
+      detail = "LATE";
+      color = "#FF6B6B";
+      glow = "rgba(255,87,87,0.30)";
+    }
+
+    return {
+      at: now,
+      status,
+      detail,
+      deltaSeconds: aim.delta,
+      windowSeconds: safeWindowSeconds,
+      insideWindow,
+      nearCenter,
+      made: !!outcome.made,
+      color,
+      glow,
+      summary: detail ? `${status} · ${detail}` : status
+    };
+  }
+
+  function getScoredAim(now) {
+    const sample = state.lastVisibleTiming;
+    const sampleAge = sample ? now - sample.now : Infinity;
+
+    // The make/miss decision uses the most recently drawn timing sample when it
+    // is fresh. That keeps the scoring locked to the bar the player actually saw
+    // instead of judging against an invisible position between animation frames.
+    if (
+      sample &&
+      sample.holdStart === state.holdStart &&
+      sampleAge >= 0 &&
+      sampleAge <= 42
+    ) {
+      return {
+        ...sample.aim,
+        scoredAt: sample.now,
+        releaseAt: now,
+        visualSampleAgeMs: sampleAge
+      };
+    }
+
+    const windowSeconds = getCurrentMissWindowSeconds();
+    return getAim(now, windowSeconds);
+  }
+
   function buildShot(now, aim, rackBall) {
-    const outcome = classifyShot(aim);
+    const outcome = classifyShot(aim, aim.windowSeconds);
     const startPos = rackBall.shotPos;
 
     const shotDX = hoop[0] - startPos[0];
@@ -1295,8 +1434,8 @@
 
     if (state.mode === "idle") {
       if (state.shots === 0) {
-        main.textContent = "HOLD ANYWHERE";
-        sub.textContent = "release when the timing ring hits the center";
+        main.textContent = "HOLD ANYWHERE OR ANY KEY";
+        sub.textContent = "release touch/key when the timing ring hits the center";
       } else {
         main.textContent = "";
         sub.textContent = "";
@@ -1345,6 +1484,8 @@
     state.holdStart = now;
     state.message = "Aiming...";
     state.subMessage = "";
+    state.lastTimingFeedback = null;
+    state.lastVisibleTiming = null;
     setHud();
   }
 
@@ -1359,16 +1500,16 @@
     const currentBall = getCurrentBall();
     if (!currentBall) return;
 
-    const aim = getAim(now);
+    const aim = getScoredAim(now);
     const shot = buildShot(now, aim, currentBall);
 
     state.shot = shot;
     state.activeShots.push(shot);
     state.shots += 1;
 
-    const timingLabel =
-      Math.abs(aim.delta) <= 0.025 ? "perfect timing" :
-      aim.delta < 0 ? "early release" : "late release";
+    const timingFeedback = getTimingFeedback(aim, shot.outcome, now, aim.windowSeconds);
+    state.lastTimingFeedback = timingFeedback;
+    const timingLabel = timingFeedback.status.toLowerCase();
 
     state.message = shot.outcome.made
       ? `${timingLabel}${shot.points ? ` · +${shot.points}` : ""}${shot.money ? " · money ball" : ""}`
@@ -1442,6 +1583,29 @@
     releaseHold(performance.now());
   }
 
+  const activeKeys = new Set();
+
+  function isTypingTarget(target) {
+    if (!target || typeof target.closest !== "function") return false;
+    return !!target.closest("input, textarea, select, button, [contenteditable='true']");
+  }
+
+  function onKeyDown(e) {
+    if (isTypingTarget(e.target) || e.repeat) return;
+    activeKeys.add(e.code || e.key || "key");
+    safePreventDefault(e);
+    beginHold(performance.now());
+  }
+
+  function onKeyUp(e) {
+    if (isTypingTarget(e.target)) return;
+    const keyId = e.code || e.key || "key";
+    if (!activeKeys.has(keyId)) return;
+    activeKeys.delete(keyId);
+    safePreventDefault(e);
+    releaseHold(performance.now());
+  }
+
   if (window.PointerEvent) {
     document.addEventListener("pointerdown", onPointerDown, { passive: false });
     document.addEventListener("pointerup", onPointerUp, { passive: false });
@@ -1453,14 +1617,22 @@
     document.addEventListener("mousedown", onPointerDown, { passive: false });
     document.addEventListener("mouseup", onPointerUp, { passive: false });
   }
+  document.addEventListener("keydown", onKeyDown, { passive: false });
+  document.addEventListener("keyup", onKeyUp, { passive: false });
   document.addEventListener("touchmove", e => {
     if (isUiControlTarget(e.target)) return;
     safePreventDefault(e);
   }, { passive: false });
   document.addEventListener("gesturestart", e => safePreventDefault(e), { passive: false });
 
+  window.addEventListener("blur", () => {
+    activeKeys.clear();
+    releaseHold(performance.now());
+  }, { passive: true });
+
   resetBtn.addEventListener("click", e => {
     safePreventDefault(e);
+    activeKeys.clear();
     state.mode = "idle";
     state.makes = 0;
     state.shots = 0;
@@ -1484,6 +1656,8 @@
     state.netKickTime = -9999;
     state.netKickStrength = 0;
     state.shotResults = Array(25).fill(null);
+    state.lastTimingFeedback = null;
+    state.lastVisibleTiming = null;
     setHud();
   });
 
@@ -1530,87 +1704,158 @@
   function drawTimingOverlay(now) {
     uictx.clearRect(0, 0, W, H);
 
-    if (state.mode !== "aiming") return;
+    if (state.mode !== "aiming") {
+      state.lastVisibleTiming = null;
+      return;
+    }
 
-    const aim = getAim(now);
+    const releaseWindow = Math.max(0.010, getCurrentMissWindowSeconds());
+    const aim = getAim(now, releaseWindow);
+    const outcome = classifyShot(aim, releaseWindow);
+    const timingFeedback = getTimingFeedback(aim, outcome, now, releaseWindow);
+
+    const barW = getTimingBarWidth();
+    const barH = Math.max(24, Math.min(34, Math.round(Math.min(W, H) * 0.052)));
+    const barX = (W - barW) * 0.5;
+    const barY = H * 0.58 - barH * 0.5;
     const cx = W * 0.5;
-    const cy = H * 0.50;
-    const r = Math.min(W, H) * 0.165;
-    const progress = clamp(aim.elapsed / releaseTargetSeconds, 0, 1);
-    const afterTarget = aim.remaining < 0;
-    const centerRadius = r * 0.16;
-    const movingRadius = afterTarget
-      ? centerRadius + clamp(Math.abs(aim.delta) / missWindowSeconds, 0, 1) * r * 0.74
-      : lerp(r * 0.98, centerRadius, progress);
+    const radius = Math.min(14, barH * 0.5);
+    const halfBar = barW * 0.5;
 
-    const perfectFlash = clamp(1 - Math.abs(aim.delta) / 0.055, 0, 1);
+    // One scalar drives both the visual and the scoring.
+    // Delta = elapsed - target. The bar maps -targetTime to the far left,
+    // 0 to center, and +targetTime to the far right.
+    const needleX = clamp(cx + (aim.delta / releaseTargetSeconds) * halfBar, barX, barX + barW);
+    const greenHalfWidth = halfBar * (releaseWindow / releaseTargetSeconds);
+    const baseReleaseWindow = Math.max(0.010, Math.min(getEffectiveBaseMissWindowSeconds(), releaseWindow));
+    const baseGreenHalfWidth = halfBar * (baseReleaseWindow / releaseTargetSeconds);
+    const greenLeft = cx - greenHalfWidth;
+    const greenRight = cx + greenHalfWidth;
+    const baseGreenLeft = cx - baseGreenHalfWidth;
+    const baseGreenRight = cx + baseGreenHalfWidth;
+    const needleInGreen = needleX >= greenLeft && needleX <= greenRight;
+
+    state.lastVisibleTiming = {
+      now,
+      holdStart: state.holdStart,
+      aim: { ...aim },
+      releaseWindow,
+      needleX,
+      greenLeft,
+      greenRight,
+      needleInGreen
+    };
+
+    function rectPath(x, y, w, h, r) {
+      const rr = Math.min(r, w * 0.5, h * 0.5);
+      uictx.beginPath();
+      uictx.moveTo(x + rr, y);
+      uictx.lineTo(x + w - rr, y);
+      uictx.quadraticCurveTo(x + w, y, x + w, y + rr);
+      uictx.lineTo(x + w, y + h - rr);
+      uictx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+      uictx.lineTo(x + rr, y + h);
+      uictx.quadraticCurveTo(x, y + h, x, y + h - rr);
+      uictx.lineTo(x, y + rr);
+      uictx.quadraticCurveTo(x, y, x + rr, y);
+      uictx.closePath();
+    }
 
     uictx.save();
-    uictx.globalAlpha = 0.98;
+    uictx.globalAlpha = 1;
 
-    uictx.fillStyle = "rgba(0,0,0,.25)";
-    uictx.beginPath();
-    uictx.arc(cx, cy, r * 1.20, 0, Math.PI * 2);
+    uictx.fillStyle = '#05070B';
+    rectPath(barX - 10, barY - 16, barW + 20, barH + 32, radius + 6);
     uictx.fill();
 
-    uictx.strokeStyle = "rgba(255,255,255,.18)";
-    uictx.lineWidth = Math.max(2, r * 0.025);
-    for (const rr of [1.0, 0.72, 0.44]) {
-      uictx.beginPath();
-      uictx.arc(cx, cy, r * rr, 0, Math.PI * 2);
-      uictx.stroke();
+    rectPath(barX, barY, barW, barH, radius);
+    uictx.save();
+    uictx.clip();
+
+    uictx.fillStyle = '#D94A4A';
+    uictx.fillRect(barX, barY, barW, barH);
+
+    if (greenLeft < baseGreenLeft) {
+      uictx.fillStyle = '#009E3F';
+      uictx.fillRect(greenLeft, barY, baseGreenLeft - greenLeft, barH);
     }
 
-    uictx.strokeStyle = "rgba(255,255,255,.94)";
-    uictx.lineWidth = Math.max(3, r * 0.045);
-    uictx.beginPath();
-    uictx.arc(cx, cy, centerRadius, 0, Math.PI * 2);
+    if (baseGreenRight < greenRight) {
+      uictx.fillStyle = '#009E3F';
+      uictx.fillRect(baseGreenRight, barY, greenRight - baseGreenRight, barH);
+    }
+
+    uictx.fillStyle = '#78FF7A';
+    uictx.fillRect(baseGreenLeft, barY, baseGreenRight - baseGreenLeft, barH);
+
+    const centerStripeW = Math.max(2, Math.min(centerStripePixels, barH * 0.22));
+    uictx.fillStyle = '#07110A';
+    uictx.fillRect(cx - centerStripeW * 0.5, barY, centerStripeW, barH);
+
+    uictx.restore();
+
+    uictx.strokeStyle = '#FFFFFF';
+    uictx.lineWidth = 2;
+    rectPath(barX, barY, barW, barH, radius);
     uictx.stroke();
 
-    uictx.fillStyle = "rgba(255,255,255,.92)";
+    uictx.lineCap = 'butt';
+    uictx.strokeStyle = '#FFFFFF';
+    uictx.lineWidth = 2;
     uictx.beginPath();
-    uictx.arc(cx, cy, r * 0.035, 0, Math.PI * 2);
+    uictx.moveTo(needleX, barY - 9);
+    uictx.lineTo(needleX, barY + barH + 9);
+    uictx.stroke();
+
+    uictx.fillStyle = '#FFFFFF';
+    uictx.beginPath();
+    uictx.moveTo(needleX, barY - 1);
+    uictx.lineTo(needleX - 5, barY - 9);
+    uictx.lineTo(needleX + 5, barY - 9);
+    uictx.closePath();
     uictx.fill();
-
-    uictx.strokeStyle = afterTarget ? "#FF5757" : "#FFD45A";
-    uictx.lineWidth = Math.max(6, r * 0.075);
-    uictx.lineCap = "round";
     uictx.beginPath();
-    uictx.arc(cx, cy, movingRadius, 0, Math.PI * 2);
-    uictx.stroke();
-
-    if (perfectFlash > 0) {
-      uictx.globalAlpha = perfectFlash * 0.92;
-      uictx.strokeStyle = "#7CFF89";
-      uictx.lineWidth = Math.max(7, r * 0.085);
-      uictx.beginPath();
-      uictx.arc(cx, cy, centerRadius + r * 0.045, 0, Math.PI * 2);
-      uictx.stroke();
-
-      uictx.globalAlpha = perfectFlash * 0.30;
-      uictx.fillStyle = "#7CFF89";
-      uictx.beginPath();
-      uictx.arc(cx, cy, r * 0.46, 0, Math.PI * 2);
-      uictx.fill();
-    }
-
-    let label = "HOLD";
-    const outcome = classifyShot(aim);
-    if (Math.abs(aim.delta) <= 0.055) label = "RELEASE";
-    else if (aim.elapsed > releaseTargetSeconds) label = outcome.made ? "STILL GOOD" : "TOO LATE";
-
-    uictx.globalAlpha = 0.95;
-    uictx.fillStyle = outcome.made ? "rgba(124,255,137,.95)" : "rgba(255,100,100,.95)";
-    uictx.font = "900 16px system-ui, sans-serif";
-    uictx.textAlign = "center";
-    uictx.textBaseline = "middle";
-    uictx.fillText(label, cx, cy - r * 1.38);
+    uictx.moveTo(needleX, barY + barH + 1);
+    uictx.lineTo(needleX - 5, barY + barH + 9);
+    uictx.lineTo(needleX + 5, barY + barH + 9);
+    uictx.closePath();
+    uictx.fill();
 
     uictx.restore();
   }
 
   function drawResultText(now) {
-    // The visible scorecard carries the feedback now; no large result label.
+    const feedback = state.lastTimingFeedback;
+    if (!feedback) return;
+
+    const age = now - feedback.at;
+    if (age < 0 || age > 1800) return;
+
+    const fade = age < 1350 ? 1 : clamp(1 - (age - 1350) / 450, 0, 1);
+    const panelW = Math.min(W - 52, 280);
+    const panelH = 42;
+    const x = (W - panelW) / 2;
+    const y = Math.max(120, H * 0.18);
+
+    uictx.save();
+    uictx.globalAlpha = fade;
+    roundedRectPath(uictx, x, y, panelW, panelH, 13);
+    uictx.fillStyle = 'rgba(7,9,14,.78)';
+    uictx.fill();
+    uictx.strokeStyle = feedback.color;
+    uictx.lineWidth = 1.5;
+    uictx.stroke();
+
+    uictx.shadowColor = feedback.glow;
+    uictx.shadowBlur = 18;
+    uictx.fillStyle = feedback.color;
+    uictx.font = '900 17px system-ui, sans-serif';
+    uictx.textAlign = 'center';
+    uictx.textBaseline = 'middle';
+    uictx.fillText(feedback.status, W * 0.5, y + panelH * 0.5);
+
+    uictx.shadowBlur = 0;
+    uictx.restore();
   }
 
 
@@ -1869,6 +2114,7 @@
 
     draw3D(now);
     drawTimingOverlay(now);
+    drawResultText(now);
     drawScoreHud(now);
     drawMinimap(now);
 
