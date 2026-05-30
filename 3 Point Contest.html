@@ -185,7 +185,20 @@
     font-size: 28px;
   }
 
-  #difficultyTop {
+  .panelSection {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.11);
+  }
+
+  .panelSection:first-of-type {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  #difficultyTop,
+  #shotSpeedTop {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -196,12 +209,57 @@
     margin-bottom: 7px;
   }
 
-  #difficultyValue {
+  #difficultyValue,
+  #shotSpeedValue {
     opacity: .82;
     font-variant-numeric: tabular-nums;
   }
 
-  #difficultySlider {
+  #shotSpeedCompact {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  #shotSpeedCompactText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  #shotSpeedCompactLabel {
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .02em;
+    color: rgba(255,255,255,.66);
+  }
+
+  #shotSpeedCompactValue {
+    font-size: 13px;
+    font-weight: 900;
+    color: rgba(255,255,255,.92);
+    white-space: nowrap;
+  }
+
+  #shotSpeedToggleBtn {
+    border: 1px solid rgba(255,255,255,.20);
+    background: rgba(255,255,255,.09);
+    color: rgba(255,255,255,.9);
+    border-radius: 999px;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  #shotSpeedToggleBtn:active {
+    transform: scale(.98);
+  }
+
+  #difficultySlider,
+  #shotSpeedSlider {
     width: 100%;
     height: 34px;
     margin: 0;
@@ -212,13 +270,15 @@
     background: transparent;
   }
 
-  #difficultySlider::-webkit-slider-runnable-track {
+  #difficultySlider::-webkit-slider-runnable-track,
+  #shotSpeedSlider::-webkit-slider-runnable-track {
     height: 8px;
     border-radius: 999px;
     background: rgba(255,255,255,.22);
   }
 
-  #difficultySlider::-webkit-slider-thumb {
+  #difficultySlider::-webkit-slider-thumb,
+  #shotSpeedSlider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 28px;
@@ -230,13 +290,15 @@
     box-shadow: 0 2px 10px rgba(0,0,0,.45);
   }
 
-  #difficultySlider::-moz-range-track {
+  #difficultySlider::-moz-range-track,
+  #shotSpeedSlider::-moz-range-track {
     height: 8px;
     border-radius: 999px;
     background: rgba(255,255,255,.22);
   }
 
-  #difficultySlider::-moz-range-thumb {
+  #difficultySlider::-moz-range-thumb,
+  #shotSpeedSlider::-moz-range-thumb {
     width: 28px;
     height: 28px;
     border-radius: 999px;
@@ -245,13 +307,51 @@
     box-shadow: 0 2px 10px rgba(0,0,0,.45);
   }
 
-  #difficultyEnds {
+  #difficultyEnds,
+  #shotSpeedEnds {
     margin-top: 4px;
     display: flex;
     justify-content: space-between;
     font-size: 10px;
     font-weight: 700;
     opacity: .66;
+  }
+
+  #shotSpeedEnds span:nth-child(2) {
+    text-align: center;
+  }
+
+  #shotSpeedTradeoff {
+    margin-top: 8px;
+  }
+
+  #shotSpeedGradient {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: linear-gradient(90deg, rgba(124,255,137,.92), rgba(255,230,95,.82), rgba(255,93,93,.88));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.13);
+  }
+
+  #shotSpeedGradient::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255,255,255,.45);
+  }
+
+  #shotSpeedTradeoffLabels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    color: rgba(255,255,255,.68);
   }
 </style>
 </head>
@@ -272,14 +372,44 @@
     <button id="classicModeBtn" class="modeBtn active" type="button"><span class="modeLabel">Classic</span><span class="modeTime">:60</span></button>
     <button id="infiniteModeBtn" class="modeBtn" type="button"><span class="modeLabel">Heat Check</span><span class="modeInfinity">∞</span></button>
   </div>
-  <div id="difficultyTop">
-    <span>Difficulty</span>
-    <span id="difficultyValue">±0.035s</span>
+  <div id="shotSpeedSection" class="panelSection">
+    <div id="shotSpeedCompact">
+      <div id="shotSpeedCompactText">
+        <span id="shotSpeedCompactLabel">Shot Speed</span>
+        <span id="shotSpeedCompactValue">NBA Average</span>
+      </div>
+      <button id="shotSpeedToggleBtn" type="button">Change</button>
+    </div>
+    <div id="shotSpeedControls">
+      <div id="shotSpeedTop">
+        <span>Shot Speed</span>
+        <span id="shotSpeedValue">NBA Average</span>
+      </div>
+      <input id="shotSpeedSlider" type="range" min="0" max="100" step="1" value="50">
+      <div id="shotSpeedEnds">
+        <span>Ray Allen</span>
+        <span>NBA Average</span>
+        <span>Steph Curry</span>
+      </div>
+      <div id="shotSpeedTradeoff">
+        <div id="shotSpeedGradient"></div>
+        <div id="shotSpeedTradeoffLabels">
+          <span>Accuracy</span>
+          <span>Speed</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <input id="difficultySlider" type="range" min="0" max="100" step="1" value="50">
-  <div id="difficultyEnds">
-    <span>Hard</span>
-    <span>Easy</span>
+  <div id="difficultySection" class="panelSection">
+    <div id="difficultyTop">
+      <span>Difficulty</span>
+      <span id="difficultyValue">±0.035s</span>
+    </div>
+    <input id="difficultySlider" type="range" min="0" max="100" step="1" value="50">
+    <div id="difficultyEnds">
+      <span>Hard</span>
+      <span>Easy</span>
+    </div>
   </div>
 </div>
 
@@ -305,6 +435,13 @@
   const difficultyPanel = document.getElementById("difficultyPanel");
   const classicModeBtn = document.getElementById("classicModeBtn");
   const infiniteModeBtn = document.getElementById("infiniteModeBtn");
+  const shotSpeedSection = document.getElementById("shotSpeedSection");
+  const shotSpeedControls = document.getElementById("shotSpeedControls");
+  const shotSpeedCompact = document.getElementById("shotSpeedCompact");
+  const shotSpeedToggleBtn = document.getElementById("shotSpeedToggleBtn");
+  const shotSpeedSlider = document.getElementById("shotSpeedSlider");
+  const shotSpeedValueEl = document.getElementById("shotSpeedValue");
+  const shotSpeedCompactValueEl = document.getElementById("shotSpeedCompactValue");
   const difficultySlider = document.getElementById("difficultySlider");
   const difficultyValueEl = document.getElementById("difficultyValue");
   const timingUiVersion = "needle-bar-v5-slider-fixed";
@@ -933,7 +1070,10 @@
     fov: Math.PI / 5.1
   };
 
-  const releaseTargetSeconds = 0.65;
+  const rayAllenReleaseTargetSeconds = 0.80;
+  const nbaAverageReleaseTargetSeconds = 0.65;
+  const stephCurryReleaseTargetSeconds = 0.50;
+  let releaseTargetSeconds = nbaAverageReleaseTargetSeconds;
   const hardWindowSeconds = 0.020;
   const easyWindowSeconds = 0.055;
   const minimumMakeZonePixels = 30;
@@ -955,44 +1095,110 @@
   const ballLoadDurationMs = 260;
 
   const difficultyStorageKey = "threePointContestDifficulty";
+  const shotSpeedStorageKey = "threePointContestShotSpeed";
+  const shotSpeedSavedStorageKey = "threePointContestShotSpeedChosen";
   const classicMode = "classic";
   const infiniteMode = "infinite";
   const infiniteMissLimit = 3;
   const renderedShotBallLimit = 30;
-  function loadSavedDifficulty() {
+  function localStorageGet(key) {
     try {
-      const saved = window.localStorage ? window.localStorage.getItem(difficultyStorageKey) : null;
-      if (saved === null) return;
-      const value = Number(saved);
-      if (!Number.isFinite(value)) return;
-      difficultySlider.value = String(clamp(Math.round(value), 0, 100));
+      return window.localStorage ? window.localStorage.getItem(key) : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function localStorageSet(key, value) {
+    try {
+      if (window.localStorage) window.localStorage.setItem(key, value);
     } catch (err) {
       // Local storage may be unavailable in some private or embedded browser modes.
     }
   }
 
+  function loadSavedDifficulty() {
+    const saved = localStorageGet(difficultyStorageKey);
+    if (saved === null) return;
+    const value = Number(saved);
+    if (!Number.isFinite(value)) return;
+    difficultySlider.value = String(clamp(Math.round(value), 0, 100));
+  }
+
+  function loadSavedShotSpeed() {
+    const saved = localStorageGet(shotSpeedStorageKey);
+    if (saved === null) return false;
+    const value = Number(saved);
+    if (!Number.isFinite(value)) return false;
+    shotSpeedSlider.value = String(clamp(Math.round(value), 0, 100));
+    return localStorageGet(shotSpeedSavedStorageKey) === "1";
+  }
+
+  function hasSavedShotSpeedChoice() {
+    return localStorageGet(shotSpeedSavedStorageKey) === "1";
+  }
+
+  function saveShotSpeedChoice() {
+    localStorageSet(shotSpeedStorageKey, String(shotSpeedSlider.value));
+    localStorageSet(shotSpeedSavedStorageKey, "1");
+  }
+
+  function setShotSpeedControlsCollapsed(collapsed) {
+    if (!shotSpeedControls || !shotSpeedCompact || !shotSpeedToggleBtn) return;
+    shotSpeedControls.style.display = collapsed ? "none" : "block";
+    shotSpeedCompact.style.display = collapsed ? "flex" : "none";
+    shotSpeedToggleBtn.textContent = collapsed ? "Change" : "Done";
+  }
+
+  function getShotSpeedName(value) {
+    const v = Number(value);
+    if (v <= 20) return "Ray Allen";
+    if (v >= 80) return "Steph Curry";
+    return "NBA Average";
+  }
+
+  function getCurrentPerfectWindowSeconds() {
+    return perfectWindowSeconds;
+  }
+
+  function updateShotSpeedFromSlider(saveChoice = false) {
+    const t = Number(shotSpeedSlider.value || 50) / 100;
+    releaseTargetSeconds = rayAllenReleaseTargetSeconds + t * (stephCurryReleaseTargetSeconds - rayAllenReleaseTargetSeconds);
+    const label = getShotSpeedName(shotSpeedSlider.value);
+    shotSpeedValueEl.textContent = label;
+    shotSpeedCompactValueEl.textContent = label;
+    if (saveChoice) saveShotSpeedChoice();
+    updateDifficultyFromSlider(false);
+  }
+
   function saveDifficultyChoice() {
-    try {
-      if (window.localStorage) window.localStorage.setItem(difficultyStorageKey, String(difficultySlider.value));
-    } catch (err) {
-      // Ignore storage errors; the slider still works for the current session.
-    }
+    localStorageSet(difficultyStorageKey, String(difficultySlider.value));
   }
 
   function updateDifficultyFromSlider(saveChoice = false) {
     const t = Number(difficultySlider.value || 50) / 100;
     baseMissWindowSeconds = hardWindowSeconds + t * (easyWindowSeconds - hardWindowSeconds);
-    missWindowSeconds = baseMissWindowSeconds;
-    difficultyValueEl.textContent = `±${baseMissWindowSeconds.toFixed(3)}s`;
+    missWindowSeconds = getEffectiveBaseMissWindowSeconds();
+    difficultyValueEl.textContent = `±${missWindowSeconds.toFixed(3)}s`;
     if (saveChoice) saveDifficultyChoice();
   }
 
+  const hadSavedShotSpeedChoice = loadSavedShotSpeed();
   loadSavedDifficulty();
+  setShotSpeedControlsCollapsed(hadSavedShotSpeedChoice);
+  shotSpeedSlider.addEventListener("input", () => updateShotSpeedFromSlider(true), { passive: true });
+  shotSpeedSlider.addEventListener("change", () => updateShotSpeedFromSlider(true), { passive: true });
+  shotSpeedToggleBtn.addEventListener("click", e => {
+    safePreventDefault(e);
+    const collapsed = shotSpeedControls.style.display === "none";
+    if (!collapsed) saveShotSpeedChoice();
+    setShotSpeedControlsCollapsed(!collapsed);
+  });
   difficultySlider.addEventListener("input", () => updateDifficultyFromSlider(true), { passive: true });
   difficultySlider.addEventListener("change", () => updateDifficultyFromSlider(true), { passive: true });
   window.addEventListener("resize", () => updateDifficultyFromSlider(false), { passive: true });
   window.addEventListener("orientationchange", () => updateDifficultyFromSlider(false), { passive: true });
-  updateDifficultyFromSlider(false);
+  updateShotSpeedFromSlider(false);
 
   function makeRack(name, centerX, centerY, dirX, dirY, moneyPattern) {
     const len = Math.hypot(dirX, dirY) || 1;
@@ -1130,8 +1336,8 @@
   }
 
   function getEffectiveBaseMissWindowSeconds() {
-    // The slider controls the actual timing window. The green zone is drawn from
-    // this same value so the visual and scoring stay locked together.
+    // The target size stays visually consistent. Faster releases are harder
+    // because the timing sweep reaches the same target sooner.
     return baseMissWindowSeconds;
   }
 
@@ -1221,6 +1427,7 @@
     state.subMessage = "";
     state.nextReadyAt = now || performance.now();
     difficultyPanel.style.display = "block";
+    setShotSpeedControlsCollapsed(hasSavedShotSpeedChoice());
     syncModeButtons();
     setHud();
   }
@@ -1304,8 +1511,9 @@
 
   function classifyShot(aim, windowSeconds = aim.windowSeconds || getCurrentMissWindowSeconds()) {
     const e = Math.abs(aim.delta);
-    const safeWindowSeconds = Math.max(perfectWindowSeconds, windowSeconds);
-    if (e <= perfectWindowSeconds) return { type: "perfect", made: true, label: "", perfect: true };
+    const currentPerfectWindowSeconds = getCurrentPerfectWindowSeconds();
+    const safeWindowSeconds = Math.max(currentPerfectWindowSeconds, windowSeconds);
+    if (e <= currentPerfectWindowSeconds) return { type: "perfect", made: true, label: "", perfect: true };
     if (e <= safeWindowSeconds * 0.20) return { type: "swish", made: true, label: "" };
     if (e <= safeWindowSeconds * 0.50) return { type: "soft-rim", made: true, label: "" };
     if (e <= safeWindowSeconds * 0.80) return { type: "rattle", made: true, label: "" };
@@ -1318,11 +1526,12 @@
   }
 
   function getTimingFeedback(aim, outcome, now, windowSeconds = aim.windowSeconds || getCurrentMissWindowSeconds()) {
-    const safeWindowSeconds = Math.max(perfectWindowSeconds, windowSeconds);
+    const currentPerfectWindowSeconds = getCurrentPerfectWindowSeconds();
+    const safeWindowSeconds = Math.max(currentPerfectWindowSeconds, windowSeconds);
     const absDelta = Math.abs(aim.delta);
     const insideWindow = absDelta <= safeWindowSeconds;
     const nearCenter = absDelta <= safeWindowSeconds * 0.20;
-    const perfect = absDelta <= perfectWindowSeconds || !!outcome.perfect;
+    const perfect = absDelta <= currentPerfectWindowSeconds || !!outcome.perfect;
     let status;
     let detail;
     let color;
@@ -1856,6 +2065,7 @@
     state.cameraMoveFromPos = null;
     state.cameraMoveToPos = null;
     difficultyPanel.style.display = "block";
+    setShotSpeedControlsCollapsed(hasSavedShotSpeedChoice());
     state.netKickTime = -9999;
     state.netKickStrength = 0;
     state.shotResults = Array(25).fill(null);
@@ -2013,7 +2223,7 @@
     uictx.fillStyle = '#78FF7A';
     uictx.fillRect(baseGreenLeft, barY, baseGreenRight - baseGreenLeft, barH);
 
-    const perfectHalfWidth = Math.max(centerStripePixels * 1.4, halfBar * (perfectWindowSeconds / releaseTargetSeconds));
+    const perfectHalfWidth = Math.max(centerStripePixels * 1.4, halfBar * (getCurrentPerfectWindowSeconds() / releaseTargetSeconds));
     const perfectPulse = 0.65 + 0.35 * Math.sin(now * 0.014);
     uictx.fillStyle = `rgba(255,255,255,${0.78 + perfectPulse * 0.18})`;
     uictx.fillRect(cx - perfectHalfWidth, barY, perfectHalfWidth * 2, barH);
