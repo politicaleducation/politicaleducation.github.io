@@ -192,9 +192,9 @@
 <div id="difficultyPanel">
   <div id="difficultyTop">
     <span>Difficulty</span>
-    <span id="difficultyValue">±0.018s</span>
+    <span id="difficultyValue">±0.035s</span>
   </div>
-  <input id="difficultySlider" type="range" min="0" max="100" step="1" value="43">
+  <input id="difficultySlider" type="range" min="0" max="100" step="1" value="50">
   <div id="difficultyEnds">
     <span>Hard</span>
     <span>Easy</span>
@@ -220,7 +220,7 @@
   const difficultyPanel = document.getElementById("difficultyPanel");
   const difficultySlider = document.getElementById("difficultySlider");
   const difficultyValueEl = document.getElementById("difficultyValue");
-  const timingUiVersion = "needle-bar-v4-fps-proportions";
+  const timingUiVersion = "needle-bar-v5-slider-fixed";
 
   const webglOptions = { antialias: true, alpha: false, preserveDrawingBuffer: false };
   const gl = glCanvas.getContext("webgl", webglOptions) || glCanvas.getContext("experimental-webgl", webglOptions);
@@ -829,7 +829,7 @@
   };
 
   const releaseTargetSeconds = 0.65;
-  const hardWindowSeconds = 0.020;
+  const hardWindowSeconds = 0.015;
   const easyWindowSeconds = 0.055;
   const minimumMakeZonePixels = 30;
   const centerStripePixels = 4;
@@ -848,18 +848,42 @@
   const cameraMoveDelayMs = 350;
   const ballLoadDurationMs = 260;
 
-  function updateDifficultyFromSlider() {
-    const t = Number(difficultySlider.value || 43) / 100;
-    baseMissWindowSeconds = hardWindowSeconds + t * (easyWindowSeconds - hardWindowSeconds);
-    missWindowSeconds = getEffectiveBaseMissWindowSeconds();
-    difficultyValueEl.textContent = `±${missWindowSeconds.toFixed(3)}s`;
+  const difficultyStorageKey = "threePointContestDifficulty";
+
+  function loadSavedDifficulty() {
+    try {
+      const saved = window.localStorage ? window.localStorage.getItem(difficultyStorageKey) : null;
+      if (saved === null) return;
+      const value = Number(saved);
+      if (!Number.isFinite(value)) return;
+      difficultySlider.value = String(clamp(Math.round(value), 0, 100));
+    } catch (err) {
+      // Local storage may be unavailable in some private or embedded browser modes.
+    }
   }
 
-  difficultySlider.addEventListener("input", updateDifficultyFromSlider, { passive: true });
-  difficultySlider.addEventListener("change", updateDifficultyFromSlider, { passive: true });
-  window.addEventListener("resize", updateDifficultyFromSlider, { passive: true });
-  window.addEventListener("orientationchange", updateDifficultyFromSlider, { passive: true });
-  updateDifficultyFromSlider();
+  function saveDifficultyChoice() {
+    try {
+      if (window.localStorage) window.localStorage.setItem(difficultyStorageKey, String(difficultySlider.value));
+    } catch (err) {
+      // Ignore storage errors; the slider still works for the current session.
+    }
+  }
+
+  function updateDifficultyFromSlider(saveChoice = false) {
+    const t = Number(difficultySlider.value || 50) / 100;
+    baseMissWindowSeconds = hardWindowSeconds + t * (easyWindowSeconds - hardWindowSeconds);
+    missWindowSeconds = baseMissWindowSeconds;
+    difficultyValueEl.textContent = `±${baseMissWindowSeconds.toFixed(3)}s`;
+    if (saveChoice) saveDifficultyChoice();
+  }
+
+  loadSavedDifficulty();
+  difficultySlider.addEventListener("input", () => updateDifficultyFromSlider(true), { passive: true });
+  difficultySlider.addEventListener("change", () => updateDifficultyFromSlider(true), { passive: true });
+  window.addEventListener("resize", () => updateDifficultyFromSlider(false), { passive: true });
+  window.addEventListener("orientationchange", () => updateDifficultyFromSlider(false), { passive: true });
+  updateDifficultyFromSlider(false);
 
   function makeRack(name, centerX, centerY, dirX, dirY, moneyPattern) {
     const len = Math.hypot(dirX, dirY) || 1;
@@ -979,7 +1003,9 @@
   }
 
   function getEffectiveBaseMissWindowSeconds() {
-    return Math.max(baseMissWindowSeconds, getMinimumVisibleWindowSeconds());
+    // The slider controls the actual timing window. The green zone is drawn from
+    // this same value so the visual and scoring stay locked together.
+    return baseMissWindowSeconds;
   }
 
   function getCurrentMissWindowSeconds() {
