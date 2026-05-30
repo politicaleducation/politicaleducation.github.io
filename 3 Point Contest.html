@@ -26,19 +26,27 @@
   }
 
   #gameFrame {
-    position: relative;
-    width: 390px;
-    height: 844px;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
     overflow: hidden;
     background: #101115;
     flex: 0 0 auto;
   }
 
+  body.desktop-frame #gameFrame {
+    position: relative;
+    inset: auto;
+    width: 390px;
+    height: 844px;
+  }
+
   #gl, #ui {
     position: absolute;
     inset: 0;
-    width: 390px;
-    height: 844px;
+    width: 100%;
+    height: 100%;
     display: block;
     touch-action: none;
   }
@@ -229,6 +237,7 @@
 (() => {
   "use strict";
 
+  const gameFrame = document.getElementById("gameFrame");
   const glCanvas = document.getElementById("gl");
   const uiCanvas = document.getElementById("ui");
   const uictx = uiCanvas.getContext("2d", { alpha: true });
@@ -252,6 +261,15 @@
   const STANDARD_MOBILE_HEIGHT = 844;
   let W = STANDARD_MOBILE_WIDTH, H = STANDARD_MOBILE_HEIGHT, DPR = 1;
 
+  function isMobileLikeDevice() {
+    const ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod|Android/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+  }
+
+  function useDesktopMobileFrame() {
+    return !isMobileLikeDevice();
+  }
+
   function positionDifficultyPanel() {
     const margin = 12;
     const resetClearance = W < 560 ? 86 : 118;
@@ -263,10 +281,16 @@
   }
 
   function resize() {
-    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
-    DPR = Math.max(1, Math.min(mobile ? 2 : 3, window.devicePixelRatio || 1));
-    W = STANDARD_MOBILE_WIDTH;
-    H = STANDARD_MOBILE_HEIGHT;
+    const mobileLike = isMobileLikeDevice();
+    const desktopFrame = useDesktopMobileFrame();
+    document.body.classList.toggle("desktop-frame", desktopFrame);
+
+    DPR = Math.max(1, Math.min(mobileLike ? 2 : 3, window.devicePixelRatio || 1));
+    W = desktopFrame ? STANDARD_MOBILE_WIDTH : Math.floor(window.innerWidth || document.documentElement.clientWidth || STANDARD_MOBILE_WIDTH);
+    H = desktopFrame ? STANDARD_MOBILE_HEIGHT : Math.floor(window.innerHeight || document.documentElement.clientHeight || STANDARD_MOBILE_HEIGHT);
+
+    gameFrame.style.width = W + "px";
+    gameFrame.style.height = H + "px";
 
     glCanvas.width = Math.floor(W * DPR);
     glCanvas.height = Math.floor(H * DPR);
