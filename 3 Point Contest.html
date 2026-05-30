@@ -15,8 +15,30 @@
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     touch-action: none;
     overscroll-behavior: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  canvas,
+  button,
+  div,
+  #gameFrame,
+  #gl,
+  #ui {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
   }
 
   body {
@@ -423,6 +445,13 @@
 <script>
 (() => {
   "use strict";
+
+  document.addEventListener("gesturestart", e => safePreventDefault(e), { passive: false });
+  document.addEventListener("gesturechange", e => safePreventDefault(e), { passive: false });
+  document.addEventListener("gestureend", e => safePreventDefault(e), { passive: false });
+  document.addEventListener("touchmove", e => {
+    if (!isUiControlTarget(e.target)) safePreventDefault(e);
+  }, { passive: false });
 
   const gameFrame = document.getElementById("gameFrame");
   const glCanvas = document.getElementById("gl");
@@ -1298,8 +1327,11 @@
     activeShots: [],
     roundStarted: false,
     roundStartTime: 0,
+    roundEndTime: 0,
     nextReadyAt: 0,
     ballLoadStart: 0,
+    rackTransitionStartAt: 0,
+    rackTransitionEndAt: 0,
     cameraMoveStartAt: 0,
     cameraMoveEndAt: 0,
     cameraMoveFromPos: null,
@@ -1417,7 +1449,8 @@
   function getRoundTimeLeft(now) {
     if (isInfiniteMode()) return Infinity;
     if (!state.roundStarted) return roundDurationSeconds;
-    return Math.max(0, roundDurationSeconds - (now - state.roundStartTime) / 1000);
+    const clockNow = state.roundEndTime || now;
+    return Math.max(0, roundDurationSeconds - (clockNow - state.roundStartTime) / 1000);
   }
 
   function finishRound(now, reason = "complete") {
@@ -1856,8 +1889,11 @@
     if (!state.roundStarted) {
       state.roundStarted = true;
       state.roundStartTime = now;
+      state.roundEndTime = 0;
       state.nextReadyAt = now;
       state.ballLoadStart = now - ballLoadDurationMs;
+      state.rackTransitionStartAt = 0;
+      state.rackTransitionEndAt = 0;
       const firstPos = getCurrentShotStartPos();
       state.cameraMoveStartAt = now;
       state.cameraMoveEndAt = now;
@@ -1942,11 +1978,15 @@
       state.nextReadyAt = now + (changedRack ? cameraMoveDelayMs + rackTransitionMs : sameRackPickupMs + ballLoadDurationMs);
       state.ballLoadStart = state.nextReadyAt - ballLoadDurationMs;
       if (changedRack) {
+        state.rackTransitionStartAt = now;
+        state.rackTransitionEndAt = state.nextReadyAt;
         state.cameraMoveStartAt = now + cameraMoveDelayMs;
         state.cameraMoveEndAt = now + cameraMoveDelayMs + rackTransitionMs;
         state.cameraMoveFromPos = previousStartPos;
         state.cameraMoveToPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
       } else {
+        state.rackTransitionStartAt = 0;
+        state.rackTransitionEndAt = 0;
         state.cameraMoveStartAt = now;
         state.cameraMoveEndAt = now;
         state.cameraMoveFromPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
@@ -1956,7 +1996,11 @@
     if (contestDone) {
       state.mode = "done";
       state.message = isInfiniteMode() ? "game over" : "complete";
+      state.roundEndTime = now;
+      state.rackTransitionStartAt = 0;
+      state.rackTransitionEndAt = 0;
       difficultyPanel.style.display = "block";
+      setShotSpeedControlsCollapsed(hasSavedShotSpeedChoice());
       syncModeButtons();
     } else {
       state.mode = "idle";
@@ -2507,6 +2551,114 @@
     uictx.restore();
   }
 
+  function drawRunnerSilhouette(ctx, x, y, scale, phase) {
+    const cycle = Math.sin(phase);
+    const counter = Math.sin(phase + Math.PI);
+    const bob = Math.abs(Math.sin(phase)) * scale * 0.12;
+    const lineW = Math.max(1.6, scale * 0.30);
+
+    function drawLimb(pathPoints, alpha) {
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(pathPoints[0][0], pathPoints[0][1]);
+      for (let i = 1; i < pathPoints.length; i++) {
+        ctx.lineTo(pathPoints[i][0], pathPoints[i][1]);
+      }
+      ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.translate(x, y - bob);
+    ctx.rotate(-0.17);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = lineW;
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+
+    ctx.save();
+    ctx.rotate(0.17);
+    ctx.beginPath();
+    ctx.ellipse(0, scale * 0.18, scale * 0.95, scale * 0.24, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.fill();
+    ctx.restore();
+
+    const hip = [-scale * 0.05, -scale * 1.05];
+    const shoulder = [scale * 0.32, -scale * 2.02];
+
+    const backLegKnee = [-scale * 0.30 + counter * scale * 0.24, -scale * 0.53];
+    const backLegFoot = [-scale * 0.88 + counter * scale * 0.70, scale * 0.06];
+    const frontLegKnee = [scale * 0.38 + cycle * scale * 0.26, -scale * 0.49];
+    const frontLegFoot = [scale * 1.06 + cycle * scale * 0.78, scale * 0.04];
+
+    const backArmElbow = [scale * 0.02 + cycle * scale * 0.22, -scale * 1.48];
+    const backArmHand = [-scale * 0.42 + cycle * scale * 0.72, -scale * 1.03];
+    const frontArmElbow = [scale * 0.68 + counter * scale * 0.22, -scale * 1.40];
+    const frontArmHand = [scale * 1.10 + counter * scale * 0.70, -scale * 1.88];
+
+    drawLimb([shoulder, backArmElbow, backArmHand], 0.48);
+    drawLimb([hip, backLegKnee, backLegFoot], 0.52);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.96)';
+    ctx.beginPath();
+    ctx.moveTo(shoulder[0], shoulder[1]);
+    ctx.lineTo(scale * 0.02, -scale * 1.46);
+    ctx.lineTo(hip[0], hip[1]);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(scale * 0.62, -scale * 2.62, scale * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(scale * 0.96, -scale * 2.66);
+    ctx.lineTo(scale * 1.15, -scale * 2.58);
+    ctx.lineTo(scale * 0.96, -scale * 2.49);
+    ctx.closePath();
+    ctx.fill();
+
+    drawLimb([shoulder, frontArmElbow, frontArmHand], 0.96);
+    drawLimb([hip, frontLegKnee, frontLegFoot], 0.96);
+
+    ctx.restore();
+  }
+
+  function drawRackTransitionBar(now) {
+    if (!state.rackTransitionStartAt || !state.rackTransitionEndAt) return;
+    if (state.mode !== "idle" || now >= state.rackTransitionEndAt) return;
+
+    const total = Math.max(1, state.rackTransitionEndAt - state.rackTransitionStartAt);
+    const progress = clamp((now - state.rackTransitionStartAt) / total, 0, 1);
+
+    const timingBarH = Math.max(24, Math.min(34, Math.round(Math.min(W, H) * 0.052)));
+    const timingBarY = H * 0.58 - timingBarH * 0.5;
+    const barW = Math.min(520, Math.max(1, W - 40));
+    const barH = Math.max(10, Math.min(12, Math.round(timingBarH * 0.36)));
+    const x = (W - barW) / 2;
+    const y = timingBarY + (timingBarH - barH) * 0.5;
+    const runnerX = x + barW * progress;
+    const runnerScale = Math.max(5.8, Math.min(7.2, timingBarH * 0.25));
+    const phase = now * 0.022;
+    const runnerY = y + barH * 0.42;
+
+    uictx.save();
+    roundedRectPath(uictx, x - 2, y - 2, barW + 4, barH + 4, 999);
+    uictx.fillStyle = 'rgba(7,9,14,0.58)';
+    uictx.fill();
+
+    roundedRectPath(uictx, x, y, barW, barH, 999);
+    uictx.fillStyle = 'rgba(255,255,255,0.16)';
+    uictx.fill();
+
+    roundedRectPath(uictx, x, y, Math.max(barH, barW * progress), barH, 999);
+    uictx.fillStyle = 'rgba(124,255,137,0.88)';
+    uictx.fill();
+
+    drawRunnerSilhouette(uictx, clamp(runnerX, x + runnerScale * 1.0, x + barW - runnerScale * 1.2), runnerY, runnerScale, phase);
+
+    uictx.restore();
+  }
+
   function drawMinimap(now) {
     const pad = 14;
     const panelW = Math.min(180, Math.max(132, W * 0.24));
@@ -2642,6 +2794,7 @@
     drawTimingOverlay(now);
     drawResultText(now);
     drawScoreHud(now);
+    drawRackTransitionBar(now);
     drawMinimap(now);
 
     requestAnimationFrame(frame);
