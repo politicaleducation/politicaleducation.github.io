@@ -132,6 +132,59 @@
     box-sizing: border-box;
   }
 
+
+
+  #modeSelector {
+    display: flex;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  .modeLabel {
+    display: block;
+    line-height: 1.05;
+  }
+
+  .modeBtn {
+    flex: 1;
+    border: 1px solid rgba(255,255,255,.20);
+    background: rgba(255,255,255,.08);
+    color: rgba(255,255,255,.78);
+    border-radius: 999px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .02em;
+  }
+
+  .modeBtn.active {
+    background: rgba(124,255,137,.22);
+    border-color: rgba(124,255,137,.78);
+    color: white;
+  }
+
+  .modeBtn:active {
+    transform: scale(.98);
+  }
+
+  .modeTime,
+  .modeInfinity {
+    display: block;
+    margin-top: 2px;
+    font-weight: 950;
+    line-height: .86;
+    opacity: .96;
+  }
+
+  .modeTime {
+    font-size: 18px;
+  }
+
+  .modeInfinity {
+    font-size: 28px;
+  }
+
   #difficultyTop {
     display: flex;
     align-items: center;
@@ -215,6 +268,10 @@
 <button id="resetBtn" type="button">Reset</button>
 
 <div id="difficultyPanel">
+  <div id="modeSelector">
+    <button id="classicModeBtn" class="modeBtn active" type="button"><span class="modeLabel">Classic</span><span class="modeTime">:60</span></button>
+    <button id="infiniteModeBtn" class="modeBtn" type="button"><span class="modeLabel">Heat Check</span><span class="modeInfinity">∞</span></button>
+  </div>
   <div id="difficultyTop">
     <span>Difficulty</span>
     <span id="difficultyValue">±0.035s</span>
@@ -246,6 +303,8 @@
   const hintEl = document.getElementById("bottomHint");
   const resetBtn = document.getElementById("resetBtn");
   const difficultyPanel = document.getElementById("difficultyPanel");
+  const classicModeBtn = document.getElementById("classicModeBtn");
+  const infiniteModeBtn = document.getElementById("infiniteModeBtn");
   const difficultySlider = document.getElementById("difficultySlider");
   const difficultyValueEl = document.getElementById("difficultyValue");
   const timingUiVersion = "needle-bar-v5-slider-fixed";
@@ -896,6 +955,10 @@
   const ballLoadDurationMs = 260;
 
   const difficultyStorageKey = "threePointContestDifficulty";
+  const classicMode = "classic";
+  const infiniteMode = "infinite";
+  const infiniteMissLimit = 3;
+  const renderedShotBallLimit = 30;
   function loadSavedDifficulty() {
     try {
       const saved = window.localStorage ? window.localStorage.getItem(difficultyStorageKey) : null;
@@ -1013,13 +1076,16 @@
 
   const state = {
     mode: "idle",
+    playMode: classicMode,
     holdStart: 0,
     makes: 0,
     shots: 0,
+    misses: 0,
     score: 0,
     streak: 0,
     currentRack: 0,
     currentBall: 0,
+    rackDirection: 1,
     message: "Hold to shoot",
     subMessage: "",
     shot: null,
@@ -1036,9 +1102,24 @@
     netKickDir: [0, 1],
     netKickStrength: 0,
     shotResults: Array(25).fill(null),
+    shotHistory: [],
     lastTimingFeedback: null,
     lastVisibleTiming: null
   };
+
+  function isInfiniteMode() {
+    return state.playMode === infiniteMode;
+  }
+
+  function getModeLabel() {
+    return isInfiniteMode() ? "Heat Check ∞" : "Classic :60";
+  }
+
+  function syncModeButtons() {
+    if (!classicModeBtn || !infiniteModeBtn) return;
+    classicModeBtn.classList.toggle("active", !isInfiniteMode());
+    infiniteModeBtn.classList.toggle("active", isInfiniteMode());
+  }
 
   function getTimingBarWidth() {
     return Math.max(1, Math.min(W - 40, 520));
@@ -1091,16 +1172,32 @@
       state.currentBall += 1;
       return false;
     }
-    if (state.currentRack < 4) {
-      state.currentRack += 1;
-      state.currentBall = 0;
+
+    state.currentBall = 0;
+
+    if (isInfiniteMode()) {
+      if (state.currentRack >= racks.length - 1) state.rackDirection = -1;
+      else if (state.currentRack <= 0) state.rackDirection = 1;
+
+      state.currentRack = clamp(state.currentRack + state.rackDirection, 0, racks.length - 1);
       return false;
     }
+
+    if (state.currentRack < racks.length - 1) {
+      state.currentRack += 1;
+      return false;
+    }
+
+    state.currentBall = 4;
     return true;
   }
 
   function isBallUsed(rackIndex, ballIndex) {
-    return state.mode === "done" || rackIndex < state.currentRack || (rackIndex === state.currentRack && ballIndex <= state.currentBall);
+    if (state.mode === "done") return true;
+    if (isInfiniteMode()) {
+      return rackIndex === state.currentRack && ballIndex <= state.currentBall;
+    }
+    return rackIndex < state.currentRack || (rackIndex === state.currentRack && ballIndex <= state.currentBall);
   }
 
   function getCurrentLoadPos(now) {
@@ -1112,16 +1209,19 @@
   }
 
   function getRoundTimeLeft(now) {
+    if (isInfiniteMode()) return Infinity;
     if (!state.roundStarted) return roundDurationSeconds;
     return Math.max(0, roundDurationSeconds - (now - state.roundStartTime) / 1000);
   }
 
-  function finishRound(now) {
+  function finishRound(now, reason = "complete") {
     if (state.mode === "done") return;
     state.mode = "done";
-    state.message = getCurrentBall() ? "time" : "complete";
+    state.message = reason;
     state.subMessage = "";
     state.nextReadyAt = now || performance.now();
+    difficultyPanel.style.display = "block";
+    syncModeButtons();
     setHud();
   }
 
@@ -1504,9 +1604,12 @@
 
   function setHud() {
     const rack = getCurrentRack();
-    const ballNum = state.mode === "done" ? 5 : state.currentBall + 1;
-    const rackNum = state.mode === "done" ? 5 : state.currentRack + 1;
-    scoreEl.textContent = `Score ${state.score} / ${maxScore} · Makes ${state.makes} / Shots ${state.shots} · Rack ${rackNum}/5 · Ball ${ballNum}/5`;
+    const ballNum = state.mode === "done" && !isInfiniteMode() ? 5 : state.currentBall + 1;
+    const rackNum = state.mode === "done" && !isInfiniteMode() ? 5 : state.currentRack + 1;
+    const scoreText = isInfiniteMode()
+      ? `Score ${state.score} · Misses ${state.misses}/${infiniteMissLimit} · Rack ${rackNum}/5${rack ? ` · ${rack.name}` : ""}`
+      : `${getModeLabel()} · Score ${state.score} / ${maxScore} · Makes ${state.makes} / Shots ${state.shots} · Rack ${rackNum}/5 · Ball ${ballNum}/5`;
+    scoreEl.textContent = scoreText;
     resultEl.textContent = rack ? `${rack.name}${state.message ? ` · ${state.message}` : ""}` : (state.message || "");
 
     const main = hintEl.querySelector(".main");
@@ -1529,8 +1632,8 @@
         sub.textContent = "";
       }
     } else if (state.mode === "done") {
-      main.textContent = "CONTEST COMPLETE";
-      sub.textContent = `final score ${state.score} / ${maxScore}`;
+      main.textContent = isInfiniteMode() ? "GAME OVER" : "CONTEST COMPLETE";
+      sub.textContent = isInfiniteMode() ? `final score ${state.score}` : `final score ${state.score} / ${maxScore}`;
     }
   }
 
@@ -1553,8 +1656,8 @@
       state.cameraMoveToPos = firstPos ? firstPos.slice() : null;
     }
 
-    if (getRoundTimeLeft(now) <= 0) {
-      finishRound(now);
+    if (!isInfiniteMode() && getRoundTimeLeft(now) <= 0) {
+      finishRound(now, "time");
       return;
     }
 
@@ -1572,8 +1675,8 @@
   function releaseHold(now) {
     if (state.mode !== "aiming") return;
 
-    if (getRoundTimeLeft(now) <= 0) {
-      finishRound(now);
+    if (!isInfiniteMode() && getRoundTimeLeft(now) <= 0) {
+      finishRound(now, "time");
       return;
     }
 
@@ -1585,6 +1688,7 @@
 
     state.shot = shot;
     state.activeShots.push(shot);
+    while (state.activeShots.length > renderedShotBallLimit) state.activeShots.shift();
     state.shots += 1;
 
     const timingFeedback = getTimingFeedback(aim, shot.outcome, now, aim.windowSeconds);
@@ -1600,18 +1704,29 @@
       state.streak = shot.outcome.perfect ? streakBonusCap : state.streak + 1;
       state.score += shot.points;
     } else {
+      state.misses += 1;
       state.streak = 0;
     }
 
-    state.shotResults[shot.rackIndex * 5 + shot.ballIndex] = {
+    const shotResult = {
       made: shot.outcome.made,
       points: shot.points,
-      money: shot.money
+      money: shot.money,
+      rackIndex: shot.rackIndex,
+      ballIndex: shot.ballIndex
     };
+
+    if (isInfiniteMode()) {
+      state.shotHistory.push(shotResult);
+      while (state.shotHistory.length > renderedShotBallLimit) state.shotHistory.shift();
+    } else {
+      state.shotResults[shot.rackIndex * 5 + shot.ballIndex] = shotResult;
+    }
 
     const previousRack = shot.rackIndex;
     const previousStartPos = shot.startPos.slice();
-    const contestDone = advanceContest();
+    const contestDone = isInfiniteMode() ? state.misses >= infiniteMissLimit : advanceContest();
+    if (!contestDone && isInfiniteMode()) advanceContest();
     if (!contestDone) {
       const changedRack = state.currentRack !== previousRack;
       const nextStartPos = getCurrentShotStartPos();
@@ -1629,7 +1744,14 @@
         state.cameraMoveToPos = nextStartPos ? nextStartPos.slice() : previousStartPos;
       }
     }
-    state.mode = contestDone ? "done" : "idle";
+    if (contestDone) {
+      state.mode = "done";
+      state.message = isInfiniteMode() ? "game over" : "complete";
+      difficultyPanel.style.display = "block";
+      syncModeButtons();
+    } else {
+      state.mode = "idle";
+    }
     setHud();
   }
 
@@ -1710,16 +1832,17 @@
     releaseHold(performance.now());
   }, { passive: true });
 
-  resetBtn.addEventListener("click", e => {
-    safePreventDefault(e);
+  function resetGame() {
     activeKeys.clear();
     state.mode = "idle";
     state.makes = 0;
     state.shots = 0;
+    state.misses = 0;
     state.score = 0;
     state.streak = 0;
     state.currentRack = 0;
     state.currentBall = 0;
+    state.rackDirection = 1;
     state.message = "Hold to shoot";
     state.subMessage = "";
     state.shot = null;
@@ -1736,9 +1859,31 @@
     state.netKickTime = -9999;
     state.netKickStrength = 0;
     state.shotResults = Array(25).fill(null);
+    state.shotHistory = [];
     state.lastTimingFeedback = null;
     state.lastVisibleTiming = null;
+    syncModeButtons();
     setHud();
+  }
+
+  function setGameMode(mode) {
+    state.playMode = mode === infiniteMode ? infiniteMode : classicMode;
+    resetGame();
+  }
+
+  resetBtn.addEventListener("click", e => {
+    safePreventDefault(e);
+    resetGame();
+  });
+
+  classicModeBtn.addEventListener("click", e => {
+    safePreventDefault(e);
+    setGameMode(classicMode);
+  });
+
+  infiniteModeBtn.addEventListener("click", e => {
+    safePreventDefault(e);
+    setGameMode(infiniteMode);
   });
 
   function draw3D(now) {
@@ -2024,7 +2169,8 @@
     const margin = 12;
     const resetClearance = W < 560 ? 86 : 118;
     const panelW = Math.max(238, Math.min(460, W - margin * 2 - resetClearance));
-    const panelH = 116;
+    const infinite = isInfiniteMode();
+    const panelH = infinite ? 86 : 116;
     const x = margin;
     const y = margin;
 
@@ -2049,6 +2195,28 @@
     uictx.textBaseline = 'alphabetic';
     uictx.fillText(String(state.score), scoreX, y + 61);
 
+    if (infinite) {
+      const rackNum = state.currentRack + 1;
+      const rack = getCurrentRack();
+      const rightX = x + panelW - 16;
+
+      uictx.textAlign = 'right';
+      uictx.textBaseline = 'top';
+      uictx.fillStyle = state.misses >= 2 && state.mode !== 'done' ? 'rgba(255,93,93,0.94)' : 'rgba(255,255,255,0.92)';
+      uictx.font = '900 20px system-ui, sans-serif';
+      uictx.fillText(`${state.misses}/${infiniteMissLimit} Misses`, rightX, y + 15);
+
+      uictx.fillStyle = 'rgba(255,255,255,0.74)';
+      uictx.font = '850 12px system-ui, sans-serif';
+      uictx.fillText(`Rack ${rackNum}/5`, rightX, y + 43);
+
+      uictx.fillStyle = 'rgba(255,255,255,0.92)';
+      uictx.font = '900 15px system-ui, sans-serif';
+      uictx.fillText(rack ? rack.name : '', rightX, y + 58);
+      uictx.restore();
+      return;
+    }
+
     uictx.fillStyle = 'rgba(255,255,255,0.58)';
     uictx.font = '800 13px system-ui, sans-serif';
     uictx.fillText(`/ ${maxScore}`, scoreX + 48, y + 59);
@@ -2060,18 +2228,21 @@
     roundedRectPath(uictx, progressX, progressY, progressW, progressH, 5);
     uictx.fillStyle = 'rgba(255,255,255,0.16)';
     uictx.fill();
-    roundedRectPath(uictx, progressX, progressY, progressW * clamp(state.score / maxScore, 0, 1), progressH, 5);
+    const progressRatio = clamp(state.score / maxScore, 0, 1);
+    roundedRectPath(uictx, progressX, progressY, progressW * progressRatio, progressH, 5);
     uictx.fillStyle = 'rgba(124,255,137,0.82)';
     uictx.fill();
 
     const rackNum = state.mode === 'done' ? 5 : state.currentRack + 1;
     const ballNum = state.mode === 'done' ? 5 : state.currentBall + 1;
+    uictx.textAlign = 'right';
+    uictx.textBaseline = 'top';
+
     const timeLeft = getRoundTimeLeft(now);
     uictx.fillStyle = timeLeft <= 10 && state.roundStarted && state.mode !== 'done' ? 'rgba(255,93,93,0.92)' : 'rgba(255,255,255,0.86)';
     uictx.font = '900 16px system-ui, sans-serif';
-    uictx.textAlign = 'right';
-    uictx.textBaseline = 'top';
     uictx.fillText(`${Math.ceil(timeLeft)}s`, x + panelW - 16, y + 14);
+
     uictx.fillStyle = 'rgba(255,255,255,0.72)';
     uictx.font = '850 11px system-ui, sans-serif';
     uictx.fillText(`Rack ${rackNum}/5`, x + panelW - 16, y + 35);
@@ -2251,8 +2422,8 @@
   }
 
   function frame(now) {
-    if (state.roundStarted && state.mode !== "done" && getRoundTimeLeft(now) <= 0) {
-      finishRound(now);
+    if (!isInfiniteMode() && state.roundStarted && state.mode !== "done" && getRoundTimeLeft(now) <= 0) {
+      finishRound(now, "time");
     }
 
     updateShotEvents(now);
@@ -2268,6 +2439,7 @@
 
   state.nextReadyAt = performance.now();
   state.ballLoadStart = performance.now() - ballLoadDurationMs;
+  syncModeButtons();
   setHud();
   requestAnimationFrame(frame);
 })();
