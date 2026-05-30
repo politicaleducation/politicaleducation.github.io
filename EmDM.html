@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Emergence and Dialectical Materialism</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090a0f;
+      --panel: #11131a;
+      --panel-soft: #151822;
+      --ink: #f3efe6;
+      --muted: #b7b0a3;
+      --line: #2b3040;
+      --title-size: 20pt;
+      --body-size: 14pt;
+      --sidebar-font: 10pt;
+      --meta-a: #9f84ff;
+      --physics: #54cdd0;
+      --meta-b: #ff85af;
+      --sociology: #eaa45f;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--bg); }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+      font-size: var(--body-size);
+      line-height: 1.55;
+    }
+    a { color: inherit; }
+    ::selection { background: #f3efe6; color: #090a0f; }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 24px;
+      padding: 18px 0 52px;
+      align-items: start;
+    }
+
+    .sidebar-slot { min-width: 0; }
+    .sidebar {
+      position: sticky;
+      top: 12px;
+      width: 100%;
+      min-width: 230px;
+      min-height: 280px;
+      max-width: min(560px, calc(100vw - 18px));
+      height: min(92vh, 760px);
+      max-height: calc(100vh - 18px);
+      overflow: auto;
+      resize: both;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      background: rgba(17, 19, 26, .96);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 8px;
+      z-index: 50;
+      box-shadow: 0 14px 36px rgba(0,0,0,.34);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: var(--sidebar-font);
+      line-height: 1.15;
+    }
+    .sidebar::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .sidebar.floating { position: fixed; top: auto; margin: 0; will-change: left, top; }
+
+    .sidebar-header {
+      margin: 0 0 6px;
+      padding: 5px 6px 7px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      font-weight: 700;
+    }
+    .sidebar-header:active { cursor: grabbing; }
+
+    .chapter-nav { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+
+    .nav-group-label {
+      margin: 5px 0 2px;
+      padding: 3px 7px 3px 13px;
+      border-left: 6px solid currentColor;
+      border-radius: 6px;
+      font-size: .86em;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(255,255,255,.045);
+    }
+    .nav-group-label.metaphysics-a { color: var(--meta-a); background: rgba(159,132,255,.08); }
+    .nav-group-label.physics { color: var(--physics); background: rgba(84,205,208,.075); }
+    .nav-group-label.metaphysics-b { color: var(--meta-b); background: rgba(255,133,175,.075); }
+    .nav-group-label.sociology { color: var(--sociology); background: rgba(234,164,95,.075); }
+    .chapter-link {
+      display: grid;
+      grid-template-columns: 1.8em minmax(0, 1fr);
+      gap: 6px;
+      align-items: start;
+      min-height: 0;
+      padding: 5px 7px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-left-width: 6px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .chapter-link:hover { background: rgba(255,255,255,.07); }
+    .chapter-link.active {
+      background: rgba(255,255,255,.13);
+      border-color: currentColor;
+      outline: 1px solid currentColor;
+    }
+    .chapter-link.metaphysics-a { color: var(--meta-a); background: rgba(159,132,255,.08); }
+    .chapter-link.physics { color: var(--physics); background: rgba(84,205,208,.075); }
+    .chapter-link.metaphysics-b { color: var(--meta-b); background: rgba(255,133,175,.075); }
+    .chapter-link.sociology { color: var(--sociology); background: rgba(234,164,95,.075); }
+    .chapter-number {
+      color: currentColor;
+      font-weight: 800;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .chapter-title { color: var(--ink); overflow-wrap: anywhere; }
+
+    main { min-width: 0; }
+    .hero, .part-marker, .chapter-section, .font-controls {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin: 0 0 18px;
+    }
+    .hero { padding: 22px 26px; }
+    .subtitle { margin: 8px 0 0; color: var(--muted); font-size: var(--body-size); }
+
+    h1, h2 {
+      margin: 0;
+      color: var(--ink);
+      font-size: var(--title-size);
+      line-height: 1.22;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .part-marker { padding: 18px 22px; }
+    .part-marker p { margin: 0 0 5px; color: var(--muted); font-size: var(--body-size); }
+
+    .chapter-section { overflow: hidden; }
+    .chapter-header { padding: 18px 22px 14px; border-top: 6px solid currentColor; background: var(--panel-soft); }
+    .chapter-section.metaphysics-a { color: var(--meta-a); }
+    .chapter-section.physics { color: var(--physics); }
+    .chapter-section.metaphysics-b { color: var(--meta-b); }
+    .chapter-section.sociology { color: var(--sociology); }
+    .chapter-header h2 { color: var(--ink); }
+    .chapter-body { padding: 18px 22px 22px; color: var(--ink); font-size: var(--body-size); }
+    .chapter-body p { margin: 0 0 1em; }
+    .chapter-body p:last-child { margin-bottom: 0; }
+    .question-stack {
+      padding: 12px 14px;
+      background: rgba(255,255,255,.045);
+      border-left: 4px solid currentColor;
+      border-radius: 0 8px 8px 0;
+    }
+    .dot-break { text-align: center; padding: 10px 0; }
+    .dot-break span { display: inline-block; width: 4px; height: 4px; border-radius: 50%; margin: 0 4px; background: var(--muted); }
+
+
+
+    .audio-card {
+      margin-top: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,.045);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .audio-title {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 11pt;
+      font-weight: 700;
+    }
+
+    .audio-player {
+      width: 100%;
+      display: block;
+    }
+
+    .audio-jump-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .audio-jump-button {
+      border: 1px solid var(--line);
+      background: #1b1f2b;
+      color: var(--ink);
+      border-radius: 9px;
+      padding: 8px 12px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 11pt;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .audio-jump-button:hover { background: #232838; }
+    .audio-jump-button:active { transform: translateY(1px); }
+
+    .font-controls { padding: 18px 22px; }
+    .font-controls h2 { margin-bottom: 12px; }
+    .font-control-grid { display: grid; gap: 10px; }
+    .font-control-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto auto;
+      gap: 8px;
+      align-items: center;
+      font-size: var(--body-size);
+    }
+    .font-control-value { min-width: 4.2em; text-align: center; color: var(--muted); }
+    .font-controls button {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #1b1f2b;
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+    }
+    .font-controls button:hover { background: #232838; }
+
+    @media (max-width: 860px) {
+      .page { width: min(100% - 18px, 760px); grid-template-columns: 1fr; gap: 14px; }
+      .sidebar { height: min(46vh, 420px); max-height: 60vh; }
+    }
+
+    @media print {
+      .page { display: block; width: 100%; }
+      .sidebar { display: none; }
+      body { background: white; color: black; }
+      .hero, .part-marker, .chapter-section, .font-controls { box-shadow: none; border-color: #bbb; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page" id="top">
+    <div class="sidebar-slot">
+      <aside class="sidebar" aria-label="Chapter navigation">
+        <div class="sidebar-header" title="Drag to move. Double-click to reset.">Chapters</div>
+        <ol class="chapter-nav">
+<li class="nav-group-label metaphysics-a" aria-hidden="true">Metaphysics</li>
+<li>
+  <a class="chapter-link metaphysics-a" href="#chapter-1" data-target="chapter-1" title="Metaphysics: Chapter 1 — What is Emergence?">
+    <span class="chapter-number">1</span>
+    <span class="chapter-title">What is Emergence?</span>
+  </a>
+</li>
+<li>
+  <a class="chapter-link metaphysics-a" href="#chapter-2" data-target="chapter-2" title="Metaphysics: Chapter 2 — 1840s, John Stuart Mill, and Mechanical Materialism">
+    <span class="chapter-number">2</span>
+    <span class="chapter-title">1840s, John Stuart Mill, and Mechanical Materialism</span>
+  </a>
+</li>
+<li>
+  <a class="chapter-link metaphysics-a" href="#chapter-3" data-target="chapter-3" title="Metaphysics: Chapter 3 — Dialectics of Nature, and the material, causal link between levels of description">
+    <span class="chapter-number">3</span>
+    <span class="chapter-title">Dialectics of Nature, and the material, causal link between levels of description</span>
+  </a>
+</li>
+<li class="nav-group-label physics" aria-hidden="true">Physics</li>
+<li>
+  <a class="chapter-link physics" href="#chapter-4" data-target="chapter-4" title="Physics: Chapter 4 — 1880s thermodynamics and statistical mechanics becoming material forces in the world">
+    <span class="chapter-number">4</span>
+    <span class="chapter-title">1880s thermodynamics and statistical mechanics becoming material forces in the world</span>
+  </a>
+</li>
+<li>
+  <a class="chapter-link physics" href="#chapter-5" data-target="chapter-5" title="Physics: Chapter 5 — What exactly are we tracking?">
+    <span class="chapter-number">5</span>
+    <span class="chapter-title">What exactly are we tracking?</span>
+  </a>
+</li>
+<li>
+  <a class="chapter-link physics" href="#chapter-6" data-target="chapter-6" title="Physics: Chapter 6 — Sigmoid curves, and How Quantities build to Emergent Qualities">
+    <span class="chapter-number">6</span>
+    <span class="chapter-title">Sigmoid curves, and How Quantities build to Emergent Qualities</span>
+  </a>
+</li>
+<li>
+  <a class="chapter-link physics" href="#chapter-7" data-target="chapter-7" title="Physics: Chapter 7 — 1972, More is Different and Punctuated Equilibrium: Two Breakthroughs in the Science of Emergence">
+    <span class="chapter-number">7</span>
+    <span class="chapter-title">1972, More is Different and Punctuated Equilibrium: Two Breakthroughs in the Science of Emergence</span>
+  </a>
+</li>
+<li class="nav-group-label metaphysics-b" aria-hidden="true">Metaphysics</li>
+<li>
+  <a class="chapter-link metaphysics-b" href="#chapter-8" data-target="chapter-8" title="Metaphysics: Chapter 8 — Real patterns">
+    <span class="chapter-number">8</span>
+    <span class="chapter-title">Real patterns</span>
+  </a>
+</li>
+<li class="nav-group-label sociology" aria-hidden="true">Sociology</li>
+<li>
+  <a class="chapter-link sociology" href="#chapter-9" data-target="chapter-9" title="Sociology: Chapter 9 — Real Patterns of Harm: The House Always Wins, Capitalism Always Kills">
+    <span class="chapter-number">9</span>
+    <span class="chapter-title">Real Patterns of Harm: The House Always Wins, Capitalism Always Kills</span>
+  </a>
+</li>
+<li>
+  <a class="chapter-link sociology" href="#chapter-10" data-target="chapter-10" title="Sociology: Chapter 10 — When The Ruling Class gains Conscious Awareness of Macro Dynamic Processes: Eugenics and Population Control">
+    <span class="chapter-number">10</span>
+    <span class="chapter-title">When The Ruling Class gains Conscious Awareness of Macro Dynamic Processes: Eugenics and Population Control</span>
+  </a>
+</li>
+        </ol>
+      </aside>
+    </div>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <h1 id="page-title">Emergence and Dialectical Materialism</h1>
+        <p class="subtitle">Predicting the Motion of Atoms, Molecules, and Societies</p>
+
+        <div class="audio-card" aria-label="Audio narration player">
+          <p class="audio-title">Audio narration</p>
+          <audio class="audio-player" id="narrationAudio" controls preload="metadata">
+            <source src="Emergence%20and%20DM.m4a" type="audio/mp4">
+            Your browser does not support the audio player.
+          </audio>
+          <div class="audio-jump-row" aria-label="Audio jump controls">
+            <button class="audio-jump-button" type="button" id="audioBack15">Back 15s</button>
+            <button class="audio-jump-button" type="button" id="audioForward15">Forward 15s</button>
+          </div>
+        </div>
+
+      </section>
+
+<section class="part-marker" id="part-1">
+  <p>Part 1</p>
+  <h2>The Whole Is Greater Than the Sum of Its Parts</h2>
+</section>
+<section class="chapter-section metaphysics-a" id="chapter-1" data-chapter="1">
+  <header class="chapter-header">
+    <h2>Chapter 1: What is Emergence?</h2>
+  </header>
+  <div class="chapter-body">
+<p>Remove from your mind, the image of a chick emerging from an egg. That is a single process, that happens over time.</p>
+<p>The emergence we are talking about is not a process, it is a relationship. A relationship between 2 different theories describing the same process - and that relationship is true at all times.</p>
+<p class="question-stack">Picture instead, the relationship between these two scenarios:<br/>First, A single bird flying.<br/>What freedom of movement does the bird have?<br/>What short term and long term predictions can you make about what the bird will do?<br/>What patterns can you see with 1 bird flying?</p>
+<p class="question-stack">Second, instead of one bird, picture a flock.<br/>What freedom of movement do the individual birds have now?<br/>What short term and long term predictions can you make about what a flock will do?<br/>What patterns can you see with 1 flock flying?</p>
+<p>Emergence is the relationship between what patterns are visible in individual units and what patterns are visible in collectives.</p>
+<p>You can study individual birds forever and you will neither see nor predict the patterns that exist when many interact.</p>
+<p>Now that we know that emergence is a relationship, let's explore the relationship between 1 ball and the trillions of trillions of atoms it is comprised of.</p>
+<p class="question-stack">What theories do we have to predict the movement of 1 trillion trillion atoms?<br/>What theories do we have to predict the movement of 1 ball?</p>
+<p>Rather than use atomic physics to track each atom individually, if you want to know where they will all go, you can view the macroscopic, emergent pattern of a ball, and track many trillions of atoms with a very simple equation: Newton's 2nd law of motion (F = M A). Additionally, it is easier to see the emergent pattern of a ball from the higher level view. It is not just that the emergent pattern is a helpful averaging - it is that at the micro-level, it is difficult to see the simple macrodynamic process that describes the motion of the collective.</p>
+<p>Make sure to keep these 2 ideas separated:</p>
+<p>Emerge: The process of becoming seen, known, or manifest.<br/>A chick emerges from an egg, which is a process that happens over time.</p>
+<p>Emergence:<br/>Emergence is the relationship between multiple theories - a micro theory and a macro theory - to describe the same underlying individual units.</p>
+<p>A flock of birds make the shape of the letter V in flight, but it is not possible to see that V shape with a single bird - therefore the V shape is an example of emergence.</p>
+<p>It might be the case that a flock of birds emerge over time, in the sense of forming together as a unit. But the fact that different patterns exist for individuals vs collectives is true at all times.</p>
+<p>Lastly,<br/>While you cannot see certain patterns in individual units, you also cannot see certain patterns in collectives.</p>
+<p>Chemistry is a theory of atoms.<br/>Biology is a theory of organisms.<br/>But they are both ultimately describing atoms.<br/>Distinct patterns exist at both levels and there is no universally correct level from which to view the system.</p>
+<p>The necessary existence of the separate theories is what we mean by Emergence.</p>
+</div>
+</section>
+<section class="chapter-section metaphysics-a" id="chapter-2" data-chapter="2">
+  <header class="chapter-header">
+    <h2>Chapter 2: 1840s, John Stuart Mill, and Mechanical Materialism</h2>
+  </header>
+  <div class="chapter-body">
+<p>The fact that the whole is greater than the sum of its parts has been written down for at least 2300 years. Aristotle in the text, Metaphysics, noted that "totality is not a mere heap", and that "the whole is something beside the parts". But his, and nearly every other attempt to explain this fact laid in mystical, idealist explanations.</p>
+<p>The term Emergence gained popularity from the British Emergentists, who largely derived their theories based on John Stuart Mill's contributions to the topic. In his 1843 paper titled "System of Logic", Mill attempted to maintain a Materialist worldview while noting that the behavior of wholes can differ qualitatively from what one would expect by just adding the behaviors of the parts. Despite acknowledging the importance of studying Hegelian Dialectics, Mill actively rejected Hegel, which led to major errors in his analysis. But he put his finger on an undeniable scientific phenomenon. Sciences succeed by shifting levels, by describing the same material system in a language that does not track every microscopic detail, and by discovering laws that live at that higher level.</p>
+<p>The early emergentists who followed in Mill’s tradition would systematize this thought. They insisted on nature having layers, and these layers being real in their own sense, with strata of chemistry, life, mind, and society.</p>
+<p class="question-stack">The main question of their analysis asked:<br/>When are these emergent patterns objective aspects of reality, rather than just approximations of specific details?</p>
+<p>The early emergentists had the view that higher level phenomena like consciousness, fundamentally could not be derived from the lower level description. Their view was that there is no material, causal link between the levels of description.</p>
+</div>
+</section>
+<section class="chapter-section metaphysics-a" id="chapter-3" data-chapter="3">
+  <header class="chapter-header">
+    <h2>Chapter 3: Dialectics of Nature, and the material, causal link between levels of description</h2>
+  </header>
+  <div class="chapter-body">
+<p>Emergence becomes compatible with dialectical materialism when the separation between higher and lower level processes are treated not as a mystery, but as the normal outcome of matter in motion under predictable conditions. This is central to dialectical materialism.</p>
+<p>Dialectical materialism insists that any stable object must be viewed as a stabilized process. Any apparent solidity in nature is a pattern of motion that persists through reproduction.<br/>The world must be understood not as a complex of ready-made objects and things, but as a complex of processes, in which all objects and things are continuously undergoing changes and development.</p>
+<p>Marxism is a theory of levels, patterns, and emergent totalities. Categories such as value, capital, class, state, and mode of production are abstractions in the scientific sense. They compress a complex field of concrete processes into a concept that tracks real patterns and enables prediction and intervention. The method of rising from the abstract to the concrete in Marxist theory is a method for discovering real patterns that organize the motion of society.</p>
+<p>Dialectical materialism treats development as lawful even if not mechanically predictable. Economic crises can't be predicted down to the day, but the system as a whole has determinate constraints and determinate tendencies that can be grasped, tested, and used in practice.</p>
+<p>In bourgeois ideology, higher level structures are mystified. Social change is framed as the result of great men, accidents, or timeless human nature. Dialectical materialism insists on the material conditions that make certain transformations possible and others impossible, and on the contradictions that make stable regimes unstable.</p>
+<p>Emergence, seen dialectically, is a way of describing how structured totalities generate new structures, and how those new structures can become material forces in the world.</p>
+</div>
+</section>
+<section class="chapter-section physics" id="chapter-4" data-chapter="4">
+  <header class="chapter-header">
+    <h2>Chapter 4: 1880s thermodynamics and statistical mechanics becoming material forces in the world</h2>
+  </header>
+  <div class="chapter-body">
+<p>The invention of Fahrenheit and Celsius in the early 1700s as a coherent description of air, water, and all matter in the universe, is a massive contribution we take for granted. The problem here is not philosophical, it is practical. How can we describe the chaos of liquids, gases, and macroscopic flows in a way that reveals higher level emergent patterns, and yields reliable laws.</p>
+<p>Crucially, these are not shortcuts that are missing data points.<br/>These are patterns that are not easily visible from the micro level, but at the macro level the dynamics have predictable patterns, lawlike behavior, and the ability to be easily observed.<br/>What should be noted though, is that Macro descriptions do not mirror the micro description point for point. They compress information. They select a small set of collective variables that remain dynamically competent even when microscopic degrees of freedom are discarded. That compression can be necessary for understanding engines, refrigerators, atmospheres, and stars.</p>
+</div>
+</section>
+<section class="chapter-section physics" id="chapter-5" data-chapter="5">
+  <header class="chapter-header">
+    <h2>Chapter 5: What exactly are we tracking?</h2>
+  </header>
+  <div class="chapter-body">
+<p>Let's go back to our image of a ball, and our prediction for where it will go. Newton's laws will tell you. Newtonian physics provides predictions that are accurate enough to send a rocket to the moon. But there are - in a sense - inaccuracies. There are exceptions to the rule, even for an equation as simple and fundamental as F = M A. Every time a ball rolls from one end of a table to the other, not all of the atoms make it. Various microdynamic forces including friction with the table, leaves a large number of atoms behind.</p>
+<p>But we don't say things like "The ball is mostly here."</p>
+<p>Many atoms that are part of the ball, do indeed, have the freedom to escape the larger system that it belongs to. This is true whether the ball is rolling or not, because the subsystems of the ball, i.e. the molecules that make up the ball, and the atoms that make up the molecules, are in constant motion.</p>
+<p>However, relative to the entirety of the ball, so few atoms are free to leave that we do not consider them to have freedom of movement.</p>
+<p>It may be true that when you zoom in to the micro level, the ball has fuzzy, undefinable edges. But practically, we see the ball on the macro level, and we view it as one simple, coherent system.</p>
+<p>After the accumulation of trillions of atoms, the behavior of those atoms are best predicted with a fundamentally different explanation.</p>
+</div>
+</section>
+<section class="part-marker" id="part-2">
+  <p>Part 2</p>
+  <h2>More is Different</h2>
+</section>
+<section class="chapter-section physics" id="chapter-6" data-chapter="6">
+  <header class="chapter-header">
+    <h2>Chapter 6: Sigmoid curves, and How Quantities build to Emergent Qualities</h2>
+  </header>
+  <div class="chapter-body">
+<p>Let's walk through three examples of Quantitative changes building to Emergent Qualities.</p>
+<p>First:</p>
+<p>A group of 5 people can lift a heavy object by hand and move it. There is an important thing to note here though. Let's say 5 people can lift and move a rock 5 Mph. It is not the case that one person can lift and move it at 1 Mph. Or that 2 can lift and move at 2 Mph.</p>
+<p>Dialectical Materialism teaches us that quantitative changes build and lead to qualitative leaps. The ability to lift the item is a quality that "emerges" at a certain number of people, and after that ability emerges, increases in the number of people holding the object only lead to diminishing returns.</p>
+<p>Let's assume that 4 is the number of people required to lift and move a large rock. The difference between 3 people attempting to lift the object and 4, is exponential. But 5 people will not move it significantly faster than 4 can. If we plot the changes over time, we start with a flat line. 0, 1, 2, and 3 people all move the item at the same speed, which is 0. The line then shoots upward in what looks like an exponential curve, as 4 people now have an ability that none of the previous groups had. At 5 people, however, we now see that this line is not an exponent, but rather a sigmoid curve. Just as quickly as it exploded upward, it flattens out again. Groups of 4, 5, 6, etc. All have very similar capabilities. Remember this shape. A flat line, followed by explosive growth, followed by a flattening of that growth.</p>
+<p>Our second example of a quality emerging in collectives, is the well known phenomenon referred to as the wisdom of the crowds. It is often taught in schools with the following setup: A glass jar is filled with hundreds of jellybeans, and a large group of people guess how many are in the jar. Two things occur simultaneously. Very few individuals, guess the correct number, often none at all. But when you average the guesses together, the collective average is extremely accurate.</p>
+<p>Wisdom, or specifically, the ability to identify large numbers of items, is an emergent quality of the collective, that does not exist within any individual.</p>
+<p>Again, as we plot the changes over time, we see that groups of 1 or 2 or 3 are so inaccurate, that their guesses are the same as a random guess. The guesses continue to seem random until a threshold is crossed where a guess from the collective is more accurate than random chance. But as you increase the number of individuals, the accuracy becomes a roughly flat line again, since it can only get closer and closer to 100%. Our sigmoid curve has re-appeared. 1, 2, or 3 people will not accurately guess the number. But if 100 people provide a guess that is 99% accurate, then guesses from 100, 1000, or 1 million people will all be roughly the same.</p>
+<p>Lastly, what is wet?<br/>Water is wet, but one molecule of H2O is not.<br/>Wetness is a set of qualities, including viscosity, surface tension, droplet formation and others, each of which emerge only when a large enough quantity of molecules occupy one space.<br/>A few hundred to a few thousand molecules is where liquid-like droplet behavior starts to become recognizable, then, at many thousands to millions of molecules Emerges the full suite of liquid patterns described by the field of Fluid Dynamics.</p>
+<p>Here, several sigmoid curves create a set of steps that separate the new qualities and the levels of description. At low quantities, surface tension is not a possibility, and therefore not relevant. But when many components interact, a fundamentally different description emerges and becomes the new most useful predictor of motion. Then, as even more components interact, more qualities emerge with their own dynamics.</p>
+</div>
+</section>
+<section class="chapter-section physics" id="chapter-7" data-chapter="7">
+  <header class="chapter-header">
+    <h2>Chapter 7: 1972, More is Different and Punctuated Equilibrium: Two Breakthroughs in the Science of Emergence</h2>
+  </header>
+  <div class="chapter-body">
+<p>Several different fields of quantum physics coalesced by the early 1970s, to become what is now known as the standard model of particle physics. This is Modern science's deepest consensus understanding of the universe. It is the lowest level, most micro theory.</p>
+<p>At roughly the same time, Physicists Philip Anderson and Volker Heine worked on a separate field of study that became known as Condensed Matter Physics. The behavior of crystals,  ferromagnetism, and other patterns of motion are affected by quantum dynamics, but it became clear that those higher level patterns are not revealed by studying Quantum Physics. They are revealed by identifying collective modes and symmetry principles that govern the effective behavior of the system as a whole.</p>
+<p>The separation between Quantum Physics and Condensed Matter Physics became undeniable, and in 1972 Anderson wrote an essay titled More is Different. The essay, which became a focal point for modern discussions of emergence, argued that when many components interact, new organizing principles become relevant, and scientific progress depends on discovering those principles rather than attempting to derive higher level regularity directly from microscopic equations.</p>
+<p>Here again, a sigmoid curve separates the levels of description. At low quantities, the best description of the motion of matter is laid out by quantum physics. But when many components interact, a different theory emerges and becomes the new, most useful description. Anderson's argument is that all the sciences are structured this way. Anderson, who is in no way a Marxist, finishes his essay in the following way: Quote</p>
+<p>The key point is that the whole becomes not only more than, but very different from, the sum of its parts.</p>
+<p>In closing, I offer two examples from economics of what I hope to have said. Marx said that quantitative differences become qualitative ones, but a dialogue in Paris in the 1920s sums it up even more clearly.</p>
+<p>Fitzgerald. The rich are different from us.<br/>Hemingway. Yes, they have more money.</p>
+<p>End Quote<br/>.<br/>.<br/>.<br/>.<br/>.<br/>The second major breakthrough of 1972 came from paleontologists Niles Eldredge and Stephen Jay Gould in their theory of punctuated equilibrium. Punctuated equilibrium observed that the history of life is not best described as a smooth, continuous drift from one form into another. Instead, species remain in long periods of relative stability, or equilibrium, and those long stretches are interrupted by comparatively short bursts in which new species emerge. Their observation was that the fossil record is not a story of slow, constant transformation. It is a story of stasis punctuated by concentrated episodes of qualitative change.</p>
+<p>Our sigmoid curves are back again, but the explosive growth was hidden from view. What looks like a simple, straight line going up is in fact a series of sigmoid steps. To illustrate how explosive growth can be invisible, imagine a staircase seen from different distances, which represent different time scales. From very close, you see the ground which is flat. It does not go up or down. Zoom out and you can see a sharp rise to the first step. Zoom further out still and you see the sharp rise to the next step. So how can these jumps disappear from view? As you go further and further away, the individual steps get smaller and smaller until they are no longer visible, and now the same staircase looks like a simple ramp.</p>
+<p>Punctuated equilibrium gives a scientific explanation of quantitative accumulation producing qualitative leaps, but it also shows how that process of explosive growth can be hidden from view. A species is not frozen in place. It is an active, self-reproducing stability, a pattern that resists change and maintains itself through time. Contradictions and pressures can build beneath the surface without immediately producing a visible transformation. Then, once thresholds are crossed, change that was long prepared appears in compressed form. After the leap, a new stability emerges and persists until the next rupture. The pattern is not gradualism and not chaos. It is long preparation, short rupture, new equilibrium.</p>
+<p>Historical materialism understands social development in the same way. History is not a simple accumulation of reforms that slowly add up to a new society, it is a process in which material forces develop within definite relations of production while internal contradictions build and eventually cross a threshold, leading to social revolution. This epoch of social revolution is rapid relative to the centuries of ostensible stability, but a process that can still take decades. The social order can seem eternal and unchanging from the vantage point of a single peasant farmer, or even multiple generations living through 1,000 years of feudalism. The microscopic view does not provide enough information, so you must zoom out. But if you zoom too far out and attempt to view the history of humanity all at once - it can make progress look like a simple ramp. Some gains, some losses, but an overall trajectory that goes upwards. The correct theory of Revolution is therefore only visible when viewed through both the long preparatory period and the short explosive period of the revolution itself.</p>
+<p>Eduard Bernstein was the chief theorist of revisionist Marxism, arguing against the revolutionary aspects of Marx and Engels, and a blueprint for all future reformist social democrats. Bernstein and the reformists argued that capitalism was gradually becoming more democratic, more stable, and more open to piecemeal improvement through elections, legislation, trade unions, and municipal reform. Their assertion was that socialism could emerge through steady adjustment within the existing order, without revolutionary rupture.</p>
+<p>The title Evolutionary Socialism was a reference to Darwinian evolution as it was understood in his time: gradual adaptation, continuous development, slow transformation without decisive breaks. Punctuated equilibrium had not yet been discovered. So when Bernstein looked at the relative stabilization of late nineteenth-century capitalism, the expansion of parliamentarism, the growth of trade unions, municipal reforms, and limited improvements in working-class life, he concluded that capitalism was outgrowing its revolutionary antagonisms.</p>
+<p>Reforms matter, but they do not abolish contradiction. They can improve working-class life, widen political struggle, build organization, and reveal the limits of the existing order. But those limits remain set by the mode of production itself.</p>
+<p>There is a deep irony here. Bernstein grounded his anti-revolutionary politics in a theory of evolution drawn from biology as it was understood at the time. But later biology overturned the gradualist picture he had imported into social theory. Punctuated equilibrium showed that evolution is not best understood as a smooth, uninterrupted drift. It is a pattern of long stasis punctuated by concentrated episodes of rapid change. In other words, biological evolution supports not liberal gradualism, but the dialectical pattern of stasis, contradiction, rupture, and reorganization. The same is true in social life. Societies endure for long periods, stabilizing and reproducing themselves even while contradictions accumulate beneath the surface. Then thresholds are crossed, rupture condenses what was prepared over decades, and a new equilibrium emerges. The poetic irony of Bernstein’s inclusion then, is that both biology and sociology have since demonstrated the opposite of what he hoped to prove.</p>
+<p>Punctuated equilibrium is exactly the theory of historical materialism. In both nature and society, long periods of apparent continuity can conceal the accumulation of contradictions. In both, stability is real, but it is not eternal. In both, development proceeds through thresholds, leaps, and reorganizations of the whole. And in both, a smooth line of progress seems to be the fundamental motion of development, until you zoom in to the micro level. It is at that level that you see the real emergent pattern - that quantitative changes build and lead to qualitative leaps.</p>
+</div>
+</section>
+<section class="chapter-section metaphysics-b" id="chapter-8" data-chapter="8">
+  <header class="chapter-header">
+    <h2>Chapter 8: Real patterns</h2>
+  </header>
+  <div class="chapter-body">
+<p>By the 1970s, scientific consensus had extremely accurate predictions at the quantum level, but also theories at higher levels that could ignore quantum dynamics and also provide extremely accurate predictions. If the theory of quantum particles is correct, and theories of atoms and molecules are also correct, what constitutes what is real?</p>
+<p>In his 1991 paper titled "real patterns" Dan Dennett argued that a pattern is real when it supports nontrivial compression and prediction. If describing a dataset in a certain way lets you make reliable inferences more efficiently than listing every micro interaction, then the pattern is not subjective, but an objective, material phenomenon. Dennett’s view helps clarify why higher level sciences are not second class. Meteorology, biology, and political economy would collapse under informational overload if they attempted to operate at the level of elementary particles. But they are not shortcuts. They identify patterns that are stable at their level and that support reliable predictions. Dialectical materialism insists that the patterns of capitalism are both real and not benign. In social life, patterns can be antagonistic. Racial domination, gendered reproduction of labor, imperial extraction, and class rule are not illusions. They are real patterns in the strict sense that they enable prediction and guide intervention. Intervention by the ruling class to reproduce the pattern, and intervention by the oppressed to break it. In this sense, emergence is not neutral. The choice of macro variables in social science is enforced by institutions. A worker cannot opt out of the wage relation. A colonized people cannot opt out of world market price signals. The emergence map itself can be a site of struggle, because it organizes what is visible, what is measurable, and what is possible.</p>
+<p>Dialectical materialism extends this framework to social reality. Capitalism is not adequately characterized as an aggregate of individual preferences, nor as a mere policy regime. It is a structured ensemble of social relations, including wage labor, private property, competition, accumulation, and imperial stratification, that generates persistent regularities. In Dennett’s sense, these relations enable compression of social complexity into explanatory dynamics while sustaining prediction and counterfactual analysis. Individuals cannot simply exit the wage relation at will, the structure constrains action independently of individual intentions.</p>
+<p>Marxism also specifies what many structural and pattern-based realisms leave comparatively indeterminate. Social structures are historically produced, materially maintained, and internally antagonistic. They are reproduced through institutions, law, and coercive force, and therefore they are also susceptible to disruption through collective struggle. To treat capitalist relations as real patterns is not only to account for their stability, but to locate the mechanisms through which that stability is contested and, under specific conditions, transformed.</p>
+</div>
+</section>
+<section class="chapter-section sociology" id="chapter-9" data-chapter="9">
+  <header class="chapter-header">
+    <h2>Chapter 9: Real Patterns of Harm: The House Always Wins, Capitalism Always Kills</h2>
+  </header>
+  <div class="chapter-body">
+<p>Every bet is risky, and close enough to random that each game is effectively unpredictable. If the house has a 51 percent chance to win, the house advantage is almost invisible at the micro scale. This is another example of how viewing the micro dynamics hides information. Individuals seem to be winning house money repeatedly, and they are. But when you repeat the process many times - the randomness gets outpaced: and the advantage grows in direct proportion to the number of plays.</p>
+<p>From the individual perspective, each turn is almost the same as a flip of a coin, but from the macro-systems perspective the small edge compounds into a stable, emergent pattern: across many turns and many players, the house’s profits stop being a hope and becomes a guarantee.</p>
+<p>With a 51 percent win rate and even payouts, once you get on the order of tens of thousands of plays, the chance that the house is ahead is above 99 point 9 percent.<br/>The casino does not need certainty in any one moment; it needs volume, time, and enough bankroll to ride out losing-streaks.</p>
+<p>At the scale of a city or a national economy, harm is viewed from the micro level: one avoidable infection, one eviction, one workplace injury. Taken one by one, each case can be narrated as random misfortune. Yet when the background conditions are held fixed, these particulars aggregate into stable population-level regularities.</p>
+<p>A small shift in parameters, applied to millions of people and sustained over years, yields a predictable increase in excess mortality and morbidity. The mathematics is the same logic as the house edge: expected harm accumulates linearly with repeated exposure, while the randomness of individual outcomes does not cancel the drift. The result is not certainty about which person will be harmed, but certainty that a given policy regime will generate a measurable surplus of suffering and premature death.</p>
+<p>Austerity and cutting basic services intensify this dynamic by removing buffers that convert hazards into manageable risks. Reduced access to healthcare, sanitation, safe housing, adequate nutrition, and reliable utilities raises the probability that ordinary shocks become lethal: illness becomes untreated, heat and cold become exposure events, minor injuries become disabling, stress becomes chronic disease, and instability becomes relapse and overdose. Over large populations, the distribution of outcomes tightens around these structural pressures, producing emergent guarantees of increased death, disease, hunger, and precarity.</p>
+<p>In the text "The Condition of the Working Class in England", Friedrich Engels introduces the concept of Social Murder: a form of mass killing effected not primarily through direct violence, but through social arrangements that foreseeably shorten lives. The defining feature is predictability at the aggregate level: institutions systematically maintain conditions known to produce premature death, and individuals within that system may or may not have conscious awareness of these macrodynamic processes.</p>
+</div>
+</section>
+<section class="chapter-section sociology" id="chapter-10" data-chapter="10">
+  <header class="chapter-header">
+    <h2>Chapter 10: When The Ruling Class gains Conscious Awareness of Macro Dynamic Processes: Eugenics and Population Control</h2>
+  </header>
+  <div class="chapter-body">
+<p>A ruling class does not need to gather in a room and declare a plan to kill in order for its institutions to produce predictable deaths. Once harmful conditions are stabilized and repeated across a large population, excess death becomes an emergent guarantee. Under class society, institutions are built to reproduce accumulation, not life.</p>
+<p>Social murder can occur through structural indifference, but there is a second level that turns this process into a weapon of the ruling class. Once ruling institutions gain awareness of the macro dynamic processes involved, the same mechanisms can be sharpened, targeted, and scaled. The difference is the difference between a casino that benefits from a built-in edge and a casino that has installed surveillance on every table, tracks players, predicts behavior, and dynamically adjusts rules and access to maximize extraction. The drift remains, but now the drift is managed.</p>
+<p>This is where eugenics and population control enter as explicit forms of class knowledge. Eugenics is a political project that takes population-level patterns and turns them into a program of governance. It begins with measurement, classification, and ranking. It asks which populations are “fit” for full social investment and which are to be managed, contained, sterilized, segregated, or abandoned. In other words, it takes the descriptive power of macro analysis and weaponizes it in the service of hierarchy.</p>
+<p>John Ehrlichman was the Chief Domestic Advisor for Richard Nixon in the 1970s,<br/>Ehrlichman lays out the Ruling Class's plans in one of the most famous and telling quotes, quote:</p>
+<p>“We knew we couldn’t make it illegal to be either against the war or black, but by getting the public to associate the hippies with marijuana and blacks with heroin, and then criminalizing both heavily, we could disrupt those communities. We could arrest their leaders, raid their homes, break up their meetings, and vilify them night after night on the evening news. Did we know we were lying about the drugs - of course we did.” End quote.</p>
+<p>Which neighborhoods get clinics and which get police, which populations get preventive care and which get prisons. Which workers get protections and which get disposable contracts. Which families are supported and which are subjected to surveillance, removal, or coercive reproductive policy.</p>
+<p>Population control is the broader field in which this logic operates. It does not always appear as dramatic state violence. Often it appears as planning, management, risk reduction, public order, or budget discipline. But beneath the language of administration is the same macro calculus: regulate the size, movement, reproduction, and survival chances of different groups in ways that stabilize class rule. Sometimes this is done by direct force. Sometimes by selective deprivation. Sometimes by engineered precarity so persistent that birth rates fall, health collapses, and life expectancy declines without a single formal decree announcing the result.</p>
+<p>Robert Moses was an unelected, New York State appointed builder who held command over key infrastructure for 40 years. Moses held control over parks, roads, bridges, housing clearances, and the state authorities that financed them. In addition to the wide and deep control he had, he held that control for long enough to keep the parameters fixed while the outcomes accumulated.</p>
+<p>In a young city where classes and nationalities spontaneously organize themselves, there will be areas of concentration, but they will be separated by gradients - meaning mixed neighborhoods on borderlines of concentrated ethnic or class areas.</p>
+<p>But when you carve through these gradients with freeways and re-zoning, you create hard lines.<br/>That hardening process however, does not occur the year or two or 3 years after a new highway.<br/>Just like a casino's guarantee does not come after two or three bets.</p>
+<p>Phenomena known as "White Flight" and other mass movements of people are spread out over 10 or more years, in which each individual year looks like a small fluctuation that can be dismissed over and over. With that kind of time scale, expressways aren’t just transportation projects; they are machines for sorting, iterated year after year until class and racial segregation hardens as a predictable, emergent pattern - and there is a right and wrong side of the tracks to be on.</p>
+<p>Carving highway walls through working class Black and Brown neighborhoods, displacing over 250,000 people from their homes, privileging white suburbia with car throughput over public transportation. These decisions were narrated as public “planning,” but after decades, the long run becomes an emergent guarantee. Repeated exposure turns a slight bias into a certainty of who gets access, who gets pollution, who gets property appreciation, and who gets pushed out.</p>
+<p>What makes this especially deadly is that awareness increases precision. Once institutions track morbidity, mortality, migration, fertility, incarceration, employment instability, and neighborhood-level risk, they gain the ability to intervene at the level of distributions rather than individuals. They do not need to target every person. They can target the parameters: housing quality, transit access, environmental exposure, policing intensity, benefit eligibility, hospital closures, school funding, wage floors, border enforcement, and legal status. Small changes in these parameters, applied over millions of people, generate large and predictable shifts in who lives longer and who dies sooner.</p>
+<p>This is the modern form of ruling class power over emergence. In earlier periods, the dominant class could rely more heavily on brute force and inherited hierarchy. In advanced capitalist administration, it can combine force with statistics, bureaucracy, and predictive modeling. It can study the social field in real time. It can identify where instability is likely to appear and manage it before it becomes revolt. It can identify which populations are surplus to labor demand and expose them to intensified abandonment while preserving a layer of social protection for groups deemed strategically necessary. In this form, social murder is no longer only a byproduct of accumulation. It becomes one of its planning instruments.</p>
+<p>This does not mean every policy is designed primarily to kill. It means the system learns which policies kill and continues using them because they solve problems for capital. They discipline labor. They lower public spending. They protect property values. They fragment the working class. They criminalize poverty. They displace blame onto biology, culture, or personal failure. When these effects are known and used, intention becomes less ambiguous. The point may still be stated as “efficiency” or “security,” but the accepted method is organized exposure to preventable harm.</p>
+<p>Eugenics is the clearest historical expression of this logic because it openly joined class rule to a theory of biological ranking. But the same structure persists even when the language changes. The old terms of “fitness” and “degeneracy” can be replaced by “high crime zones,” “blight,” or “at-risk communities,” and the function remains. A population is measured, partitioned, and governed according to its value to accumulation. Those marked as costly, disorderly, or disposable are pushed into conditions where the emergent guarantees take hold with greater force.</p>
+<p>The dialectical point is that structural violence and conscious administration interpenetrate. A system can begin generating lethal outcomes “spontaneously” through ordinary market relations and then, once those outcomes are measured and understood, fold that knowledge back into policy. The result is a feedback loop: exploitation produces data, data produces classification, classification produces more refined exploitation, and the death toll becomes both more predictable and more unevenly distributed.</p>
+<p>This is why social murder must be analyzed at two levels. First, as an emergent property of capitalist reproduction, where no explicit death order is required. Second, as a field of ruling class strategy, where awareness of macro dynamics allows death and mass control to be administered with greater efficiency, deniability, and scale. The first explains why capitalism kills even when it speaks the language of neutrality. The second explains why it becomes more brutal as its institutions become more supposedly rational.</p>
+<p>The task for a materialist analysis is therefore not only to expose individual cruelty, though that exists. It is to map the parameters through which life chances are distributed, to show how aggregate harm is produced, and to identify the points where class power turns knowledge into lethal governance. The ruling class studies emergent patterns in order to reproduce them. The oppressed must use a Scientific Theory of Emergence compatible with Dialectical Materialism in order to break them.</p>
+</div>
+</section>
+
+      <section class="font-controls" aria-label="Font size controls">
+        <h2>Font size controls</h2>
+        <div class="font-control-grid">
+          <div class="font-control-row">
+            <span>Titles</span>
+            <button type="button" id="titleMinus" aria-label="Decrease title font size">−</button>
+            <output class="font-control-value" id="titleValue">20 pt</output>
+            <button type="button" id="titlePlus" aria-label="Increase title font size">+</button>
+          </div>
+          <div class="font-control-row">
+            <span>Paragraphs</span>
+            <button type="button" id="bodyMinus" aria-label="Decrease paragraph font size">−</button>
+            <output class="font-control-value" id="bodyValue">14 pt</output>
+            <button type="button" id="bodyPlus" aria-label="Increase paragraph font size">+</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+
+
+    const narrationAudio = document.getElementById('narrationAudio');
+    const audioBack15 = document.getElementById('audioBack15');
+    const audioForward15 = document.getElementById('audioForward15');
+
+    function jumpAudio(seconds) {
+      if (!narrationAudio) return;
+      const nextTime = narrationAudio.currentTime + seconds;
+      if (Number.isFinite(narrationAudio.duration)) {
+        narrationAudio.currentTime = clamp(nextTime, 0, narrationAudio.duration);
+      } else {
+        narrationAudio.currentTime = Math.max(0, nextTime);
+      }
+    }
+
+    if (audioBack15) audioBack15.addEventListener('click', () => jumpAudio(-15));
+    if (audioForward15) audioForward15.addEventListener('click', () => jumpAudio(15));
+
+    const links = Array.from(document.querySelectorAll('.chapter-link'));
+    const sections = Array.from(document.querySelectorAll('.chapter-section'));
+    const sidebar = document.querySelector('.sidebar');
+    const dragHandle = document.querySelector('.sidebar-header');
+    const layoutKey = 'emdm-simple-sidebar-layout-v1';
+    const fontKey = 'emdm-simple-font-sizes-v1';
+
+    function clamp(value, min, max) { return Math.min(Math.max(value, min), max); }
+
+    function setActive(id) {
+      let activeLink = null;
+      links.forEach(link => {
+        const active = link.dataset.target === id;
+        link.classList.toggle('active', active);
+        if (active) { link.setAttribute('aria-current', 'true'); activeLink = link; }
+        else link.removeAttribute('aria-current');
+      });
+      if (activeLink) activeLink.scrollIntoView({ block: 'nearest' });
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries
+        .filter(entry => entry.isIntersecting)
+        .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
+      if (visible.length) setActive(visible[0].target.id);
+    }, { rootMargin: '-22% 0px -62% 0px', threshold: [0, .1, .25, .5] });
+    sections.forEach(section => observer.observe(section));
+    if (sections[0]) setActive(sections[0].id);
+
+    function applyFloatingLayout(layout) {
+      const width = clamp(layout.width || sidebar.offsetWidth, 230, Math.max(230, window.innerWidth - 18));
+      const height = clamp(layout.height || sidebar.offsetHeight, 280, Math.max(280, window.innerHeight - 18));
+      const left = clamp(layout.left || 9, 9, Math.max(9, window.innerWidth - width - 9));
+      const top = clamp(layout.top || 9, 9, Math.max(9, window.innerHeight - height - 9));
+      sidebar.classList.add('floating');
+      sidebar.style.left = left + 'px';
+      sidebar.style.top = top + 'px';
+      sidebar.style.width = width + 'px';
+      sidebar.style.height = height + 'px';
+    }
+
+    function saveSidebarLayout() {
+      if (!sidebar.classList.contains('floating')) return;
+      const rect = sidebar.getBoundingClientRect();
+      localStorage.setItem(layoutKey, JSON.stringify({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }));
+    }
+
+    const savedLayout = localStorage.getItem(layoutKey);
+    if (savedLayout) {
+      try { applyFloatingLayout(JSON.parse(savedLayout)); }
+      catch (_) { localStorage.removeItem(layoutKey); }
+    }
+
+    let drag = null;
+    dragHandle.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      const rect = sidebar.getBoundingClientRect();
+      applyFloatingLayout(rect);
+      drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+      dragHandle.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    dragHandle.addEventListener('pointermove', event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const rect = sidebar.getBoundingClientRect();
+      sidebar.style.left = clamp(event.clientX - drag.offsetX, 9, Math.max(9, window.innerWidth - rect.width - 9)) + 'px';
+      sidebar.style.top = clamp(event.clientY - drag.offsetY, 9, Math.max(9, window.innerHeight - rect.height - 9)) + 'px';
+    });
+
+    function endDrag(event) {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      drag = null;
+      saveSidebarLayout();
+    }
+    dragHandle.addEventListener('pointerup', endDrag);
+    dragHandle.addEventListener('pointercancel', endDrag);
+    dragHandle.addEventListener('dblclick', () => {
+      sidebar.classList.remove('floating');
+      sidebar.removeAttribute('style');
+      localStorage.removeItem(layoutKey);
+      updateSidebarAfterResize();
+    });
+
+    function fitSidebarFontToBox() {
+      // Only the sidebar font responds to the sidebar box size.
+      // The main page title/body sizes stay controlled by the bottom buttons.
+      const minPt = 7.25;
+      const maxPt = 10.5;
+      const step = .25;
+      let chosen = minPt;
+
+      for (let size = maxPt; size >= minPt; size -= step) {
+        sidebar.style.setProperty('--sidebar-font', size + 'pt');
+        // Force layout before measuring whether the whole sidebar fits.
+        sidebar.offsetHeight;
+        if (sidebar.scrollHeight <= sidebar.clientHeight + 1) {
+          chosen = size;
+          break;
+        }
+      }
+      sidebar.style.setProperty('--sidebar-font', chosen + 'pt');
+    }
+
+    let sidebarFrame = null;
+    function updateSidebarAfterResize() {
+      if (sidebarFrame) cancelAnimationFrame(sidebarFrame);
+      sidebarFrame = requestAnimationFrame(() => {
+        fitSidebarFontToBox();
+        saveSidebarLayout();
+      });
+    }
+
+    new ResizeObserver(updateSidebarAfterResize).observe(sidebar);
+    window.addEventListener('resize', () => {
+      if (sidebar.classList.contains('floating')) {
+        applyFloatingLayout(sidebar.getBoundingClientRect());
+        saveSidebarLayout();
+      }
+      updateSidebarAfterResize();
+    });
+
+    const fontState = { title: 20, body: 14 };
+    const titleValue = document.getElementById('titleValue');
+    const bodyValue = document.getElementById('bodyValue');
+
+    function applyFontSizes() {
+      document.documentElement.style.setProperty('--title-size', fontState.title + 'pt');
+      document.documentElement.style.setProperty('--body-size', fontState.body + 'pt');
+      titleValue.textContent = fontState.title + ' pt';
+      bodyValue.textContent = fontState.body + ' pt';
+      localStorage.setItem(fontKey, JSON.stringify(fontState));
+    }
+
+    function changeFont(kind, delta) {
+      const min = kind === 'title' ? 12 : 10;
+      const max = kind === 'title' ? 32 : 24;
+      fontState[kind] = clamp(fontState[kind] + delta, min, max);
+      applyFontSizes();
+    }
+
+    const savedFonts = localStorage.getItem(fontKey);
+    if (savedFonts) {
+      try {
+        const parsed = JSON.parse(savedFonts);
+        if (Number.isFinite(parsed.title)) fontState.title = clamp(Math.round(parsed.title), 12, 32);
+        if (Number.isFinite(parsed.body)) fontState.body = clamp(Math.round(parsed.body), 10, 24);
+      } catch (_) { localStorage.removeItem(fontKey); }
+    }
+
+    document.getElementById('titleMinus').addEventListener('click', () => changeFont('title', -1));
+    document.getElementById('titlePlus').addEventListener('click', () => changeFont('title', 1));
+    document.getElementById('bodyMinus').addEventListener('click', () => changeFont('body', -1));
+    document.getElementById('bodyPlus').addEventListener('click', () => changeFont('body', 1));
+    applyFontSizes();
+    updateSidebarAfterResize();
+  </script>
+</body>
+</html>
