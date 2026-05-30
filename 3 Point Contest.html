@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>Three Point Contest - Needle Bar Timing</title>
+<title>Three Point Contest</title>
 <style>
   html, body {
     margin: 0;
+    width: 100%;
     height: 100%;
     overflow: hidden;
     background: #101115;
@@ -18,11 +19,26 @@
     overscroll-behavior: none;
   }
 
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #gameFrame {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    overflow: hidden;
+    background: #101115;
+    flex: 0 0 auto;
+  }
+
   #gl, #ui {
-    position: fixed;
+    position: absolute;
     inset: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 390px;
+    height: 844px;
     display: block;
     touch-action: none;
   }
@@ -48,7 +64,7 @@
   }
 
   #bottomHint {
-    position: fixed;
+    position: absolute;
     left: max(16px, env(safe-area-inset-left));
     right: max(16px, env(safe-area-inset-right));
     bottom: max(20px, env(safe-area-inset-bottom));
@@ -71,7 +87,7 @@
   }
 
   #resetBtn {
-    position: fixed;
+    position: absolute;
     top: max(44px, calc(env(safe-area-inset-top) + 44px));
     right: max(12px, env(safe-area-inset-right));
     border: 1px solid rgba(255,255,255,.22);
@@ -91,7 +107,7 @@
   }
 
   #difficultyPanel {
-    position: fixed;
+    position: absolute;
     left: max(12px, env(safe-area-inset-left));
     right: auto;
     top: max(140px, calc(env(safe-area-inset-top) + 140px));
@@ -179,6 +195,7 @@
 </style>
 </head>
 <body>
+<div id="gameFrame">
 <canvas id="gl"></canvas>
 <canvas id="ui"></canvas>
 
@@ -206,6 +223,7 @@
   <div class="main">HOLD ANYWHERE OR ANY KEY</div>
   <div class="sub">release touch/key when the timing ring hits the center</div>
 </div>
+</div>
 
 <script>
 (() => {
@@ -230,7 +248,9 @@
     return;
   }
 
-  let W = 0, H = 0, DPR = 1;
+  const STANDARD_MOBILE_WIDTH = 390;
+  const STANDARD_MOBILE_HEIGHT = 844;
+  let W = STANDARD_MOBILE_WIDTH, H = STANDARD_MOBILE_HEIGHT, DPR = 1;
 
   function positionDifficultyPanel() {
     const margin = 12;
@@ -245,8 +265,8 @@
   function resize() {
     const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
     DPR = Math.max(1, Math.min(mobile ? 2 : 3, window.devicePixelRatio || 1));
-    W = Math.floor(window.innerWidth || document.documentElement.clientWidth || 390);
-    H = Math.floor(window.innerHeight || document.documentElement.clientHeight || 844);
+    W = STANDARD_MOBILE_WIDTH;
+    H = STANDARD_MOBILE_HEIGHT;
 
     glCanvas.width = Math.floor(W * DPR);
     glCanvas.height = Math.floor(H * DPR);
