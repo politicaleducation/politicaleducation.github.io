@@ -56,6 +56,7 @@
       height: min(92vh, 760px);
       max-height: calc(100vh - 18px);
       overflow: auto;
+      overscroll-behavior: contain;
       resize: both;
       scrollbar-width: none;
       -ms-overflow-style: none;
@@ -569,6 +570,20 @@
 
     function clamp(value, min, max) { return Math.min(Math.max(value, min), max); }
 
+    function keepActiveLinkVisible(activeLink) {
+      const padding = 10;
+      const linkTop = activeLink.offsetTop;
+      const linkBottom = linkTop + activeLink.offsetHeight;
+      const viewTop = sidebar.scrollTop;
+      const viewBottom = viewTop + sidebar.clientHeight;
+
+      if (linkTop < viewTop + padding) {
+        sidebar.scrollTop = Math.max(0, linkTop - padding);
+      } else if (linkBottom > viewBottom - padding) {
+        sidebar.scrollTop = linkBottom - sidebar.clientHeight + padding;
+      }
+    }
+
     function setActive(id) {
       let activeLink = null;
       links.forEach(link => {
@@ -577,7 +592,7 @@
         if (active) { link.setAttribute('aria-current', 'true'); activeLink = link; }
         else link.removeAttribute('aria-current');
       });
-      if (activeLink) activeLink.scrollIntoView({ block: 'nearest' });
+      if (activeLink) keepActiveLinkVisible(activeLink);
     }
 
     const observer = new IntersectionObserver(entries => {
