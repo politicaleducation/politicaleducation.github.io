@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>World Population Density Interactive Map</title>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+
+<meta name="description" content="Explore the detailed geography of population across the globe with interactive mapping and statistics. Identify global megacity regions and the growth and diversity of urban forms. Data is from the Global Human Settlement Layer 2023 by the European Commission JRC." />
+
+<meta property="og:url"                content="http://luminocity3d.org/WorldPopDen/" />
+<meta property="og:title"              content="Mapping Population Density Across the Globe" />
+<meta property="og:description"        content="Explore the detailed geography of population across the globe with interactive mapping and statistics. Identify global megacity regions and the growth and diversity of urban forms. Data is from the Global Human Settlement Layer 2023 by the European Commission JRC." />
+<meta property="og:image"              content="https://www.luminocity3d.org/WorldPopDen/WorldPopulationDensityMapPreview.png" />
+<meta name="thumbnail" content="https://www.luminocity3d.org/WorldPopDen/WorldPopulationDensityMapThumbnail_1200.png" />
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@citygeographics">
+<meta name="twitter:title" content="Mapping Population Density Across the Globe">
+<meta name="twitter:description" content="Explore the detailed geography of population across the globe with interactive mapping. Identify global megacity regions and the growth and diversity of urban forms.">
+<meta name="twitter:image" content="https://www.luminocity3d.org/WorldPopDen/WorldPopulationDensityMapPreview.png">
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-54851220-3', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/pmtiles@4.4.0/dist/pmtiles.js"></script>
+<script charset="utf-8" src="/WorldCity/leaflet-hash.js"></script>
+
+<script charset="utf-8" src="https://d3js.org/d3.v3.min.js"></script>
+<script charset="utf-8" src="https://cdnjs.cloudflare.com/ajax/libs/dimple/2.1.2/dimple.latest.min.js"></script>
+
+<style>
+      html, body, #map {
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        background-color:#cbcbcb;
+      }
+  #chartContainer { width:450px; height: 207px;z-index: 1000;}
+  #chartTitle{
+  width: 450px;
+  text-align: center;
+  font: bold 10px  Verdana, sans-serif;
+  margin: 5px 0 0 0;
+  }
+.leaflet-popup {
+  position:absolute;
+  text-align:center;
+  pointer-events:none;
+  background-color:transparent;
+  box-shadow:none;
+  z-index: 999;
+  }
+.leaflet-popup-content-wrapper {
+  padding:0;
+  margin:0;
+  text-align:left;
+  pointer-events:all;
+  background-color: rgba(230,230,230,0.95);
+  border: 1px solid rgba(140,140,140,0.4);
+  border-radius: 6px;
+  box-shadow:none;
+  }
+.leaflet-popup-content {
+  padding:0;
+  margin:0;
+  line-height:inherit;
+  background-color:transparent;
+  box-shadow:none;
+  font: normal 11px  Verdana, sans-serif;
+  }
+
+.leaflet-popup-content p {
+  padding:0;
+  margin:0;
+  background-color:transparent;
+  box-shadow:none;
+  font: normal 11px  Verdana, sans-serif;
+  }
+
+.leaflet-popup-content p.title{
+  padding:8px 5px 7px 32px;
+  margin:0;
+  font: normal 15px Verdana, sans-serif;
+  background-color: #F2F2F2;
+  border-radius: 6px 6px 0 0;
+  }
+
+
+.leaflet-popup-content table{
+  padding:5px;
+  margin:0;
+  width: 450px;
+  background-color: #F2F2F2;
+  border-radius:  0 0 6px 6px;
+  }
+
+.leaflet-popup-content table tr td{
+  padding:0;
+  margin:0;
+  width: 90px;
+  height: 32px;
+  text-align: center;
+  font: normal 12px Verdana, sans-serif;
+  }
+
+.leaflet-popup-content table tr td.y1950{
+  background-color: rgba(0,51,68,0.7);
+  color: #FFF;
+  }
+
+.leaflet-popup-content table tr td.y1990{
+  background-color: rgba(5,122,162,0.7);
+  }
+
+.leaflet-popup-content table tr td.y2015{
+  background-color: rgba(114,219,255,0.7);
+  }
+
+.leaflet-popup-content table tr td.y2030{
+  background-color: rgba(201,251,251,0.7);
+  }
+
+.leaflet-popup-content table tr td.title{
+  padding:0;
+  margin:0;
+  width: 158px;
+  text-align: left;
+  font: bold 12px Verdana, sans-serif;
+  }
+ .leaflet-popup-content table tr td.title2{
+   padding:0;
+   margin:0;
+   width: 158px;
+   text-align: middle;
+   font: bold 12px Verdana, sans-serif;
+   color: #888;
+  }
+
+.units{
+  padding:0;
+  margin:0;
+  font: normal 9px Verdana, sans-serif;
+  line-height:0.5;
+  }
+
+.units sup{
+  font: normal 7px Verdana, sans-serif;
+  }
+
+.leaflet-popup-content table tr.pop td {
+  font: bold 12px Verdana, sans-serif;
+  }
+
+.leaflet-popup-tip-container {
+  width:0px;
+  height:0px;
+  margin:0 auto;
+  position:relative;
+  }
+.leaflet-popup-tip {
+  width:0;
+	height:0;
+  margin:0;
+	border-left:0 solid transparent;
+	border-right:0 solid transparent;
+	border-top:0 solid transparent;
+  box-shadow:none;
+  }
+
+#worldcitiestitle {
+	position: absolute;
+	left: 48px;
+	top: 10px;
+	z-index: 999;
+	border-radius: 6px;
+	border-left: 1px solid rgba(150,150,150,0.5);
+	border-right: 1px solid rgba(150,150,150,0.5);
+	border-top: 1px solid rgba(200,200,200,0.5);
+	border-bottom: 1px solid rgba(120,120,120,0.5);
+	background: linear-gradient(rgba(255,255,255,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(200,200,200,0.9));
+	background-opacity: 0.7;
+	min-width: 510px;
+}
+
+.leaflet-control-zoom.leaflet-bar.leaflet-control {
+	border: 1px solid rgba(130,130,130,0.5);
+}
+
+.leaflet-bar a {
+	background: rgba(230,230,230,0.9);
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+}
+
+.leaflet-bar {
+	box-shadow: none;
+}
+
+.leaflet-bar a.leaflet-disabled {
+	background: rgba(215,215,215,0.9);
+}
+
+.leaflet-control-zoom-in {
+	border-bottom: 1px solid rgba(35,87,146,0.2) !important;
+	font-size: 18px !important;
+}
+
+.leaflet-control-zoom-out {
+	font-size: 18px !important;
+}
+
+
+h1 {
+	padding: 2px 0 0 0;
+	margin: 0 12px 0 12px;
+    font: bold 32px Calibri,Arial, sans-serif;
+    color: #444;
+    letter-spacing:-2px;
+}
+
+
+
+.fb-like {
+	margin: 0 10px 0 8px;
+}
+
+
+#shareButtons {
+	margin: 0;
+	padding: 2px 10px 2px 4px;
+	position: absolute;
+	left: 38px;
+	bottom: 0;
+	z-index: 1;
+	border-radius: 6px 6px 0 0;
+	border-left: 1px solid rgba(150,150,150,0.5);
+	border-right: 1px solid rgba(150,150,150,0.5);
+	border-top: 1px solid rgba(200,200,200,0.5);
+	border-bottom: 1px solid rgba(120,120,120,0.5);
+	background: linear-gradient(rgba(255,255,255,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(200,200,200,0.9));
+	background-opacity: 0.7;
+	min-width: 200px;
+}
+
+#shareButtons table {
+	margin: 0;
+	padding: 0 5px 0 0;
+}
+
+#shareButtons table td {
+	text-align: left;
+	margin: 0;
+	padding: 0 10px;
+}
+
+#shareButtons table td.button {
+	padding: 3px 0 0 12px;
+	vertical-align: top;
+}
+
+
+.cartodb-logo {
+	right: 0px !important;
+	bottom: 10px !important;
+	left: auto !important;
+}
+
+.cartodb-logo a img {
+	right: 10px !important;
+	bottom: 10px !important;
+	left: auto !important;
+}
+
+
+#guidepanel {
+	margin: 0;
+	padding: 0;
+	position: absolute;
+	left: 40px;
+	bottom: 43px;
+	height: 600px;
+	z-index: 999;
+	border-radius: 6px 6px 0 0;
+	border-left: 1px solid rgba(150,150,150,0.5);
+	border-right: 1px solid rgba(150,150,150,0.5);
+	border-top: 1px solid rgba(200,200,200,0.5);
+	border-bottom: 1px solid rgba(120,120,120,0.5);
+	background: linear-gradient(rgba(255,255,255,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9));
+	background-opacity: 0.7;
+	max-width: 560px;
+	display: none;
+}
+
+#guidepanel p {
+	font: normal 15px Verdana, Arial, sans-serif;
+	line-height: 170%;
+	margin: 0 0 10px 0;
+	padding: 0;
+}
+
+.maplink {
+	text-decoration: underline;
+	color:#057aa2;
+}
+
+.maplink:hover {
+	cursor: pointer;
+}
+
+#analysislink {
+	text-decoration: underline;
+	color:#057aa2;
+}
+
+#analysislink:hover {
+	cursor: pointer;
+}
+
+
+#guidepanel h3 {
+	font: italic bold 15px Verdana, Arial, sans-serif;
+	line-height: 100%;
+	margin: 20px 0 5px 0;
+	padding: 0;
+}
+
+
+#guideheader {
+	padding: 0;
+	margin: 0;
+	font: normal 10px Tahoma, Arial, sans-serif;
+	color: #444;
+}
+
+#guideheader ul{
+	border-radius: 6px 6px 0 0;
+	margin: 0 0 0 0;
+	padding: 0 7px 27px 15px;
+	border-bottom: 1px solid rgba(35,87,146,0.4);
+	background-color: rgba(230,230,230,0.9);
+	}
+
+#guideheader ul li{
+    float: left;
+	margin: -1px 3px 0 10px;
+	padding: 4px 9px 6px 9px;
+	display: inline-block;
+	border-top: 1px solid rgba(35,87,146,0.4);
+	border-left: 1px solid rgba(35,87,146,0.4);
+	border-right: 1px solid rgba(35,87,146,0.4);
+	border-radius: 0 0 0 0;
+	background-color: rgba(220,220,220,0.75);
+	}
+
+#guideheader ul li h2{
+	color: #777;
+	font: bold 14px Tahoma, Arial, sans-serif;
+	margin: 0;
+	padding: 0;
+	}
+
+#guideheader ul li a{
+	color: #333;
+	}
+
+#guideheader ul li.selected{
+	border-bottom: 2px solid rgba(245,245,245,1);
+	background-color: rgba(256,256,256,0.75);
+	}
+
+#guideheader ul li.unselected:hover{
+	background-color: rgba(14,188,231,0.5);
+	cursor: pointer;
+	color: #fff;
+	}
+
+#guidecontent {
+	display: block;
+	clear: both;
+	overflow: auto;
+	max-height: 550px;
+	padding: 0 25px 0 25px;
+}
+
+#analysiscontent {
+	display: none;
+	clear: both;
+	overflow: auto;
+	max-height: 550px;
+	min-width: 390px;
+	padding: 0 15px 0 25px;
+}
+
+#selectintro {
+	font: normal 14px Verdana, Arial, sans-serif;
+	line-height: 100%;
+	margin: 0 0 5px 0;
+	padding: 0;
+}
+
+#analysiscontent select {
+	font: bold 15px Tahoma, Arial, sans-serif;
+	line-height: 150%;
+	margin: 0 0 10px 0;
+	padding: 3px 5px 3px 5px;
+	color: #333;
+}
+
+#analysiscontent select option {
+
+}
+
+#analysiscontent table {
+	width: 360px;
+	font: normal 14px Verdana, Arial, sans-serif;
+	line-height: 120%;
+}
+
+#analysiscontent table tr td {
+	padding: 2px 0 2px 0;
+	background: #f9f9f9;
+	text-align: center;
+}
+
+#analysiscontent table tr.header td {
+	padding: 5px 0 5px 0;
+	font: bold 14px Verdana, Arial, sans-serif;
+	background: #6c909c;
+	color: #fff;
+}
+
+#analysiscontent table.statstable {
+  margin-left: auto;
+  margin-right: auto;
+}
+#analysiscontent table.statstable td {
+  padding: 4px;
+}
+
+#minimiseguide {
+	float: right;
+    margin: 0 0 0 2px;
+	padding: 4px 6px 7px 6px;
+	font: 22px Tahoma, Arial, sans-serif;
+	color: rgb(31,80,137);
+	line-height: 0.75;
+	z-index: 1000;
+	border-radius: 0 4px 0 0;
+	background-color: rgba(200,200,200,0.5);
+}
+
+#minimiseguide:hover {
+	background-color: rgba(31,80,137,1);
+	color: #fff;
+	cursor: pointer;
+}
+
+#guidetab {
+	color: #333;
+	margin: 0;
+	padding: 8px 10px 10px 10px;
+	position: absolute;
+	left: 70px;
+	bottom: 0;
+	z-index: 999;
+	border-radius: 6px 6px 0 0;
+	border-left: 1px solid rgba(150,150,150,0.5);
+	border-right: 1px solid rgba(150,150,150,0.5);
+	border-top: 1px solid rgba(200,200,200,0.5);
+	border-bottom: 1px solid rgba(120,120,120,0.5);
+	background: linear-gradient(rgba(255,255,255,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9));
+	background-opacity: 0.7;
+	font: bold 14px Tahoma, Arial, sans-serif;
+}
+
+#guidetab:hover {
+	cursor: pointer;
+	background: rgba(14,188,231,0.5);
+	color: #fff;
+}
+
+#analysistab {
+	color: #333;
+	margin: 0;
+	padding: 8px 10px 10px 10px;
+	position: absolute;
+	left: 180px;
+	bottom: 0;
+	z-index: 999;
+	border-radius: 6px 6px 0 0;
+	border-left: 1px solid rgba(150,150,150,0.5);
+	border-right: 1px solid rgba(150,150,150,0.5);
+	border-top: 1px solid rgba(200,200,200,0.5);
+	border-bottom: 1px solid rgba(120,120,120,0.5);
+	background: linear-gradient(rgba(255,255,255,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9),rgba(230,230,230,0.9));
+	background-opacity: 0.7;
+	font: bold 14px Tahoma, Arial, sans-serif;
+}
+
+#analysistab:hover {
+	cursor: pointer;
+	background: rgba(14,188,231,0.5);
+	color: #fff;
+}
+
+
+
+#legtext {
+    margin: -4px 5px 2px 10px;
+    padding: 0;
+	font: normal 11px Tahoma,Arial,sans-serif;
+	color: #444;
+	display: inline-block;
+}
+
+#labelcontrol {
+    margin: -4px 5px 2px 10px;
+    min-width: 300px;
+    padding: 0;
+	font: normal 11px Tahoma,Arial,sans-serif;
+	color: #444;
+	text-align: left;
+	display: inline-block;
+}
+
+#labelcontrol form #mapcontrol{
+	display: inline-block;
+	text-align: left;
+	vertical-align: bottom;
+	margin-bottom: 1px;
+	color: #777;
+}
+
+#labelcontrol form #statscontrol{
+	display: inline-block;
+	text-align: left;
+	vertical-align: bottom;
+	margin-bottom: 1px;
+	color: #777;
+}
+
+#labelcontrol form{
+	display: inline-block;
+}
+
+#legtext sup{
+	font: normal 8px Tahoma,Arial,sans-serif;
+}
+
+
+
+#legendValues tr {
+	padding: 0 0 10px 0;
+}
+
+#legendValues tr td.colsq {
+	min-width: 15px;
+	max-height: 16px;
+	padding: 0;
+	margin: 0;
+	font: normal 10px Tahoma, Arial, sans-serif;
+}
+
+#legendValues tr td.value {
+	min-width: 42px;
+	max-height: 16px;
+	font: normal 10px Tahoma,Arial,sans-serif;
+	color: #777;
+	margin: 0;
+	padding: 0;
+}
+
+#legendValues tr.spacer td {
+	font: normal 1px Tahoma,Arial,sans-serif;
+	margin: 0;
+	padding: 0;
+}
+
+
+
+#legendTable {
+	width: 505px;
+	padding: 0 0 10px 6px;
+	margin: 0;
+	border: 0;
+}
+
+#legendTable table {
+	margin: 0 0 0 5px;
+	padding: 0;
+	border-spacing: 2px;
+}
+
+#legendTable table td {
+	text-align: left;
+}
+
+#legendTable table td.button {
+	padding: 3px 0 0 0;
+	vertical-align: top;
+}
+
+
+#titletable td.credit {
+	text-align: right;
+	margin: 0;
+	padding: 5px 0 2px 0;
+	width: 170px;
+	font: normal 10px Tahoma, Arial, sans-serif;
+	color: #777;
+	line-height: 1.5;
+}
+
+#titletable td.credit img{
+	margin: 0 0 0 2px;
+	padding: 0;
+	vertical-align: middle;
+}
+
+#titletable td.credit a {
+	color: #777;
+}
+
+.dimple-title {
+	font-weight: bold;
+	font-size: 12px;
+}
+.dimple-custom-axis-label {
+	color: #eee;
+}
+    </style>
+
+
+
+</head>
+
+
+<body>
+
+
+<div id="map">
+
+</div>
+
+
+
+<div id="worldcitiestitle">
+
+<table id="titletable">
+<tr>
+<td>
+<h1>World Population Density</h1>
+</td>
+
+<td class="credit">Data: <a href="http://ghsl.jrc.ec.europa.eu/index.php" target="_blank">EC JRC &#38; CIESIN<img src="eu.gif"></a><br />Design: <a href="http://citygeographics.org/about" target="_blank">D A Smith</a> <a href="https://www.ucl.ac.uk/bartlett/casa/bartlett-centre-advanced-spatial-analysis" target="_blank">CASA, UCL</a></td>
+</table>
+
+<div id="legendTable">
+<div id="legtext">Residents per km<sup>2</sup>, 2020</div>
+<div id="labelcontrol">
+<form>
+<input type="checkbox" id="mapcontrol" checked="true" /><label>Map Labels</label>
+<input type="checkbox" id="statscontrol" /><label>Interactive Stats</label>
+</form></div>
+	<table id="legendValues">
+	<tr>
+	<td class="colsq" style="background-color:#f4fbf2;">&nbsp;</td><td class="value">20-99</td>
+	<td class="colsq" style="background-color:#a8e3e5;">&nbsp;</td><td class="value">400-1k</td>
+	<td class="colsq" style="background-color:#428acb;">&nbsp;</td><td class="value">2k-3.5k</td>
+	<td class="colsq" style="background-color:#0c4c9f;">&nbsp;</td><td class="value">5.5k-7.5k</td>
+	<td class="colsq" style="background-color:#521f8b;">&nbsp;</td><td class="value">10k-12k</td>
+	<td class="colsq" style="background-color:#990049;">&nbsp;</td><td class="value">16k-22k</td>
+	<td class="colsq" style="background-color:#ff0000;">&nbsp;</td><td class="value">30k-50k</td>
+	<td class="colsq" style="background-color:#ff9e00;">&nbsp;</td><td class="value">100k-200k</td>
+	</tr>
+	<tr>
+	<td class="colsq" style="background-color:#d9f2e5;">&nbsp;</td><td class="value">100-399</td>
+	<td class="colsq" style="background-color:#71c7d7;">&nbsp;</td><td class="value">1k-2k</td>
+	<td class="colsq" style="background-color:#2d6bb3;">&nbsp;</td><td class="value">3.5k-5.5k</td>
+	<td class="colsq" style="background-color:#00309f;">&nbsp;</td><td class="value">7.5k-10k</td>
+	<td class="colsq" style="background-color:#700080;">&nbsp;</td><td class="value">12k-16k</td>
+	<td class="colsq" style="background-color:#cc003d;">&nbsp;</td><td class="value">22k-30k</td>
+	<td class="colsq" style="background-color:#ff6200;">&nbsp;</td><td class="value">50k-100k</td>
+	<td class="colsq" style="background-color:#ffc300;">&nbsp;</td><td class="value">200k+</td>
+	</tr>
+	<tr class="spacer"><td>&nbsp;</td></tr>
+	</table>
+</div>
+</div>
+
+
+
+<div id="guidetab">Map Guide</div>
+
+<div id="analysistab">Analysis</div>
+
+<div id="guidepanel">
+<div id="minimiseguide">-</div>
+<div id="guideheader">
+<ul>
+<li id="guideh2" class="selected"><h2>Map Guide</h2></li>
+<li id="analysish2" class="unselected"><h2>Analysis</h2></li>
+</ul>
+</div>
+
+
+<div id="guidecontent">
+<h3>Visualising Population Density Across the Globe</h3>
+<p>This interactive map shows population density in 2020, measured in residents per square kilometre. The data is from the Global Human Settlement Layer (GHSL) 2023 produced by the European Commission JRC and the Center for International Earth Science Information Network at Columbia University. Integrating huge volumes of satellite data with national census data, the GHSL describes in detail the settlement geography of the entire globe, and has applications for a wide range of research and policy related to urban growth, development and sustainability. The GHSL records the complexity and diversity of human settlement, beyond simple rural-urban divisions.</p>
+<p>This website has received 500,000 visitors since 2020, illustrating the widespread interest in global population geography.  Some introductory highlights from the data are discussed below with links for further information.</p>
+
+<h3>India: the World's Most Populous Country</h3>
+<p>At the global scale, the world population density map highlights the immense concentration of humanity in India and China. Both countries have a population of 1.4 billion, with India set to move ahead of China and reach 1.5 billion by 2030. While India has many of the world's largest cities, it retains a huge rural population of around 900 million people.</p>
+<p>If we zoom in on <span class="maplink" id="IndiaLink">India</span> (click on links to focus the map), we can see the complexity of rural, peri-urban and urban landscapes, with thousands and thousands of villages, towns and cities in an intricate hierarchy. This is particularly the case along the <span class="maplink" id="GangesLink">Ganges plain</span> in northern India, stretching nearly 2000km from just east of Delhi to Dhaka in Bangladesh. This is the world's largest agricultural region, supporting a population of around 450 million people in India and 120 million in Bangladesh.</p>
+
+<h3>Megacity Regions and the Growth of China</h3>
+<p>In the early 20th century, geographers observed how rail and road networks were allowing rapidly growing cities to fuse together into vast sprawling conurbations. A classic example is the <span class="maplink" id="NEUSALink">northeastern seaboard of the USA</span>, a megalopolis as Gottman termed it, stretching hundreds of miles from Washington through New York City to Boston, with around 50m people.</p>
+
+<p>In the last thirty years, China has undergone the largest process of urbanisation in history. This process has created several of the world's biggest megacity regions, mainly located on the coast, as the economic growth of these cities has been based on manufacturing for exports, business services, and increasingly high-technology industries. In the <span class="maplink" id="PearlLink">Pearl River Delta</span>, Guangzhou, Shenzhen and Donguan have fused together to create a megacity region of 50m people (60m if Hong Kong and Macau are included). This 'Greater Bay Area' has grown from population of only 10m in 1980. A second megacity region is in the <span class="maplink" id="YangtzeLink">Yangtze River Delta</span>, based around Shangai. Shanghai alone has a population of 28m, from a base of less than 7m in 1980.
+
+<p>Another related form of megaregion comes from areas of dense agriculture that begin to urbanise with looser patterns of small scale industry. McGee first used the term desakota ("village-city") in relation to the incredible form of <span class="maplink" id="JavaLink">Java in Indonesia</span>, with the densities of urban hinterlands greatly exceeding Western cities but with activity patterns remaining dispersed and linked to agriculture. Similar desakota patterns can be seen in <span class="maplink" id="KolkataLink">Kolkata</span>, <span class="maplink" id="DhakaLink">Dhaka</span>, <span class="maplink" id="LahoreLink">Lahore</span>, and increasingly in several regions of Sub-Saharan Africa including <span class="maplink" id="SSALink">Nigeria</span> and surrounding <span class="maplink" id="VictoriaLink">Lake Victoria</span>, though with much diversity in each case.</p>
+
+<h3>Density and Development</h3>
+<p>Urban densities are linked to cultures of living, with regions such as Latin America, South Asia and East Asia noted for high density urban forms. Higher population densities are also more prevalent in the Global South, as countries with poorer transport infrastructure need to use housing more intensively. The highest density cities in the world are in South Asia and Africa, such as <span class="maplink" id="MumbaiLink">Mumbai</span>, <span class="maplink" id="DhakaLink2">Dhaka</span>, <span class="maplink" id="CairoLink">Cairo</span> and <span class="maplink" id="KinshasaLink">Kinshasa</span> (note this depends how density is measured- see the Analysis page).</p>
+<p>But these cities are more prosperous than neighbouring rural areas, and high densities can also be linked to affluence. <span class="maplink" id="SingaporeLink">Singapore</span>, <span class="maplink" id="HKLink">Hong Kong</span> and <span class="maplink" id="SeoulLink">Seoul</span> combine extremely high densities with very high levels of prosperity. The richest large western cities, such as <span class="maplink" id="LondonLink">London</span>, <span class="maplink" id="ParisLink">Paris</span>, <span class="maplink" id="NEUSALink2">New York</span> and <span class="maplink" id="SFLink">San Francisco</span> are the highest density cities in their respective countries.</p>
+<p>Another important aspect of density is its relationship with travel demand and energy use. There are many examples of huge urban regions at very low densities, most evidently in the USA with metro regions such as <span class="maplink" id="AtlantaLink">Atlanta</span> and <span class="maplink" id="HoustonLink">Houston</span>. Unsurprisingly these cities have the highest rates of transport energy use and carbon emissions in the world.</p>
+<p>Sprawl is not however limited to the USA, and similar forms at a smaller scale can be seen in countries such as Australia and Canada. The <span class="maplink" id="RhineLink">industrial heartland of Europe</span> that follows the river Rhine through western Germany to Belgium and the Netherlands, is notably dispersed and low density.</p>
+
+
+<h3>Traces of Ancient Civilisations</h3>
+<p>As well as exploring contemporary urbanism, many historic patterns remain engraved in the landscape of human settlement. Ancient cities first appeared five thousand years ago by fertile rivers that could support the intensive agricultre needed to feed an urban population. <span class="maplink" id="EgyptLink">Egypt</span> spectacularly displays the contrast between the arid Sahara and the rich lands fertilised by the Nile's annual inundation. </p>
+
+<p>The oldest cities we know of were on the Tigris and Euphrates river deltas, near modern day <span class="maplink" id="BasraLink">Basra</span> in Iraq. Another important ancient civilisation grew around the Indus Valley near <span class="maplink" id="HyderabadLink">Hyderabad</span> in modern day Pakistan. The geography of population density in Pakistan is still closely linked to the Indus river today.</p>
+
+<p>As well as rivers, some ancient transport links are visible in modern settlement patterns. The Roman road <span class="maplink" id="VALink">Via Aemilia</span> cut across Northern Italy, through what is now Bologna and Parma. Its precise straight form is still evident 2000 years after its completion.</p>
+
+
+<h3>Links to Find Out More-</h3>
+<p><a id="analysislink">Analysis Page</a>- Interactive statistics on country and city density profiles, and change over time.</p>
+<p><a href="http://ghsl.jrc.ec.europa.eu/index.php" target="_blank">Global Human Settlement Layer Data</a>- The dataset used to make this visualisation, which is open and free to download.</p>
+<p><a href="https://citygeographics.org/2023/05/21/world-population-density-map-update/" target="_blank">Citygeographics</a>- more information on this visualisation</p>
+
+<p><img src="WorldPopulationDensityMapSummaryImage.png" alt="World Population Density Map Summary Preview Image"></p>
+
+
+</div>
+
+
+<div id="analysiscontent">
+<h3>Interactive Statistics</h3>
+<p>The "Interactive Stats" checkbox at the top left of the map turns on density statistics for countries and cities which have been calculated from the GHSL data (1km scale). Roll your mouse over areas to see density and population statistics over time. Zoom in and out to switch between country and city statistics. The population data is from the United Nations World Population Prospects 2022, and includes a predicted population for 2030. More discussion on the density statistics can be found on this <a href="https://citygeographics.org/2023/05/21/world-population-density-map-update/" target="_blank">Citygeographics article.</a></p>
+
+<h3>Global Diversity in Population Density</h3>
+<p>Different countries around the world have radically different settlement patterns. If we look at the <span class="maplink" id="USALink">USA</span>, which is renowned for lower density suburban living, the bar chart of population by density class peaks at 1-2km<sup>2</sup>.</p>
+    <p><img src="USADensityStats3.png"></p>
+<p>The Population Weighted Density statistic summarises this chart, measuring 2.2k pp/km<sup>2</sup> (persons per square km) for 2020. This is the lowest recorded density of any large developed country. Small countries such as Norway and New Zealand have similar Population Weighted Density results to the USA.</p>
+<p>Latin America has for geographical and cultural reasons much higher population densities than the USA. <span class="maplink" id="MexicoLink">Mexico</span> has more than twice the Population Weighted Density at 5.7k pp/km<sup>2</sup>, while <span class="maplink" id="ColombiaLink">Colombia's</span> is one of the highest in the world at 13.5k pp/km<sup>2</sup>, as the Colombian population is strongly concentrated in high density cities, such as Bogot&aacute; and Medell&iacute;n.</p>
+<p><img src="ColombiaDensityStats3.png"></p>
+<p>The GHSL population data describes residents per square kilometre, based on underlying census data. This measure describes where people live, so areas such as Central Business Districts can appear low density if they do not include residents (see for example the very centre of London or Tokyo which are dominated by office activity and have few residents).</p>
+<p>The Person Weighted Density represents the typical density that the population experiences in the region of interest (see <a href="https://citygeographics.org/2023/05/21/world-population-density-map-update/" target="_blank">article</a> for more info). The Urban Land Area statistic uses the GHSL Settlement Model, and combines the urban, suburban and peri-urban categories at 1km scale.</p>
+
+<h3>City Population and Density Stats</h3>
+<p>If you zoom in on the map, then city level statistics can be viewed. The city boundaries are defined using urban centres from the GHSL Settlement Model data. This city definition is based on land use (built-up area and population density) rather than political/administrative boundaries, and emphasises continuous urban regions. The world's largest city regions using this definition are shown below-</p>
+
+<table class="statstable">
+    <tr><td><b>City Region name</b></td><td><b>Population 2020</b></td></tr>
+    <tr><td>Guangzhou-Shenzhen-Donguan</td><td>43.8m</td></tr>
+    <tr><td>Jakarta</td><td>38.7m</td></tr>
+    <tr><td>Tokyo</td><td>34.1m</td></tr>
+    <tr><td>Delhi</td><td>30.3m</td></tr>
+    <tr><td>Shanghai</td><td>27.8m</td></tr>
+    <tr><td>Dhaka</td><td>26.8m</td></tr>
+    <tr><td>Kolkata</td><td>26.7m</td></tr>
+    <tr><td>Manila</td><td>24.8m</td></tr>
+    <tr><td>Cairo</td><td>24.5m</td></tr>
+    <tr><td>Mumbai</td><td>22.9m</td></tr>
+</table>
+
+<p>For more analysis of the city data, see the <a href="https://citygeographics.org/2023/05/21/world-population-density-map-update/" target="_blank">Citygeographics article</a>.</p>
+
+<h3>Cartographic Aspects</h3>
+<p>The density classification and data scale used in the map influences its appearance. The classification used is non-linear (see map key top left), and the lower density classes represent changes of hundreds of people per square km, while the top classes represent changes of tens of thousands.</p>
+<p>The scale of the underlying data is also important. The GHSL population data is available at 1km and 100m scales, and both layers are used here at different zoom levels. Finally the map is influenced by the map projection used, which in this case the Mercator projection, which shrinks the area of countries near the equator, and exaggerates the land area of countries in high latitudes such as Russia, Canada and Greenland. Note the statistics are all calculated using the original data projection (World Mollweide).</p>
+</div>
+
+
+
+
+
+
+<script type="text/javascript" src="WorldBorders6.js"></script>
+<script type="text/javascript" src="UrbanCentres5.js"></script>
+
+<script type="text/javascript">
+
+
+var closeTooltip;
+var openPopup;
+var analysis = 0;
+var query;
+var CountryIndex;
+var oldCountryIndex=-1;
+
+
+
+
+const map = L.map('map', {
+    minZoom: 2,
+    maxZoom: 11,
+    worldCopyJump: true
+}).setView([20, 10], 3);
+
+
+function mapFocusOn(lat,long,zoom) {
+	map.setView([lat,long],zoom);
+};
+
+var NEUSALinkButton = document.getElementById('NEUSALink');
+var NEUSALinkButton2 = document.getElementById('NEUSALink2');
+var PearlLinkButton = document.getElementById('PearlLink');
+var YangtzeLinkButton = document.getElementById('YangtzeLink');
+var BeijingLinkButton = document.getElementById('BeijingLink');
+var KolkataLinkButton = document.getElementById('KolkataLink');
+var LahoreLinkButton = document.getElementById('LahoreLink');
+var DhakaLinkButton = document.getElementById('DhakaLink');
+var DhakaLinkButton2 = document.getElementById('DhakaLink2');
+var JavaLinkButton = document.getElementById('JavaLink');
+
+var MumbaiLinkButton = document.getElementById('MumbaiLink');
+var ManilaLinkButton = document.getElementById('ManilaLink');
+var SingaporeLinkButton = document.getElementById('SingaporeLink');
+var HKLinkButton = document.getElementById('HKLink');
+var SeoulLinkButton = document.getElementById('SeoulLink');
+var LondonLinkButton = document.getElementById('LondonLink');
+var ParisLinkButton = document.getElementById('ParisLink');
+var SFLinkButton = document.getElementById('SFLink');
+
+var AtlantaLinkButton = document.getElementById('AtlantaLink');
+var HoustonLinkButton = document.getElementById('HoustonLink');
+var EgyptLinkButton = document.getElementById('EgyptLink');
+var BasraLinkButton = document.getElementById('BasraLink');
+var HyderabadLinkButton = document.getElementById('HyderabadLink');
+var VALinkButton = document.getElementById('VALink');
+var SSALinkButton = document.getElementById('SSALink');
+var VictoriaLinkButton = document.getElementById('VictoriaLink');
+var RhineLinkButton = document.getElementById('RhineLink');
+
+var IndiaLinkButton = document.getElementById('IndiaLink');
+var GangesLinkButton = document.getElementById('GangesLink');
+var CairoLinkButton = document.getElementById('CairoLink');
+var KinshasaLinkButton = document.getElementById('KinshasaLink');
+var USALinkButton = document.getElementById('USALink');
+var MexicoLinkButton = document.getElementById('MexicoLink');
+var ColombiaLinkButton = document.getElementById('ColombiaLink');
+
+
+USALinkButton.addEventListener('click', function() {
+	map.setView([35.729,-104.106],5);
+}, false);
+
+MexicoLinkButton.addEventListener('click', function() {
+	map.setView([19.59,-102.94],6);
+}, false);
+
+ColombiaLinkButton.addEventListener('click', function() {
+	map.setView([6.02,-78.93],6);
+}, false);
+
+IndiaLinkButton.addEventListener('click', function() {
+	map.setView([22.34,78.68],6);
+}, false);
+
+GangesLinkButton.addEventListener('click', function() {
+	map.setView([26.18,84.18],7);
+}, false);
+
+CairoLinkButton.addEventListener('click', function() {
+	map.setView([30,31.23],9);
+}, false);
+
+KinshasaLinkButton.addEventListener('click', function() {
+	map.setView([-4.3485,15.3026],10);
+}, false);
+
+
+NEUSALinkButton.addEventListener('click', function() {
+	map.setView([40.71,-76.00],8);
+}, false);
+
+NEUSALinkButton2.addEventListener('click', function() {
+	map.setView([40.71,-74.00],10);
+}, false);
+
+PearlLinkButton.addEventListener('click', function() {
+	map.setView([22.6,113.26],9);
+}, false);
+
+YangtzeLinkButton.addEventListener('click', function() {
+	map.setView([31.22,121.46],9);
+}, false);
+
+/*BeijingLinkButton.addEventListener('click', function() {
+	map.setView([39.91,116.40],8);
+}, false);*/
+
+DhakaLinkButton.addEventListener('click', function() {
+	map.setView([23.71,90.41],9);
+}, false);
+
+DhakaLinkButton2.addEventListener('click', function() {
+	map.setView([23.71,90.41],9);
+}, false);
+
+LahoreLinkButton.addEventListener('click', function() {
+	map.setView([31,74.2],8);
+}, false);
+
+KolkataLinkButton.addEventListener('click', function() {
+	map.setView([22.6,88.2],9);
+}, false);
+
+JavaLinkButton.addEventListener('click', function() {
+	map.setView([-6.17,107.5],8);
+}, false);
+
+
+
+MumbaiLinkButton.addEventListener('click', function() {
+	map.setView([19.08,72.88],10);
+}, false);
+
+/*ManilaLinkButton.addEventListener('click', function() {
+	map.setView([14.6,121],8);
+}, false);*/
+
+SingaporeLinkButton.addEventListener('click', function() {
+	map.setView([1.35,103.8],10);
+}, false);
+
+HKLinkButton.addEventListener('click', function() {
+	map.setView([22.4,114.11],10);
+}, false);
+
+SeoulLinkButton.addEventListener('click', function() {
+	map.setView([37.57,126.98],10);
+}, false);
+
+LondonLinkButton.addEventListener('click', function() {
+	map.setView([51.51,-0.13],10);
+}, false);
+
+ParisLinkButton.addEventListener('click', function() {
+	map.setView([48.86,2.35],10);
+}, false);
+
+SFLinkButton.addEventListener('click', function() {
+	map.setView([37.78,-122.42],10);
+}, false);
+
+AtlantaLinkButton.addEventListener('click', function() {
+	map.setView([33.75,-84.39],10);
+}, false);
+
+HoustonLinkButton.addEventListener('click', function() {
+	map.setView([29.76,-95.37],10);
+}, false);
+
+EgyptLinkButton.addEventListener('click', function() {
+	map.setView([30,31.23],8);
+}, false);
+
+BasraLinkButton.addEventListener('click', function() {
+	map.setView([30.51,47.78],10);
+}, false);
+
+HyderabadLinkButton.addEventListener('click', function() {
+	map.setView([25.3,67.95],9);
+}, false);
+
+VALinkButton.addEventListener('click', function() {
+	map.setView([44.49,11.34],9);
+}, false);
+
+SSALinkButton.addEventListener('click', function() {
+	map.setView([6.52,3.38],7);
+}, false);
+
+VictoriaLinkButton.addEventListener('click', function() {
+	map.setView([-0.76,33.44],8);
+}, false);
+
+RhineLinkButton.addEventListener('click', function() {
+	map.setView([50.94,6.96],8);
+}, false);
+
+
+
+
+
+map.createPane('labels');
+map.getPane('labels').style.zIndex = 650;
+map.getPane('labels').style.pointerEvents = 'none';
+
+var hash = new L.Hash(map);
+var rasterLayer;
+var labelsLayer;
+
+const den = new pmtiles.PMTiles(
+  "pmtiles/WorldPopDen_z2-10.pmtiles"
+);
+
+den.getHeader().then((h) => {
+  rasterLayer = pmtiles.leafletRasterLayer(den, {
+	maxNativeZoom: 10
+  });
+  rasterLayer.addTo(map);
+
+const labels = new pmtiles.PMTiles(
+  "pmtiles/WorldPopDenLabels_z0-10.pmtiles"
+);
+
+labels.getHeader().then((h) => {
+  labelsLayer = pmtiles.leafletRasterLayer(labels, {
+    pane: 'labels',
+    maxNativeZoom: 10
+  });
+  labelsLayer.addTo(map);
+});
+
+});
+
+
+
+var labelsVisible = true;
+var interactionOn = false;
+
+var countriesLayer;
+var citiesLayer;
+
+
+				oldCountryIndex=-1;
+
+
+				function showPopup(e) {
+
+					console.log("FeatureOver");
+					var pos = e.containerPoint;
+                    console.log(pos);
+					console.log(pos.x);
+
+					CountryIndex = (e.target.feature.properties.FeatureID2-1);
+					console.log("CountryIndex: " + CountryIndex + " OldCountryIndex: " + oldCountryIndex);
+                    console.log("Target feature-");
+					console.log(e.target.feature.properties.FeatureID2);
+
+
+					if ((CountryIndex != oldCountryIndex) && (analysis==1)) {
+					document.getElementById("map").style.cursor = "pointer";
+			        oldCountryIndex=CountryIndex;
+
+
+					var pbounds = map.getPixelBounds();
+					var minbounds = pbounds.min;
+					var maxbounds = pbounds.max;
+
+					var offsetx = 250;
+					var offsety = 450;
+					var bottomdistance = (maxbounds.y-minbounds.y)-pos.y;
+					var rightdistance = (maxbounds.x-minbounds.x)-pos.x;
+
+
+					if (pos.x < 490) {offsetx=(700-pos.x);offsety=300;};
+					if (bottomdistance < 450) {offsety=-80;};
+					if (rightdistance < 420) {offsetx=(-300);};
+
+					var offsetp = new L.Point(offsetx, offsety);
+					var popup = new L.Popup({ autoPan: false, closeButton: false, offset: offsetp, minWidth: 450});
+					popup.setLatLng(e.latlng);
+
+
+
+					var csvfile;
+
+					if (map.getZoom() < 7) {csvfile="CountryStatsUpdate2023_5.csv";};
+					if (map.getZoom() > 6) {csvfile="CityStatsUpdate2023_2.csv";};
+
+
+					d3.csv(csvfile, function(CityData) {
+                    console.log("City Data by CountryIndex-");
+					console.log(CityData[CountryIndex]);
+
+					if (map.getZoom() < 7) {
+popup.setContent("<p class='title'><span style='font-weight:bold; color:#000;'>&nbsp;" + CityData[CountryIndex].NAME_ENGLISH + "&nbsp;</span></p>" + "<div id='chartTitle'>2020 Population by Density Class (pp/km<sup>2</sup>)</div><div id='chartContainer'></div>" + "<table><tr><td class='title2'>Year</td><td>1980</td><td>2000</td><td>2020</td><td>2030</td></tr></td></tr><tr><td class='title'>Population</td><td>" + (CityData[CountryIndex].Pop1980) + "m</td><td>" + (CityData[CountryIndex].Pop2000) + "m</td><td>" + (CityData[CountryIndex].Pop2020) + "m</td><td>" + (CityData[CountryIndex].Pop2030) + "m</td></tr></td></tr><tr><td class='title'>Pop. Global Rank</td><td>" + (CityData[CountryIndex].PopRank1980) + "</td><td>" + (CityData[CountryIndex].PopRank2000) + "</td><td>" + (CityData[CountryIndex].PopRank2020) + "</td><td>" + (CityData[CountryIndex].PopRank2030) + "</td></tr><tr><td class='title'>Pop. Weighted Density &nbsp;<span class='units'>(pp/km<sup>2</sup>)</span></td><td>" + (CityData[CountryIndex].PWD1980/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].PWD2000/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].PWD2020/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].PWD2030/1000).toFixed(1) + "k<tr></td></tr><td class='title'>Urban Land Area &nbsp;<span class='units'>(000s km<sup>2</sup>; incl. peri-urb.)</span></td><td>" + (CityData[CountryIndex].UrbArea1980/1).toFixed(1) + "</td><td>" + (CityData[CountryIndex].UrbArea2000/1).toFixed(1) + "</td><td>" + (CityData[CountryIndex].UrbArea2020/1).toFixed(1) + "</td><td>" + (CityData[CountryIndex].UrbArea2030/1).toFixed(1) + "</td></tr></table>");
+}
+
+					if (map.getZoom() > 6) {
+popup.setContent("<p class='title'><span style='font-weight:bold; color:#000;'>&nbsp;" + CityData[CountryIndex].Name2 + "&nbsp;</span>&nbsp;<span style='color:#666;'>&nbsp;" + CityData[CountryIndex].Country + "&nbsp;</span></p>" + "<div id='chartTitle'>2020 Population by Density Class (pp/km<sup>2</sup>)</div><div id='chartContainer'></div>" + "<table><tr><td class='title2'>Year</td><td>1980</td><td>2000</td><td>2020</td><td>2030</td></tr></td></tr><tr><td class='title'>Population</td><td>" + (CityData[CountryIndex].Pop1980/1000000).toFixed(1) + "m</td><td>" + (CityData[CountryIndex].Pop2000/1000000).toFixed(1) + "m</td><td>" + (CityData[CountryIndex].Pop2020/1000000).toFixed(1) + "m</td><td>" + (CityData[CountryIndex].Pop2030/1000000).toFixed(1) + "m</td></tr></td></tr><tr><td class='title'>Pop. Global Rank</td><td>" + (CityData[CountryIndex].PopRank1980) + "</td><td>" + (CityData[CountryIndex].PopRank2000) + "</td><td>" + (CityData[CountryIndex].PopRank2020) + "</td><td>" + (CityData[CountryIndex].PopRank2030) + "</td></tr><td class='title'>Pop. Weighted Density &nbsp;<span class='units'>(pp/km<sup>2</sup>)</span></td><td>" + (CityData[CountryIndex].PWD1980/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].PWD2000/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].PWD2020/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].PWD2030/1000).toFixed(1) + "k</td></tr><tr><td class='title'>Peak Pop. Density &nbsp;<span class='units'>(pp/km<sup>2</sup>)</span></td><td>" + (CityData[CountryIndex].Peak1980/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].Peak2000/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].Peak2020/1000).toFixed(1) + "k</td><td>" + (CityData[CountryIndex].Peak2030/1000).toFixed(1) + "k<tr></td></tr></table>");
+}
+
+
+						 window.clearTimeout(openPopup);
+/*						  if (!L.Browser.ie && !L.Browser.opera) {
+							  layer.bringToFront();
+						  }*/
+
+                        //map.closePopup();
+                        if (!popup._map) popup.openOn(map);
+
+						var svg = dimple.newSvg("#chartContainer", 470, 250);
+
+						chartdata = [
+						  { "Density Class (pp/km2)":"100k-200k","Population":(CityData[CountryIndex].DenClass16*1000000),"Order":16},
+						  { "Density Class (pp/km2)":"50k-100k","Population":(CityData[CountryIndex].DenClass15*1000000),"Order":15},
+						  { "Density Class (pp/km2)":"30k-50k","Population":(CityData[CountryIndex].DenClass14*1000000),"Order":14},
+						  { "Density Class (pp/km2)":"22k-30k","Population":(CityData[CountryIndex].DenClass13*1000000),"Order":13},
+						  { "Density Class (pp/km2)":"16k-22k","Population":(CityData[CountryIndex].DenClass12*1000000),"Order":12},
+						  { "Density Class (pp/km2)":"12k-16k","Population":(CityData[CountryIndex].DenClass11*1000000),"Order":11},
+						  { "Density Class (pp/km2)":"10k-12k","Population":(CityData[CountryIndex].DenClass10*1000000),"Order":10},
+						  { "Density Class (pp/km2)":"7k-10k","Population":(CityData[CountryIndex].DenClass9*1000000),"Order":9},
+						  { "Density Class (pp/km2)":"5k-7k","Population":(CityData[CountryIndex].DenClass8*1000000),"Order":8},
+						  { "Density Class (pp/km2)":"3k-5k","Population":(CityData[CountryIndex].DenClass7*1000000),"Order":7},
+						  { "Density Class (pp/km2)":"2k-3k","Population":(CityData[CountryIndex].DenClass6*1000000),"Order":6},
+						  { "Density Class (pp/km2)":"1k-2k","Population":(CityData[CountryIndex].DenClass5*1000000),"Order":5},
+						  { "Density Class (pp/km2)":"400-1k","Population":(CityData[CountryIndex].DenClass4*1000000),"Order":4},
+						  { "Density Class (pp/km2)":"100-400","Population":(CityData[CountryIndex].DenClass3*1000000),"Order":3},
+						  { "Density Class (pp/km2)":"0-100","Population":(CityData[CountryIndex].DenClass2*1000000),"Order":2},
+						];
+
+                        console.log(chartdata);
+
+						var myChart = new dimple.chart(svg, chartdata);
+						myChart.setBounds(38, 10, 390, 140);
+
+
+						var x = myChart.addCategoryAxis("x", "Density Class (pp/km2)");
+						var y = myChart.addMeasureAxis("y", "Population");
+						y.ticks = 6;
+      					x.addOrderRule("Order");
+						myChart.addSeries(null, dimple.plot.bar);
+
+
+
+						myChart.draw(200);
+						y.titleShape.text("");
+						x.titleShape.text("");
+
+        				d3.selectAll("rect")
+						  .style("stroke-width", "0");
+						svg.selectAll("path.domain").style("stroke", "#CCC");
+						svg.selectAll("g.tick line").style("stroke", "#CCC");
+						svg.selectAll("text.dimple-custom-axis-label").style("fill", "#666");
+
+        				d3.select("rect#All_0-100___")
+						  .style("fill", "#f4fbf2");
+        				d3.select("rect#All_100-400___")
+						  .style("fill", "#bfe6d1");
+        				d3.select("rect#All_400-1k___")
+						  .style("fill", "#92d8db");
+        				d3.select("rect#All_2k-3k___")
+						  .style("fill", "#3b84c7");
+        				d3.select("rect#All_5k-7k___")
+						  .style("fill", "#0c4c9f");
+        				d3.select("rect#All_10k-12k___")
+						  .style("fill", "#521f8b");
+        				d3.select("rect#All_16k-22k___")
+						  .style("fill", "#990049");
+        				d3.select("rect#All_30k-50k___")
+						  .style("fill", "#ff0000");
+        				d3.select("rect#All_100k-200k___")
+						  .style("fill", "#ff9e00");
+
+        				d3.select("rect#All_1k-2k___")
+						  .style("fill", "#52b2c4");
+        				d3.select("rect#All_3k-5k___")
+						  .style("fill", "#2d6bb3");
+        				d3.select("rect#All_7k-10k___")
+						  .style("fill", "#0033aa");
+        				d3.select("rect#All_12k-16k___")
+						  .style("fill", "#700080");
+        				d3.select("rect#All_22k-30k___")
+						  .style("fill", "#cc003d");
+        				d3.select("rect#All_50k-100k___")
+						  .style("fill", "#ff6200");
+        				d3.select("rect#All_200k___")
+						  .style("fill", "#ffc300");
+
+                    });
+
+
+					}
+
+
+					oldCountryIndex = CountryIndex;
+					console.log("OldCountryIndex: " + oldCountryIndex);
+
+					};
+
+
+/*            	countriesLayer.on('featureOver', function(e, latlng, pos, data) {
+            			console.log("Feature Over");
+						showPopup(e, latlng, pos, data);
+				    });
+            	countriesLayer.on('featureClick', function(e, latlng, pos, data) {
+						showPopup(e, latlng, pos, data);
+				    });
+
+				  countriesLayer.on('featureOut', function(e, latlng, pos, data) {
+					  console.log("FeatureOut");
+					  document.getElementById("map").style.cursor = "auto";
+			          cityHighlight.clearLayers();
+					  map.removeLayer(cityHighlight);
+					  oldCountryIndex = -1;
+					  closeTooltip = window.setTimeout(function() {
+						 map.closePopup();
+					  }, 1);
+				  });*/
+
+
+
+ function highlightFeature(e) {
+    var layer = e.target;
+    layer.setStyle({
+        weight: 2,
+        opacity: 0.7,
+        fillColor: '#ffc047',
+        fillOpacity: 0.05,
+        color: '#ffdb12'
+    });
+    console.log(e);
+    console.log(e.target.feature.properties.ISO_A3);
+    openPopup = window.setTimeout(function(){
+    showPopup(e);
+    }, 200);
+    //layer.bringToFront();
+}
+
+function resetHighlight(e) {
+  window.clearTimeout(openPopup);
+  countriesLayer.resetStyle(e.target);
+  citiesLayer.resetStyle(e.target);
+  console.log("FeatureOut");
+  document.getElementById("map").style.cursor = "auto";
+  oldCountryIndex = -1;
+  //closeTooltip = window.setTimeout(function() {
+  map.closePopup();
+  //}, 1);
+}
+
+
+function onEachFeature(feature, layer) {
+    layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight
+    });
+}
+
+
+
+
+var countryStyle = {
+    "color": "#fff",
+    "weight": 1,
+    "opacity": 0
+};
+
+
+countriesLayer = L.geoJson(worldBorders, {
+    style: countryStyle,
+    pane: 'labels',
+    onEachFeature: onEachFeature,
+    interactive: true
+});
+
+citiesLayer = L.geoJson(cityBorders, {
+    style: countryStyle,
+    pane: 'labels',
+    onEachFeature: onEachFeature,
+    interactive: true
+});
+
+var previousZoom;
+
+map.on('zoom', function() {
+    console.log(map.getZoom());
+    if ((map.getZoom() > 6) && (previousZoom < 7) && (analysis==1)) {
+        console.log("Zoom In Change");
+        map.closePopup();
+        countriesLayer.resetStyle();
+        map.addLayer(citiesLayer);
+        map.removeLayer(countriesLayer);
+    }
+    if ((map.getZoom() < 7) && (previousZoom > 6) && (analysis==1)) {
+        console.log("Zoom Out Change");
+        map.closePopup();
+        citiesLayer.resetStyle();
+        map.addLayer(countriesLayer);
+        map.removeLayer(citiesLayer);
+    }
+    previousZoom = map.getZoom();
+});
+
+document.getElementById("mapcontrol").onclick = function() {
+    if (labelsVisible) {
+    map.removeLayer(labelsLayer);
+    labelsVisible = false;
+    } else {
+    map.addLayer(labelsLayer);
+    labelsVisible = true;}
+    };
+
+document.getElementById("statscontrol").onclick = function() {
+    if (interactionOn) {
+    map.removeLayer(countriesLayer);
+    map.removeLayer(citiesLayer);
+    interactionOn = false;
+    analysis = 0;
+    } else {
+    if (map.getZoom() < 7) {map.addLayer(countriesLayer)};
+    if (map.getZoom() > 6) {map.addLayer(citiesLayer)};
+    interactionOn = true;
+    analysis=1;}
+    };
+
+
+var minGButton = document.getElementById('minimiseguide');
+var maxGButton = document.getElementById('guidetab');
+var maxAButton = document.getElementById('analysistab');
+
+minGButton.addEventListener('click', function() {
+	document.getElementById('guidetab').style.zIndex="999"
+	document.getElementById('analysistab').style.zIndex="999"
+	document.getElementById('guidepanel').style.display="none"
+}, false);
+
+
+maxGButton.addEventListener('click', function() {
+	document.getElementById('guidetab').style.zIndex="-999"
+	document.getElementById('analysistab').style.zIndex="-999"
+	document.getElementById('guidepanel').style.display="block"
+	document.getElementById('guidecontent').style.display="block"
+	document.getElementById('analysiscontent').style.display="none"
+	document.getElementById('guideh2').className="selected"
+	document.getElementById('analysish2').className="unselected"
+}, false);
+
+maxAButton.addEventListener('click', function() {
+	document.getElementById('guidetab').style.zIndex="-999"
+	document.getElementById('analysistab').style.zIndex="-999"
+	document.getElementById('guidepanel').style.display="block"
+	document.getElementById('guidecontent').style.display="none"
+	document.getElementById('analysiscontent').style.display="block"
+	document.getElementById('guideh2').className="unselected"
+	document.getElementById('analysish2').className="selected"
+	analysis = 1
+	if (map.getZoom() < 7) {layer.getSubLayer(1).setInteraction(false);layer.getSubLayer(0).setInteraction(true);}
+	if (map.getZoom() > 6) {layer.getSubLayer(0).setInteraction(false);layer.getSubLayer(1).setInteraction(true);}
+	document.getElementById("statscontrol").checked = true
+}, false);
+
+var showGuideButton = document.getElementById('guideh2');
+var showAnalysisButton = document.getElementById('analysish2');
+var showAnalysisButton2 = document.getElementById('analysislink');
+
+showGuideButton.addEventListener('click', function() {
+	document.getElementById('guidecontent').style.display="block"
+	document.getElementById('analysiscontent').style.display="none"
+	document.getElementById('guideh2').className="selected"
+	document.getElementById('analysish2').className="unselected"
+}, false);
+
+showAnalysisButton.addEventListener('click', function() {
+	document.getElementById('guidecontent').style.display="none"
+	document.getElementById('analysiscontent').style.display="block"
+	document.getElementById('guideh2').className="unselected"
+	document.getElementById('analysish2').className="selected"
+	analysis = 1
+	if (map.getZoom() < 7) {layer.getSubLayer(1).setInteraction(false);layer.getSubLayer(0).setInteraction(true);}
+	if (map.getZoom() > 6) {layer.getSubLayer(0).setInteraction(false);layer.getSubLayer(1).setInteraction(true);}
+	document.getElementById("statscontrol").checked = true
+}, false);
+
+showAnalysisButton2.addEventListener('click', function() {
+	document.getElementById('guidecontent').style.display="none"
+	document.getElementById('analysiscontent').style.display="block"
+	document.getElementById('guideh2').className="unselected"
+	document.getElementById('analysish2').className="selected"
+	analysis = 1
+	if (map.getZoom() < 7) {layer.getSubLayer(1).setInteraction(false);layer.getSubLayer(0).setInteraction(true);}
+	if (map.getZoom() > 6) {layer.getSubLayer(0).setInteraction(false);layer.getSubLayer(1).setInteraction(true);}
+	document.getElementById("statscontrol").checked = true
+}, false);
+
+
+        </script>
+    </body>
+</html>
